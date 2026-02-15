@@ -17,4 +17,23 @@ export class AiController {
     const { difficulty, topic } = body;
     return this.aiService.generateChallenge(difficulty, topic);
   }
+
+  @Post('analyze-code')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Analyze code using Python AI service' })
+  async analyzeCode(
+    @Body()
+    body: {
+      code: string;
+      language?: string;
+      tests_passed?: boolean;
+      execution_error?: string;
+      runtime_ms?: number;
+      memory_kb?: number;
+      task_description?: string;
+    },
+  ) {
+    return this.aiService.analyzeCode(body);
+  }
 }
