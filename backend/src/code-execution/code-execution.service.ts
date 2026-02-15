@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+/* eslint-disable prettier/prettier */
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ExecuteCodeDto } from './dto/execute-code.dto';
 import axios from 'axios';
 
@@ -19,10 +20,21 @@ export class CodeExecutionService {
 
   async executeCode(dto: ExecuteCodeDto) {
     const { code, language, testCases } = dto;
+
+    if (!code || !code.trim()) {
+      throw new BadRequestException('Code cannot be empty');
+    }
+
+    if (!testCases || testCases.length === 0) {
+      throw new BadRequestException('At least one test case is required');
+    }
+
     const version = this.languageVersionMap[language.toLowerCase()];
 
     if (!version) {
-      throw new Error(`Unsupported language: ${language}`);
+      throw new BadRequestException(
+        `Unsupported language: ${language}. Supported languages: ${Object.keys(this.languageVersionMap).join(', ')}`,
+      );
     }
 
     const results = [];

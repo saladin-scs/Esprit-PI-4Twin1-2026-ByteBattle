@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -12,6 +13,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { AchievementsModule } from './achievements/achievements.module';
 import { ChatModule } from './chat/chat.module';
 import { AiModule } from './ai/ai.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { AiModule } from './ai/ai.module';
     AchievementsModule,
     ChatModule,
     AiModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Controller, Post, Body, UseGuards, Get, Request, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';

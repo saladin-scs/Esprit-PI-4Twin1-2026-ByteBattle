@@ -1,19 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { challengesApi } from '../../services/api';
-
-interface Challenge {
-  _id: string;
-  title: string;
-  description: string;
-  difficulty: string;
-  starterCode: string;       // <-- add this
-  testCases: Array<{         // <-- add this
-    input: any;
-    output: any;
-  }>;
-  tags: string[];
-  solvedCount: number;
-}
+import type { Challenge } from '../../types/challenge';
 
 interface ChallengesState {
   challenges: Challenge[];
@@ -61,6 +48,9 @@ const challengesSlice = createSlice({
       .addCase(fetchChallenges.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch challenges';
+      })
+      .addCase(fetchChallenge.pending, (state) => {
+        state.currentChallenge = null;
       })
       .addCase(fetchChallenge.fulfilled, (state, action) => {
         state.currentChallenge = action.payload;

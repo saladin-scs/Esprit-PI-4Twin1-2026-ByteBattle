@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { ExecuteTestCase } from '../types/challenge';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -35,8 +36,20 @@ export const challengesApi = {
 };
 
 export const codeExecutionApi = {
-  execute: (data: { code: string; language: string; testCases: any[] }) =>
+  execute: (data: { code: string; language: string; testCases: ExecuteTestCase[] }) =>
     apiClient.post('/code-execution/run', data),
+};
+
+export const feedbackApi = {
+  analyze: (data: {
+    code: string;
+    language?: string;
+    tests_passed?: boolean;
+    execution_error?: string;
+    runtime_ms?: number;
+    memory_kb?: number;
+    task_description?: string;
+  }) => apiClient.post('/feedback/analyze', data),
 };
 
 export const competitionsApi = {
