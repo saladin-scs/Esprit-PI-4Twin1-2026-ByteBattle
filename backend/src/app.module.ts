@@ -14,6 +14,7 @@ import { AchievementsModule } from './achievements/achievements.module';
 import { ChatModule } from './chat/chat.module';
 import { AiModule } from './ai/ai.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     ChatModule,
     AiModule,
     FeedbackModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

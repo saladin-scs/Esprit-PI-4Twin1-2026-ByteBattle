@@ -37,7 +37,7 @@ bytebattle/
 - Node.js 18+
 - Docker & Docker Compose
 - MongoDB (or use Docker)
-- OpenAI/Anthropic API key (for AI features)
+- OpenRouter API key (for AI challenge generation) (optional)
 
 ### Installation Steps
 
@@ -91,8 +91,10 @@ MONGODB_URI=mongodb://localhost:27017/bytebattle
 JWT_SECRET=your-secret-key
 JWT_EXPIRES_IN=7d
 CORS_ORIGIN=http://localhost:5173
-OPENAI_API_KEY=your-openai-api-key
-ANTHROPIC_API_KEY=your-anthropic-api-key
+AI_SERVICE_URL=http://localhost:8000
+OPENROUTER_API_KEY=your-openrouter-api-key
+HTTP_BODY_LIMIT=1mb
+RATE_LIMIT_POINTS_PER_MINUTE=120
 ```
 
 ### Frontend (.env)

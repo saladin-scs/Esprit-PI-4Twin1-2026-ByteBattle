@@ -33,8 +33,7 @@ ByteBattle is a gamified coding challenge platform that enables students and dev
 - API Documentation: Swagger/OpenAPI
 
 ### AI Integration
-- OpenAI API / Anthropic Claude API
-- Challenge generation and code analysis
+- OpenRouter (challenge generation) + microservice FastAPI (code analysis)
 
 ### DevOps
 - Docker & Docker Compose
@@ -81,11 +80,14 @@ npm install
 
 3. Set up environment variables:
 ```bash
+# Docker Compose (optional, recommended for local dev)
+# Copy .env.example to .env at repo root and adjust values
+
 # Backend - Create .env file in backend/
-cp backend/.env.example backend/.env
+# Copy backend/.env.example to backend/.env and adjust values
 
 # Frontend - Create .env file in frontend/
-cp frontend/.env.example frontend/.env
+# Copy frontend/.env.example to frontend/.env (optional)
 ```
 
 4. Start with Docker Compose:

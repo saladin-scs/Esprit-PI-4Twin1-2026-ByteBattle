@@ -7,7 +7,13 @@ import axios from 'axios';
 export class CodeExecutionService {
   private readonly logger = new Logger(CodeExecutionService.name);
 
-  private readonly pistonEndpoint = 'https://emkc.org/api/v2/piston/execute';
+  private readonly pistonEndpoint =
+    process.env.PISTON_ENDPOINT || 'https://emkc.org/api/v2/piston/execute';
+
+  private readonly requestTimeoutMs = Number(process.env.CODE_EXECUTION_TIMEOUT_MS || 15000);
+  private readonly maxTestCases = Number(process.env.CODE_EXECUTION_MAX_TESTCASES || 20);
+  private readonly maxCodeChars = Number(process.env.CODE_EXECUTION_MAX_CODE_CHARS || 20000);
+  private readonly maxStdinChars = Number(process.env.CODE_EXECUTION_MAX_STDIN_CHARS || 5000);
 
   // Map human-readable languages to supported Piston runtime versions
   private languageVersionMap: Record<string, string> = {
@@ -25,8 +31,16 @@ export class CodeExecutionService {
       throw new BadRequestException('Code cannot be empty');
     }
 
+    if (code.length > this.maxCodeChars) {
+      throw new BadRequestException(`Code is too large (max ${this.maxCodeChars} chars)`);
+    }
+
     if (!testCases || testCases.length === 0) {
       throw new BadRequestException('At least one test case is required');
+    }
+
+    if (testCases.length > this.maxTestCases) {
+      throw new BadRequestException(`Too many test cases (max ${this.maxTestCases})`);
     }
 
     const version = this.languageVersionMap[language.toLowerCase()];
@@ -41,14 +55,26 @@ export class CodeExecutionService {
 
     for (const [index, testCase] of testCases.entries()) {
       try {
+        const stdin = String(testCase.input ?? '');
+        if (stdin.length > this.maxStdinChars) {
+          throw new BadRequestException(
+            `Test case ${index + 1} input is too large (max ${this.maxStdinChars} chars)`,
+          );
+        }
+
         const payload = {
           language: language.toLowerCase(),
           version,
           files: [{ name: 'main', content: code }],
-          stdin: testCase.input ?? '',
+          stdin,
         };
 
-        const response = await axios.post(this.pistonEndpoint, payload);
+        const response = await axios.post(this.pistonEndpoint, payload, {
+          timeout: Number.isFinite(this.requestTimeoutMs) ? this.requestTimeoutMs : 15000,
+          headers: { 'Content-Type': 'application/json' },
+          maxBodyLength: 1_000_000,
+          maxContentLength: 1_000_000,
+        });
 
         const output = response.data?.run?.stdout?.trim() || '';
         const error = response.data?.run?.stderr?.trim() || '';
@@ -68,7 +94,7 @@ export class CodeExecutionService {
           testCase: index + 1,
           passed: false,
           output: '',
-          error: err.message,
+          error: err?.response?.data?.message || err.message || 'Execution failed',
           executionTime: 0,
         });
       }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { login } from '../../store/slices/authSlice';
 import { AppDispatch } from '../../store/store';
 
@@ -56,6 +57,11 @@ function Login() {
           >
             Login
           </button>
+          <div className="mt-4 text-sm text-gray-300">
+            <Link className="text-primary-400 hover:underline" to="/forgot-password">
+              Mot de passe oublié ?
+            </Link>
+          </div>
         </form>
       </div>
     </div>

@@ -2,8 +2,7 @@
 // src/feedback/feedback.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import axios, { AxiosResponse } from 'axios';
+import { AiService } from '../ai/ai.service';
 
 interface FeedbackPoint {
   title: string;
@@ -32,13 +31,8 @@ interface CodeAnalysisRequest {
 @Injectable()
 export class FeedbackService {
   private readonly logger = new Logger(FeedbackService.name);
-  private readonly aiServiceUrl: string;
 
-  constructor(private configService: ConfigService) {
-    this.aiServiceUrl =
-      this.configService.get<string>('AI_SERVICE_URL') ||
-      'http://localhost:8000';
-  }
+  constructor(private readonly aiService: AiService) {}
 
   /**
    * Sends code to the Python AI service and returns structured analysis.
@@ -47,33 +41,11 @@ export class FeedbackService {
    */
   async getFeedback(request: CodeAnalysisRequest): Promise<FeedbackResponse> {
     try {
-      const url = `${this.aiServiceUrl}/ai/analyze-code`;
-      this.logger.debug(`Calling AI service at ${url}`);
-
-      const response: AxiosResponse<FeedbackResponse> = await axios.post(
-        url,
-        {
-          code: request.code,
-          language: request.language || 'python',
-          tests_passed: request.tests_passed,
-          execution_error: request.execution_error,
-          runtime_ms: request.runtime_ms,
-          memory_kb: request.memory_kb,
-          task_description: request.task_description,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000, // 30 second timeout
-        },
-      );
-
-      return response.data;
+      return await this.aiService.analyzeCode(request as any);
     } catch (error: any) {
       this.logger.error(
         'Error calling AI service:',
-        error.response?.data ?? error.message,
+        error?.message ?? error,
       );
 
       // Return a safe fallback response

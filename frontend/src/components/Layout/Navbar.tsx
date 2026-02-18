@@ -7,6 +7,7 @@ function Navbar() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+  const isAdmin = !!user?.roles?.includes('admin');
 
   const handleLogout = () => {
     dispatch(logout());
@@ -51,7 +52,23 @@ function Navbar() {
                 >
                   Dashboard
                 </Link>
-                <span className="text-gray-300">{user?.username}</span>
+                <Link
+                  to="/settings/profile"
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Settings
+                </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin/users"
+                    className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    Admin
+                  </Link>
+                )}
+                <Link to={`/u/${user?.username}`} className="text-gray-300 hover:text-white">
+                  {user?.username}
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
