@@ -1,8 +1,10 @@
+/* eslint-disable prettier/prettier */
 import { Injectable, ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { SecurityEventsService } from '../security-events/security-events.service';
 
 @Injectable()
@@ -130,7 +132,7 @@ export class UsersService {
     const q = this.userModel.findOne({ email: String(email || '').toLowerCase().trim() });
     if (opts?.includeSensitive) {
       q.select(
-        '+password +emailVerificationTokenHash +passwordResetTokenHash +refreshTokens',
+        '+password +emailVerificationTokenHash +passwordResetTokenHash +refreshTokens +twoFactorSecret +twoFactorBackupCodes',
       );
     }
     return q.exec();
@@ -140,7 +142,7 @@ export class UsersService {
     return this.userModel
       .findById(userId)
       .select(
-        '+password +emailVerificationTokenHash +passwordResetTokenHash +refreshTokens',
+        '+password +emailVerificationTokenHash +passwordResetTokenHash +refreshTokens +twoFactorSecret +twoFactorBackupCodes',
       )
       .exec();
   }
@@ -162,22 +164,73 @@ export class UsersService {
       .exec();
   }
 
-  async getMeStats(userId: string) {
-    const user = await this.userModel
-      .findById(userId)
-      .select('rating totalChallengesSolved totalBattlesWon achievements createdAt')
+  async findByProviderId(field: 'googleId' | 'githubId', providerId: string) {
+    return this.userModel
+      .findOne({ [field]: providerId })
+      .select('-password -emailVerificationTokenHash -passwordResetTokenHash -refreshTokens')
       .exec();
-    if (!user) return null;
-
-    const totalBattles = user.totalBattlesWon ?? 0;
-    return {
-      rating: user.rating ?? 0,
-      totalChallengesSolved: user.totalChallengesSolved ?? 0,
-      totalBattlesWon: user.totalBattlesWon ?? 0,
-      achievementsCount: user.achievements?.length ?? 0,
-      memberSince: user.createdAt,
-      // Placeholder for future battle stats once competitions results are persisted
-      totalBattles,
-    };
   }
+
+  async createFromSocial(data: {
+    email: string;
+    usernameBase: string;
+    displayName?: string;
+    avatarUrl?: string;
+    provider: 'google' | 'github';
+    providerId: string;
+    emailVerified?: boolean;
+  }): Promise<UserDocument> {
+    const base = String(data.usernameBase || 'user')
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '') || 'user';
+    let username = base;
+    let counter = 0;
+
+    // ensure unique username
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      // eslint-disable-next-line no-await-in-loop
+      const exists = await this.userModel.findOne({ username }).select('_id').exec();
+      if (!exists) break;
+      counter += 1;
+      username = `${base}${counter}`;
+    }
+
+    const randomPassword = crypto.randomBytes(16).toString('hex');
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+    const providerField = data.provider === 'google' ? 'googleId' : 'githubId';
+
+    const user = new this.userModel({
+      email: String(data.email || '').toLowerCase().trim(),
+      username,
+      displayName: data.displayName,
+      avatarUrl: data.avatarUrl,
+      password: hashedPassword,
+      authProvider: data.provider,
+      [providerField]: data.providerId,
+      emailVerifiedAt: data.emailVerified ? new Date() : null,
+    } as any);
+
+    return user.save();
+  }
+
+ async getMeStats(userId: string) {
+  const user = await this.userModel
+    .findById(userId)
+    .select('rating totalChallengesSolved totalBattlesWon achievements createdAt')
+    .exec();
+  if (!user) return null;
+
+  const totalBattles = user.totalBattlesWon ?? 0;
+  return {
+    rating: user.rating ?? 0,
+    totalChallengesSolved: user.totalChallengesSolved ?? 0,
+    totalBattlesWon: user.totalBattlesWon ?? 0,
+    achievementsCount: user.achievements?.length ?? 0,
+    memberSince: (user as any).createdAt, // Use type assertion here
+    // Or use: memberSince: (user as UserDocument & { createdAt: Date }).createdAt,
+    totalBattles,
+  };
+}
 }

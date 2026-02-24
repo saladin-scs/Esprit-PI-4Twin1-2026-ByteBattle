@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
@@ -69,6 +70,16 @@ export class User {
   @Prop({ default: false })
   isAdmin: boolean;
 
+  // Social auth
+  @Prop({ default: null, index: true, sparse: true })
+  googleId?: string | null;
+
+  @Prop({ default: null, index: true, sparse: true })
+  githubId?: string | null;
+
+  @Prop({ default: null })
+  authProvider?: 'local' | 'google' | 'github' | null;
+
   // Email verification & password reset
   @Prop({ default: null })
   emailVerifiedAt?: Date | null;
@@ -106,6 +117,28 @@ export class User {
     revokedAt?: Date;
     ip?: string;
     userAgent?: string;
+  }>;
+
+  // Two-factor authentication (TOTP)
+  @Prop({ default: false })
+  twoFactorEnabled?: boolean;
+
+  @Prop({ default: null, select: false })
+  twoFactorSecret?: string | null;
+
+  @Prop({
+    type: [
+      {
+        codeHash: { type: String, required: true, select: false },
+        usedAt: { type: Date },
+      },
+    ],
+    default: [],
+    select: false,
+  })
+  twoFactorBackupCodes?: Array<{
+    codeHash: string;
+    usedAt?: Date;
   }>;
 }
 

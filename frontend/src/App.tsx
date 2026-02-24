@@ -15,6 +15,7 @@ import AdminUsers from './pages/Admin/Users';
 import VerifyEmail from './pages/Auth/VerifyEmail';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ResetPassword from './pages/Auth/ResetPassword';
+import SocialCallback from './pages/Auth/SocialCallback';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/auth/social/callback" element={<SocialCallback />} />
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/challenges/:id" element={<ChallengeDetail />} />
         <Route path="/dashboard" element={<Dashboard />} />

@@ -63,7 +63,12 @@ export class AdminService {
 
   async updateUser(userId: string, update: { roles?: string[]; isActive?: boolean }) {
     const set: any = {};
-    if (Array.isArray(update.roles)) set.roles = update.roles;
+    if (Array.isArray(update.roles)) {
+      const roles = update.roles.length ? update.roles : ['user'];
+      set.roles = roles;
+      // keep legacy isAdmin flag in sync for backward compatibility
+      set.isAdmin = roles.includes('admin');
+    }
     if (typeof update.isActive === 'boolean') set.isActive = update.isActive;
 
     const user = await this.userModel

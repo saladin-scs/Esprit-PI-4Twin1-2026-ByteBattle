@@ -9,6 +9,7 @@ interface User {
   displayName?: string;
   avatarUrl?: string;
   emailVerifiedAt?: string | null;
+  twoFactorEnabled?: boolean;
 }
 
 interface AuthState {
@@ -16,6 +17,8 @@ interface AuthState {
   token: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
+  twoFactorRequired: boolean;
+  twoFactorToken: string | null;
   loading: boolean;
   error: string | null;
 }
@@ -25,20 +28,36 @@ const initialState: AuthState = {
   token: localStorage.getItem('token'),
   refreshToken: localStorage.getItem('refresh_token'),
   isAuthenticated: !!localStorage.getItem('token'),
+  twoFactorRequired: false,
+  twoFactorToken: null,
   loading: false,
   error: null,
 };
 
 export const login = createAsyncThunk(
   'auth/login',
-  async (credentials: { email: string; password: string }) => {
+  async (credentials: { email: string; password: string; rememberMe?: boolean }) => {
     const response = await authApi.login(credentials);
+    if (!response.data?.twoFactorRequired) {
+      localStorage.setItem('token', response.data.access_token);
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+      }
+    }
+    return response.data;
+  }
+);
+
+export const verify2faLogin = createAsyncThunk(
+  'auth/verify2faLogin',
+  async (data: { twoFactorToken: string; code: string; rememberMe?: boolean }) => {
+    const response = await authApi.verify2faLogin(data);
     localStorage.setItem('token', response.data.access_token);
     if (response.data.refresh_token) {
       localStorage.setItem('refresh_token', response.data.refresh_token);
     }
     return response.data;
-  }
+  },
 );
 
 export const register = createAsyncThunk(
@@ -83,14 +102,41 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
+        if (action.payload?.twoFactorRequired) {
+          state.twoFactorRequired = true;
+          state.twoFactorToken = action.payload.twoFactorToken;
+          state.user = action.payload.user || null;
+          state.isAuthenticated = false;
+          state.token = null;
+        } else {
+          state.twoFactorRequired = false;
+          state.twoFactorToken = null;
+          state.user = action.payload.user;
+          state.token = action.payload.access_token;
+          state.refreshToken = action.payload.refresh_token || state.refreshToken;
+          state.isAuthenticated = true;
+        }
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Login failed';
+      })
+      .addCase(verify2faLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verify2faLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.twoFactorRequired = false;
+        state.twoFactorToken = null;
         state.user = action.payload.user;
         state.token = action.payload.access_token;
         state.refreshToken = action.payload.refresh_token || state.refreshToken;
         state.isAuthenticated = true;
       })
-      .addCase(login.rejected, (state, action) => {
+      .addCase(verify2faLogin.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Login failed';
+        state.error = action.error.message || '2FA verification failed';
       })
       .addCase(register.pending, (state) => {
         state.loading = true;
@@ -124,6 +170,7 @@ const authSlice = createSlice({
             displayName: u.displayName,
             avatarUrl: u.avatarUrl,
             emailVerifiedAt: u.emailVerifiedAt || null,
+            twoFactorEnabled: u.twoFactorEnabled || false,
           };
           state.isAuthenticated = true;
         }
