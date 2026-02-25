@@ -8,6 +8,7 @@ import { codeExecutionApi, feedbackApi } from '../../services/api';
 import FeedbackDisplay from '../../components/Feedback/FeedbackDisplay';
 import { FeedbackResponse } from '../../types/feedback';
 import type { Challenge, TestCase } from '../../types/challenge';
+import { PageContainer, Button, Card, Spinner, Alert } from '../../shared/components';
 
 const STORAGE_KEY_PREFIX = 'bytebattle-challenge-';
 
@@ -182,12 +183,12 @@ function ChallengeDetail() {
 
   if (!currentChallenge) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex items-center justify-center gap-2 text-gray-400">
-          <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-600 border-t-transparent"></div>
-          <span>Loading challenge...</span>
+      <PageContainer maxWidth="7xl" className="py-12">
+        <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
+          <Spinner size="md" />
+          <span>Chargement du défi…</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -199,19 +200,19 @@ function ChallengeDetail() {
   const diffClass = difficultyColors[currentChallenge.difficulty] ?? difficultyColors.medium;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <PageContainer maxWidth="7xl" className="py-12">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
           <div className="flex flex-wrap items-center gap-3 mb-4">
-            <h1 className="text-3xl font-bold text-white">{currentChallenge.title}</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{currentChallenge.title}</h1>
             <span className={`px-3 py-1 rounded-full text-sm font-medium border capitalize ${diffClass}`}>
               {currentChallenge.difficulty}
             </span>
           </div>
           {(currentChallenge.solvedCount > 0 || (currentChallenge.attemptCount ?? 0) > 0) && (
-            <div className="flex gap-4 mb-4 text-sm text-gray-400">
-              <span>{currentChallenge.solvedCount} solved</span>
-              <span>{(currentChallenge.attemptCount ?? 0)} attempts</span>
+            <div className="flex gap-4 mb-4 text-sm text-gray-500 dark:text-gray-400">
+              <span>{currentChallenge.solvedCount} résolus</span>
+              <span>{(currentChallenge.attemptCount ?? 0)} tentatives</span>
             </div>
           )}
           {currentChallenge.tags?.length > 0 && (
@@ -219,44 +220,45 @@ function ChallengeDetail() {
               {currentChallenge.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-1 rounded bg-gray-700/50 text-gray-300 text-xs"
+                  className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 text-xs"
                 >
                   {tag}
                 </span>
               ))}
             </div>
           )}
-          <div className="bg-gray-800 p-6 rounded-lg mb-6">
-            <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
+          <Card className="mb-6">
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
               {currentChallenge.description}
             </p>
-          </div>
+          </Card>
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none"
+              className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 focus:border-blue-500 outline-none"
             >
               <option value="javascript">JavaScript</option>
               <option value="python">Python</option>
               <option value="java">Java</option>
               <option value="cpp">C++</option>
             </select>
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={resetToStarter}
-              className="px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm"
-              title="Reset to starter code"
+              className="!py-2 text-sm"
+              title="Réinitialiser le code de départ"
             >
-              Reset code
-            </button>
-            <span className="text-gray-500 text-xs ml-auto">
-              Ctrl+Enter to run
+              Réinitialiser le code
+            </Button>
+            <span className="text-gray-500 dark:text-gray-400 text-xs ml-auto">
+              Ctrl+Entrée pour exécuter
             </span>
           </div>
-          <div className="bg-gray-800 rounded-lg overflow-hidden mb-4">
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden mb-4">
             <Editor
               height="400px"
               language={language}
@@ -266,74 +268,69 @@ function ChallengeDetail() {
             />
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
               onClick={handleRun}
               disabled={loading || feedbackLoading}
-              className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
+              loading={loading}
+              className="flex-1 !py-3"
             >
-              {loading ? 'Running...' : 'Run Code'}
-            </button>
-            <button
+              {loading ? 'Exécution…' : 'Exécuter'}
+            </Button>
+            <Button
+              variant="secondary"
               onClick={handleGetFeedback}
               disabled={loading || feedbackLoading || !code.trim()}
-              className="px-4 bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold disabled:opacity-50"
-              title="Get AI feedback on your code"
+              loading={feedbackLoading}
+              className="!py-3"
+              title="Obtenir un retour IA sur votre code"
             >
-              {feedbackLoading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              ) : (
-                '💡 AI Feedback'
-              )}
-            </button>
+              💡 Retour IA
+            </Button>
           </div>
 
-          {/* Success banner */}
           {allTestsPassed && (
-            <div className="mt-4 p-4 rounded-lg bg-green-900/30 border border-green-600/50">
-              <div className="flex items-center gap-2 text-green-400">
-                <span className="text-xl">🎉</span>
-                <span className="font-semibold">All tests passed! Get AI feedback to improve your solution.</span>
-              </div>
-            </div>
+            <Alert variant="success" className="mt-4">
+              <span className="font-semibold">Tous les tests sont passés. Demandez un retour IA pour améliorer votre solution.</span>
+            </Alert>
           )}
 
           {/* Tabs: Results | Feedback */}
           {(results || feedback || feedbackLoading) && (
-            <div className="mt-4 flex gap-2 border-b border-gray-700">
+            <div className="mt-4 flex gap-2 border-b border-gray-200 dark:border-gray-700">
               <button
                 type="button"
                 onClick={() => setActiveTab('results')}
                 className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${
                   activeTab === 'results'
-                    ? 'bg-gray-800 text-white border-t border-x border-gray-700'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-t border-x border-gray-200 dark:border-gray-700'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                Test Results
+                Résultats
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('feedback')}
                 className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${
                   activeTab === 'feedback'
-                    ? 'bg-gray-800 text-white border-t border-x border-gray-700'
-                    : 'text-gray-400 hover:text-white'
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-t border-x border-gray-200 dark:border-gray-700'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                AI Feedback
+                Retour IA
               </button>
             </div>
           )}
 
           {/* Execution Results */}
           {activeTab === 'results' && (
-            <div className="bg-gray-800 p-4 rounded-b-lg rounded-tr-lg">
+            <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-b-lg rounded-tr-lg">
               {results ? (
                 <>
-                  <h3 className="font-semibold mb-3 text-white">Test Results</h3>
+                  <h3 className="font-semibold mb-3 text-gray-900 dark:text-white">Résultats des tests</h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-gray-300">
+                  <span className="text-gray-600 dark:text-gray-300">
                     Passed: {results.overall?.passed || 0} / {results.overall?.total || 0}
                   </span>
                   {results.overall?.passed === results.overall?.total ? (
@@ -355,10 +352,10 @@ function ChallengeDetail() {
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-white">
-                          Test Case {result.testCase}
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          Test {result.testCase}
                           {isHidden && (
-                            <span className="ml-2 text-gray-500 text-xs">(hidden)</span>
+                            <span className="ml-2 text-gray-500 text-xs">(masqué)</span>
                           )}
                         </span>
                         <span
@@ -396,7 +393,7 @@ function ChallengeDetail() {
               </div>
                 </>
               ) : (
-                <p className="text-gray-400 text-sm">Run your code to see test results</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Exécutez votre code pour voir les résultats</p>
               )}
             </div>
           )}
@@ -404,8 +401,8 @@ function ChallengeDetail() {
           {activeTab === 'feedback' && (
             <>
               {feedbackLoading && (
-                <div className="bg-gray-800 p-4 rounded-b-lg rounded-tr-lg">
-                  <div className="flex items-center gap-2 text-gray-400">
+                <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-b-lg rounded-tr-lg">
+                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
                     <span>Analyzing code with AI...</span>
                   </div>
@@ -417,9 +414,9 @@ function ChallengeDetail() {
                 </div>
               )}
               {!feedback && !feedbackLoading && (
-                <div className="bg-gray-800 p-6 rounded-b-lg rounded-tr-lg">
-                  <p className="text-gray-400 text-sm">
-                    Click <strong className="text-white">AI Feedback</strong> to get intelligent analysis and suggestions for your code.
+                <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-b-lg rounded-tr-lg">
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    Cliquez sur <strong className="text-gray-900 dark:text-white">Retour IA</strong> pour obtenir une analyse et des suggestions.
                   </p>
                 </div>
               )}
@@ -427,7 +424,7 @@ function ChallengeDetail() {
           )}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

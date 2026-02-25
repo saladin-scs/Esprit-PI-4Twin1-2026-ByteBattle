@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { authApi } from '../../services/api';
+import { Card, PageContainer, Spinner } from '../../shared/components';
 
 function VerifyEmail() {
   const [params] = useSearchParams();
@@ -23,14 +24,20 @@ function VerifyEmail() {
   }, [token]);
 
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="bg-gray-800 p-6 rounded-lg">
-        <h1 className="text-2xl font-bold mb-4">Vérification email</h1>
-        <p className="text-gray-200">{loading ? 'Vérification…' : message}</p>
-      </div>
-    </div>
+    <PageContainer maxWidth="md" className="py-12">
+      <Card>
+        <h1 className="text-2xl font-bold text-white mb-4">Vérification email</h1>
+        {loading ? (
+          <div className="flex items-center gap-3 text-gray-300">
+            <Spinner size="md" />
+            <span>Vérification…</span>
+          </div>
+        ) : (
+          <p className="text-gray-200">{message}</p>
+        )}
+      </Card>
+    </PageContainer>
   );
 }
 
 export default VerifyEmail;
-

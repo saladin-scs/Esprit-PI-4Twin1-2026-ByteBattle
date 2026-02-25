@@ -1,9 +1,10 @@
 /* eslint-disable prettier/prettier */
-// backend/src/app.module.ts
+// backend/src/app.module.ts – Racine modulaire : config + modules métier
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
+import { AdminModule } from './admin/admin.module';
 import { validateConfig } from './config/validation';
 
 @Module({
@@ -21,6 +22,7 @@ import { validateConfig } from './config/validation';
       }),
     }),
     AuthModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

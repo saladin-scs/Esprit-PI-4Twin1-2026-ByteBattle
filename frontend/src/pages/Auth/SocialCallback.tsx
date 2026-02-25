@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../store/store';
 import { fetchMe, verify2faLogin } from '../../store/slices/authSlice';
+import { PageContainer, Card, Input, Button, Alert } from '../../shared/components';
 
 function SocialCallback() {
   const navigate = useNavigate();
@@ -50,38 +51,36 @@ function SocialCallback() {
       await dispatch(verify2faLogin({ twoFactorToken, code, rememberMe: true })).unwrap();
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || '2FA verification failed');
+      setError(err.message || 'Échec de la vérification 2FA');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-gray-800 p-6 rounded-lg text-white">
+    <PageContainer maxWidth="sm" className="min-h-[80vh] flex items-center justify-center">
+      <Card className="w-full max-w-md">
         {twoFactorToken ? (
           <form onSubmit={onVerify} className="space-y-4">
-            <div className="text-lg font-semibold">2FA required</div>
-            <p className="text-gray-300">
-              Enter your authenticator code (or a backup code) to complete social login.
+            <div className="text-lg font-semibold text-gray-900 dark:text-white">2FA requise</div>
+            <p className="text-gray-600 dark:text-gray-300 text-sm">
+              Saisissez le code de votre application d’authentification (ou un code de secours) pour terminer la connexion sociale.
             </p>
-            {error && <div className="bg-red-600 text-white p-3 rounded">{error}</div>}
-            <input
+            {error && <Alert variant="error">{error}</Alert>}
+            <Input
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="2FA code"
+              placeholder="Code 2FA"
               required
             />
-            <button className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-lg font-semibold">
-              Verify
-            </button>
+            <Button type="submit" fullWidth>
+              Vérifier
+            </Button>
           </form>
         ) : (
-          <>Completing social login…</>
+          <p className="text-gray-500 dark:text-gray-400">Finalisation de la connexion sociale…</p>
         )}
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }
 
 export default SocialCallback;
-

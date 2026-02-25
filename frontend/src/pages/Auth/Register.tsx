@@ -249,10 +249,8 @@ function Register() {
     }
 
     try {
-      // Only send fields expected by backend DTO
       const { email, username, password } = data;
-
-      await dispatch(
+      const result = await dispatch(
         registerAction({
           email,
           username,
@@ -260,10 +258,15 @@ function Register() {
         }),
       ).unwrap();
 
-      toast.success('Registration successful! You are now logged in. Please check your email to verify your account.');
-      navigate('/');
+      if (result.twoFactorSetupRequired) {
+        toast.success('Compte créé. Configurez la 2FA pour continuer.');
+        navigate('/setup-2fa');
+      } else {
+        toast.success('Inscription réussie. Vérifiez votre email.');
+        navigate('/');
+      }
     } catch (err: any) {
-      toast.error(err?.message || 'Registration failed. Please try again.');
+      toast.error(err?.message || "Échec de l'inscription.");
     }
   };
 
@@ -623,8 +626,8 @@ function Register() {
                   }
                   className={`
                     px-6 py-2 bg-blue-600 text-white rounded-lg transition-colors ml-auto
-                    ${isSubmitting || !captchaToken 
-                      ? 'opacity-50 cursor-not-allowed' 
+                    ${isSubmitting || (Boolean(RECAPTCHA_SITE_KEY) && !captchaToken)
+                      ? 'opacity-50 cursor-not-allowed'
                       : 'hover:bg-blue-700'
                     }
                   `}

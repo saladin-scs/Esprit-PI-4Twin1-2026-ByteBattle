@@ -1,0 +1,22 @@
+import { Link } from 'react-router-dom';
+
+const navLinks = [
+  { to: '/challenges', label: 'Challenges' },
+  { to: '/competitions', label: 'Competitions' },
+  { to: '/leaderboard', label: 'Leaderboard' },
+] as const;
+
+const linkClass =
+  'px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors';
+
+export function HeaderNav() {
+  return (
+    <nav aria-label="Main navigation" className="hidden sm:flex items-center gap-1">
+      {navLinks.map(({ to, label }) => (
+        <Link key={to} to={to} className={linkClass}>
+          {label}
+        </Link>
+      ))}
+    </nav>
+  );
+}

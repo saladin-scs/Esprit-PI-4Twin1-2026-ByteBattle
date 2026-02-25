@@ -54,6 +54,13 @@ export class AuthService {
     );
   }
 
+  private signSetupToken(user: any) {
+    return this.jwtService.sign(
+      { sub: user._id, type: '2fa_setup' },
+      { expiresIn: process.env.TWOFA_SETUP_TOKEN_TTL || '15m' } as any,
+    );
+  }
+
   private async upsertUserFromSocial(profile: GoogleProfilePayload | GithubProfilePayload) {
     const { provider, providerId, email, displayName, avatarUrl } = profile as any;
     const providerField = provider === 'google' ? 'googleId' : 'githubId';
@@ -147,9 +154,6 @@ export class AuthService {
     }
     await this.mailService.sendEmailVerification(user.email, token);
 
-    const accessToken = this.signAccessToken(user);
-    const refreshToken = await this.issueRefreshToken(user, meta);
-
     await this.securityEvents.record({
       type: 'auth.register',
       userId: String(user._id),
@@ -157,6 +161,30 @@ export class AuthService {
       userAgent: meta?.userAgent,
     });
 
+    // 2FA obligatoire à l'inscription : on ne délivre pas de tokens, seulement un setupToken
+    const setupToken = this.signSetupToken(user);
+    return {
+      twoFactorSetupRequired: true,
+      setupToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        username: user.username,
+        roles: this.resolveRoles(user),
+        emailVerifiedAt: (user as any).emailVerifiedAt ?? null,
+      },
+      emailVerificationRequired: true,
+    };
+  }
+
+  async issueTokensForUser(
+    userId: string,
+    meta?: { ip?: string; userAgent?: string; rememberMe?: boolean },
+  ) {
+    const user = await this.usersService.findByIdWithSensitive(userId);
+    if (!user || (user as any).isActive === false) throw new UnauthorizedException();
+    const accessToken = this.signAccessToken(user);
+    const refreshToken = await this.issueRefreshToken(user, meta);
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
@@ -167,7 +195,6 @@ export class AuthService {
         roles: this.resolveRoles(user),
         emailVerifiedAt: (user as any).emailVerifiedAt ?? null,
       },
-      emailVerificationRequired: true,
     };
   }
 
@@ -459,11 +486,12 @@ export class AuthService {
     const qrDataUrl = await qrcode.toDataURL(otpauthUrl);
 
     const { plain, hashes } = await this.generateBackupCodes(10);
+    const twoFactorBackupCodes = hashes.map((h) => ({ codeHash: h }));
 
-    (user as any).twoFactorSecret = secret;
-    (user as any).twoFactorBackupCodes = hashes.map((h) => ({ codeHash: h })) as any;
-    (user as any).twoFactorEnabled = false;
-    await user.save();
+    await this.usersService.setTwoFactorSetup(userId, {
+      twoFactorSecret: secret,
+      twoFactorBackupCodes,
+    });
 
     await this.securityEvents.record({
       type: 'auth.2fa.setup_init',
@@ -480,8 +508,7 @@ export class AuthService {
     const ok = authenticator.verify({ token: code, secret: (user as any).twoFactorSecret });
     if (!ok) throw new UnauthorizedException('Invalid 2FA code');
 
-    (user as any).twoFactorEnabled = true;
-    await user.save();
+    await this.usersService.setTwoFactorEnabled(userId, true);
 
     await this.securityEvents.record({
       type: 'auth.2fa.enabled',
@@ -501,10 +528,7 @@ export class AuthService {
     const idx = codes.findIndex((c: any) => c.codeHash === codeHash && !c.usedAt);
     if (!okTotp && idx === -1) throw new UnauthorizedException('Invalid 2FA code');
 
-    (user as any).twoFactorEnabled = false;
-    (user as any).twoFactorSecret = null;
-    (user as any).twoFactorBackupCodes = [];
-    await user.save();
+    await this.usersService.clearTwoFactor(userId);
 
     await this.securityEvents.record({
       type: 'auth.2fa.disabled',
@@ -547,9 +571,11 @@ export class AuthService {
     }
 
     if (idx !== -1) {
-      codes[idx].usedAt = new Date();
-      (user as any).twoFactorBackupCodes = codes;
-      await user.save();
+      const updatedCodes = ((user as any).twoFactorBackupCodes || []).map((c: any, i: number) => ({
+        codeHash: c.codeHash,
+        usedAt: i === idx ? new Date() : c.usedAt,
+      }));
+      await this.usersService.updateTwoFactorBackupCodes(String(user._id), updatedCodes);
     }
 
     const access_token = this.signAccessToken(user);

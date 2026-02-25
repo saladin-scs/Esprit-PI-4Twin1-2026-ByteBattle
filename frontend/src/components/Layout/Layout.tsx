@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import Navbar from './Navbar';
+import { Header } from '../Header';
 import Footer from './Footer';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchMe } from '../../store/slices/authSlice';
@@ -20,8 +20,8 @@ function Layout({ children }: LayoutProps) {
   }, [token, user, dispatch]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-900 text-white">
-      <Navbar />
+    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white">
+      <Header />
       <main className="flex-grow">{children}</main>
       <Footer />
     </div>

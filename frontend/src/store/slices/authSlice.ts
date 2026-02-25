@@ -19,6 +19,8 @@ interface AuthState {
   isAuthenticated: boolean;
   twoFactorRequired: boolean;
   twoFactorToken: string | null;
+  twoFactorSetupRequired: boolean;
+  setupToken: string | null;
   loading: boolean;
   error: string | null;
 }
@@ -30,6 +32,8 @@ const initialState: AuthState = {
   isAuthenticated: !!localStorage.getItem('token'),
   twoFactorRequired: false,
   twoFactorToken: null,
+  twoFactorSetupRequired: false,
+  setupToken: null,
   loading: false,
   error: null,
 };
@@ -64,9 +68,13 @@ export const register = createAsyncThunk(
   'auth/register',
   async (userData: { email: string; username: string; password: string }) => {
     const response = await authApi.register(userData);
-    localStorage.setItem('token', response.data.access_token);
-    if (response.data.refresh_token) {
-      localStorage.setItem('refresh_token', response.data.refresh_token);
+    if (response.data.twoFactorSetupRequired && response.data.setupToken) {
+      localStorage.setItem('token', response.data.setupToken);
+    } else if (response.data.access_token) {
+      localStorage.setItem('token', response.data.access_token);
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+      }
     }
     return response.data;
   }
@@ -86,12 +94,27 @@ const authSlice = createSlice({
       state.token = null;
       state.refreshToken = null;
       state.isAuthenticated = false;
+      state.twoFactorSetupRequired = false;
+      state.setupToken = null;
       localStorage.removeItem('token');
       localStorage.removeItem('refresh_token');
     },
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
       state.isAuthenticated = true;
+    },
+    complete2faSetup: (
+      state,
+      action: PayloadAction<{ access_token: string; refresh_token: string; user: User }>,
+    ) => {
+      state.token = action.payload.access_token;
+      state.refreshToken = action.payload.refresh_token;
+      state.user = action.payload.user;
+      state.isAuthenticated = true;
+      state.twoFactorSetupRequired = false;
+      state.setupToken = null;
+      localStorage.setItem('token', action.payload.access_token);
+      localStorage.setItem('refresh_token', action.payload.refresh_token);
     },
   },
   extraReducers: (builder) => {
@@ -144,10 +167,18 @@ const authSlice = createSlice({
       })
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.access_token;
-        state.refreshToken = action.payload.refresh_token || state.refreshToken;
-        state.isAuthenticated = true;
+        state.user = action.payload.user ?? null;
+        if (action.payload.twoFactorSetupRequired && action.payload.setupToken) {
+          state.twoFactorSetupRequired = true;
+          state.setupToken = action.payload.setupToken;
+          state.token = null;
+          state.refreshToken = null;
+          state.isAuthenticated = false;
+        } else {
+          state.token = action.payload.access_token;
+          state.refreshToken = action.payload.refresh_token || state.refreshToken;
+          state.isAuthenticated = true;
+        }
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -182,6 +213,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, setUser } = authSlice.actions;
+export const { logout, setUser, complete2faSetup } = authSlice.actions;
 export default authSlice.reducer;
 

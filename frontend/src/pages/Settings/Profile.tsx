@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { usersApi } from '../../services/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchMe } from '../../store/slices/authSlice';
+import { Button, Input, Textarea, Card, Alert, PageContainer } from '../../shared/components';
 
 function ProfileSettings() {
   const dispatch = useDispatch<AppDispatch>();
@@ -18,13 +19,11 @@ function ProfileSettings() {
   const [links, setLinks] = useState('');
 
   useEffect(() => {
-    // Initialize from store if available
     setDisplayName(user?.displayName || '');
     setAvatarUrl(user?.avatarUrl || '');
   }, [user?.displayName, user?.avatarUrl]);
 
   useEffect(() => {
-    // Fetch full profile once for fields not stored in auth slice
     (async () => {
       try {
         const res = await usersApi.me();
@@ -67,73 +66,51 @@ function ProfileSettings() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl font-bold mb-8">Paramètres du profil</h1>
+    <PageContainer maxWidth="2xl" className="py-12">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Paramètres du profil</h1>
 
-      <form onSubmit={onSave} className="bg-gray-800 p-6 rounded-lg space-y-4">
-        {error && <div className="bg-red-600 text-white p-3 rounded">{error}</div>}
-        {success && <div className="bg-green-700 text-white p-3 rounded">{success}</div>}
+      <Card title="">
+        <form onSubmit={onSave} className="space-y-4">
+          {error && <Alert variant="error">{error}</Alert>}
+          {success && <Alert variant="success">{success}</Alert>}
 
-        <div>
-          <label className="block text-sm font-medium mb-2">Nom affiché</label>
-          <input
+          <Input
+            label="Nom affiché"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Bio</label>
-          <textarea
+          <Textarea
+            label="Bio"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Pays (ISO2)</label>
-            <input
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Pays (ISO2)"
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               maxLength={2}
-              className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Avatar URL</label>
-            <input
+            <Input
+              label="Avatar URL"
               value={avatarUrl}
               onChange={(e) => setAvatarUrl(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Liens (1 par ligne)</label>
-          <textarea
+          <Textarea
+            label="Liens (1 par ligne)"
             value={links}
             onChange={(e) => setLinks(e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white px-4 py-2 rounded-md font-medium"
-        >
-          {loading ? 'Sauvegarde…' : 'Sauvegarder'}
-        </button>
-      </form>
-    </div>
+          <Button type="submit" loading={loading} disabled={loading}>
+            Sauvegarder
+          </Button>
+        </form>
+      </Card>
+    </PageContainer>
   );
 }
 
 export default ProfileSettings;
-

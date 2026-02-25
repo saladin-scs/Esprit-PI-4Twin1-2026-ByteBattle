@@ -30,8 +30,123 @@ export class User {
   @Prop({ trim: true })
   avatarUrl?: string;
 
+  @Prop({ trim: true })
+  coverImage?: string;
+
   @Prop({ type: [String], default: [] })
   links?: string[];
+
+  @Prop({
+    type: {
+      github: String,
+      linkedin: String,
+      twitter: String,
+      portfolio: String,
+    },
+    default: () => ({}),
+  })
+  socialLinks?: { github?: string; linkedin?: string; twitter?: string; portfolio?: string };
+
+  @Prop({ default: false })
+  profilePublic?: boolean;
+
+  // Rank & Progression (7-tier: F, E, D, C, B, A, S)
+  @Prop({ default: 0 })
+  xp?: number;
+
+  @Prop({ enum: ['F', 'E', 'D', 'C', 'B', 'A', 'S'], default: 'F' })
+  rankTier?: string;
+
+  // Activity & Streaks
+  @Prop({ default: 0 })
+  currentStreak?: number;
+
+  @Prop({ default: 0 })
+  longestStreak?: number;
+
+  @Prop({ default: 0 })
+  totalActiveDays?: number;
+
+  @Prop({ default: null })
+  lastActiveAt?: Date | null;
+
+  @Prop({ type: [Object], default: [] })
+  activityHeatmap?: Array<{ date: string; count: number }>;
+
+  @Prop({ default: 0 })
+  dailyGoalTarget?: number;
+
+  @Prop({ default: 0 })
+  dailyGoalCompleted?: number;
+
+  // Coding stats
+  @Prop({
+    type: { easy: Number, medium: Number, hard: Number },
+    default: () => ({ easy: 0, medium: 0, hard: 0 }),
+  })
+  problemsByDifficulty?: { easy: number; medium: number; hard: number };
+
+  @Prop({ default: 0 })
+  acceptanceRate?: number;
+
+  @Prop({ type: Object, default: () => ({}) })
+  languageStats?: Record<string, number>;
+
+  @Prop({ default: 0 })
+  totalSubmissions?: number;
+
+  @Prop({ default: 0 })
+  totalAccepted?: number;
+
+  // Combat & Guild
+  @Prop({ default: 0 })
+  battleLosses?: number;
+
+  @Prop({ default: 1000 })
+  eloRating?: number;
+
+  @Prop({ default: null })
+  guildId?: string | null;
+
+  // Virtual economy (Codyn Coins)
+  @Prop({ default: 0 })
+  codynCoins?: number;
+
+  // Badges: array of badge IDs earned
+  @Prop({ type: [String], default: [] })
+  badgeIds?: string[];
+
+  // Last unlocked badge (consumed by client, then cleared)
+  @Prop({
+    type: { badgeId: String, name: String },
+    default: null,
+  })
+  lastUnlockedBadge?: { badgeId: string; name: string } | null;
+
+  // Skill tree progress (e.g. algorithms, dataStructures, systemDesign, frontendBackend)
+  @Prop({ type: Object, default: () => ({}) })
+  skillTreeProgress?: Record<string, number>;
+
+  // Recent activity feed (submissions, badge unlocks, etc.)
+  @Prop({
+    type: [
+      {
+        type: { type: String },
+        date: Date,
+        title: String,
+        success: Boolean,
+        metadata: Object,
+      },
+    ],
+    default: [],
+  })
+  recentActivity?: Array<{
+    type: string;
+    date: Date;
+    title?: string;
+    success?: boolean;
+    metadata?: Record<string, any>;
+  }>;
 
   @Prop({
     type: Object,

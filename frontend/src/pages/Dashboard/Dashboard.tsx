@@ -1,19 +1,21 @@
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
+import { PageContainer, Card } from '../../shared/components';
 
 function Dashboard() {
   const { user } = useSelector((state: RootState) => state.auth);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-      <div className="bg-gray-800 p-6 rounded-lg">
-        <h2 className="text-xl font-semibold mb-4">Welcome, {user?.username}!</h2>
-        <p className="text-gray-400">Your dashboard is under construction.</p>
-      </div>
-    </div>
+    <PageContainer maxWidth="7xl" className="py-12">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Dashboard</h1>
+      <Card>
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
+          Bienvenue, {user?.username} !
+        </h2>
+        <p className="text-gray-500 dark:text-gray-400">Votre tableau de bord est en construction.</p>
+      </Card>
+    </PageContainer>
   );
 }
 
 export default Dashboard;
-

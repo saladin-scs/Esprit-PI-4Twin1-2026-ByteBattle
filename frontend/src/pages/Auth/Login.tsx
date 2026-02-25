@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { login, verify2faLogin } from '../../store/slices/authSlice';
 import { AppDispatch } from '../../store/store';
+import { Button, Input, Card, Alert, PageContainer, Checkbox } from '../../shared/components';
 
 function Login() {
   const dispatch = useDispatch<AppDispatch>();
@@ -14,6 +14,7 @@ function Login() {
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -24,6 +25,7 @@ function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     try {
       const res = await dispatch(login({ email, password, rememberMe })).unwrap();
       if (res?.twoFactorRequired && res?.twoFactorToken) {
@@ -33,6 +35,8 @@ function Login() {
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -40,6 +44,7 @@ function Login() {
     e.preventDefault();
     if (!twoFactorToken) return;
     setError('');
+    setLoading(true);
     try {
       await dispatch(verify2faLogin({ twoFactorToken, code: twoFactorCode, rememberMe })).unwrap();
       setTwoFactorToken(null);
@@ -47,117 +52,103 @@ function Login() {
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || '2FA verification failed');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto mt-12">
-      <div className="bg-gray-800 p-8 rounded-lg">
-        <h2 className="text-2xl font-bold mb-6">Login</h2>
+    <PageContainer maxWidth="md" className="mt-8">
+      <Card>
+        <h2 className="text-2xl font-bold text-white mb-6">Connexion</h2>
         {!twoFactorToken ? (
-          <form onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-600 text-white p-3 rounded mb-4">{error}</div>
-          )}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Email</label>
-            <input
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <Alert variant="error" className="mb-4">{error}</Alert>
+            )}
+            <Input
+              label="Email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               required
             />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Password</label>
-            <input
+            <Input
+              label="Mot de passe"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               required
             />
-          </div>
-          <div className="mb-6 flex items-center justify-between">
-            <label className="inline-flex items-center text-sm text-gray-300">
-              <input
-                type="checkbox"
-                className="mr-2 rounded border-gray-600 bg-gray-700 text-primary-500 focus:ring-primary-500"
+            <div className="flex items-center justify-between">
+              <Checkbox
+                label="Se souvenir de moi"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
               />
-              Remember me
-            </label>
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-lg font-semibold"
-          >
-            Login
-          </button>
-          <div className="mt-4 text-sm text-gray-300">
-            <Link className="text-primary-400 hover:underline" to="/forgot-password">
-              Mot de passe oublié ?
-            </Link>
-          </div>
-        </form>
+            </div>
+            <Button type="submit" fullWidth loading={loading}>
+              Connexion
+            </Button>
+            <div className="mt-4 text-sm text-gray-300">
+              <Link className="text-blue-400 hover:underline" to="/forgot-password">
+                Mot de passe oublié ?
+              </Link>
+            </div>
+          </form>
         ) : (
-          <form onSubmit={handleVerify2fa}>
+          <form onSubmit={handleVerify2fa} className="space-y-4">
             {error && (
-              <div className="bg-red-600 text-white p-3 rounded mb-4">{error}</div>
+              <Alert variant="error" className="mb-4">{error}</Alert>
             )}
             <p className="text-gray-300 mb-4">
-              Two-factor authentication is enabled. Enter your 6-digit code (or a backup code).
+              Authentification à deux facteurs activée. Entrez votre code à 6 chiffres (ou un code de secours).
             </p>
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2">2FA Code</label>
-              <input
-                type="text"
-                value={twoFactorCode}
-                onChange={(e) => setTwoFactorCode(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-lg font-semibold"
-            >
-              Verify
-            </button>
-            <button
+            <Input
+              label="Code 2FA"
+              type="text"
+              value={twoFactorCode}
+              onChange={(e) => setTwoFactorCode(e.target.value)}
+              required
+            />
+            <Button type="submit" fullWidth loading={loading}>
+              Vérifier
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              fullWidth
               onClick={() => {
                 setTwoFactorToken(null);
                 setTwoFactorCode('');
               }}
-              className="w-full mt-3 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg font-semibold"
+              className="mt-3"
             >
-              Back
-            </button>
+              Retour
+            </Button>
           </form>
         )}
-        <div className="mt-6 space-y-3">
-          <button
+        <div className="mt-6 space-y-3 border-t border-gray-700 pt-6">
+          <Button
             type="button"
+            variant="danger"
+            fullWidth
             onClick={() => redirectToSocial('google')}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-semibold"
           >
-            Continue with Google
-          </button>
-          <button
+            Continuer avec Google
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
+            fullWidth
             onClick={() => redirectToSocial('github')}
-            className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg font-semibold"
           >
-            Continue with GitHub
-          </button>
+            Continuer avec GitHub
+          </Button>
         </div>
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }
 
 export default Login;
-

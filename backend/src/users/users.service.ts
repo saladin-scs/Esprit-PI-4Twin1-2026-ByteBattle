@@ -118,14 +118,82 @@ export class UsersService {
     return { success: true };
   }
 
+  /** Seuils XP pour chaque rang (F -> S) */
+  static readonly RANK_XP = { F: 0, E: 100, D: 300, C: 600, B: 1000, A: 2000, S: 4000 };
+  static readonly RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'S'] as const;
+
+  getRankProgress(xp: number) {
+    const order = UsersService.RANK_ORDER;
+    const thresholds = UsersService.RANK_XP;
+    let currentTier = 'F';
+    let nextTier: string | null = 'E';
+    let xpInTier = xp;
+    let xpNeededForNext = 100;
+    for (let i = 0; i < order.length - 1; i++) {
+      const tier = order[i];
+      const next = order[i + 1];
+      const tierXp = (thresholds as any)[tier] ?? 0;
+      const nextXp = (thresholds as any)[next] ?? 0;
+      if (xp >= nextXp) continue;
+      currentTier = tier;
+      nextTier = next;
+      xpInTier = xp - tierXp;
+      xpNeededForNext = nextXp - tierXp;
+      break;
+    }
+    if (xp >= (thresholds as any).S) {
+      currentTier = 'S';
+      nextTier = null;
+      xpInTier = xp - (thresholds as any).S;
+      xpNeededForNext = 0;
+    }
+    return {
+      currentTier,
+      nextTier,
+      xpInTier,
+      xpNeededForNext,
+      progressPercent: xpNeededForNext ? Math.min(100, (xpInTier / xpNeededForNext) * 100) : 100,
+    };
+  }
+
   async findPublicByUsername(username: string) {
     const u = await this.userModel
       .findOne({ username: String(username || '').trim() })
       .select(
-        'username displayName bio country avatarUrl links rating totalChallengesSolved totalBattlesWon achievements roles createdAt',
+        'username displayName bio country avatarUrl coverImage links socialLinks profilePublic ' +
+        'rating totalChallengesSolved totalBattlesWon achievements roles createdAt ' +
+        'xp rankTier currentStreak longestStreak totalActiveDays lastActiveAt activityHeatmap ' +
+        'dailyGoalTarget dailyGoalCompleted problemsByDifficulty acceptanceRate languageStats ' +
+        'totalSubmissions totalAccepted battleLosses eloRating guildId codynCoins badgeIds emailVerifiedAt ' +
+        'skillTreeProgress recentActivity',
       )
+      .lean()
       .exec();
-    return u;
+    if (!u) return null;
+    const xp = (u as any).xp ?? 0;
+    const rankProgress = this.getRankProgress(xp);
+    const [globalRank, countryRank] = await Promise.all([
+      this.getGlobalRankByXp(xp),
+      (u as any).country ? this.getCountryRankByXp((u as any).country, xp) : Promise.resolve(null),
+    ]);
+    return {
+      ...u,
+      rankProgress,
+      memberSince: (u as any).createdAt,
+      globalRank,
+      countryRank,
+    };
+  }
+
+  async getGlobalRankByXp(xp: number): Promise<number> {
+    const count = await this.userModel.countDocuments({ xp: { $gt: xp } }).exec();
+    return count + 1;
+  }
+
+  async getCountryRankByXp(country: string, xp: number): Promise<number | null> {
+    if (!country) return null;
+    const count = await this.userModel.countDocuments({ country, xp: { $gt: xp } }).exec();
+    return count + 1;
   }
 
   async findByEmail(email: string, opts?: { includeSensitive?: boolean }) {
@@ -144,6 +212,51 @@ export class UsersService {
       .select(
         '+password +emailVerificationTokenHash +passwordResetTokenHash +refreshTokens +twoFactorSecret +twoFactorBackupCodes',
       )
+      .exec();
+  }
+
+  /** Mise à jour atomique 2FA (évite VersionError sur save()) */
+  async setTwoFactorSetup(
+    userId: string,
+    data: { twoFactorSecret: string; twoFactorBackupCodes: Array<{ codeHash: string }> },
+  ) {
+    const updated = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        {
+          twoFactorSecret: data.twoFactorSecret,
+          twoFactorBackupCodes: data.twoFactorBackupCodes,
+          twoFactorEnabled: false,
+        },
+        { new: true },
+      )
+      .exec();
+    return updated;
+  }
+
+  /** Active la 2FA après vérification du code (mise à jour atomique) */
+  async setTwoFactorEnabled(userId: string, enabled: boolean) {
+    return this.userModel
+      .findByIdAndUpdate(userId, { twoFactorEnabled: enabled }, { new: true })
+      .exec();
+  }
+
+  /** Désactive la 2FA et efface secret + backup codes (mise à jour atomique) */
+  async clearTwoFactor(userId: string) {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { twoFactorEnabled: false, twoFactorSecret: null, twoFactorBackupCodes: [] },
+        { new: true },
+      )
+      .exec();
+  }
+
+  /** Met à jour les backup codes utilisés (mise à jour atomique, ex. marquer un code comme usedAt) */
+  async updateTwoFactorBackupCodes(userId: string, backupCodes: Array<{ codeHash: string; usedAt?: Date }>) {
+    return this.userModel
+      .findByIdAndUpdate(userId, { twoFactorBackupCodes: backupCodes }, { new: true })
+      .select('+twoFactorSecret +twoFactorBackupCodes')
       .exec();
   }
 
@@ -215,22 +328,105 @@ export class UsersService {
     return user.save();
   }
 
- async getMeStats(userId: string) {
-  const user = await this.userModel
-    .findById(userId)
-    .select('rating totalChallengesSolved totalBattlesWon achievements createdAt')
-    .exec();
-  if (!user) return null;
+  async getMeStats(userId: string) {
+    const user = await this.userModel
+      .findById(userId)
+      .select('rating totalChallengesSolved totalBattlesWon achievements createdAt')
+      .exec();
+    if (!user) return null;
+    const totalBattles = user.totalBattlesWon ?? 0;
+    return {
+      rating: user.rating ?? 0,
+      totalChallengesSolved: user.totalChallengesSolved ?? 0,
+      totalBattlesWon: user.totalBattlesWon ?? 0,
+      achievementsCount: user.achievements?.length ?? 0,
+      memberSince: (user as any).createdAt,
+      totalBattles,
+    };
+  }
 
-  const totalBattles = user.totalBattlesWon ?? 0;
-  return {
-    rating: user.rating ?? 0,
-    totalChallengesSolved: user.totalChallengesSolved ?? 0,
-    totalBattlesWon: user.totalBattlesWon ?? 0,
-    achievementsCount: user.achievements?.length ?? 0,
-    memberSince: (user as any).createdAt, // Use type assertion here
-    // Or use: memberSince: (user as UserDocument & { createdAt: Date }).createdAt,
-    totalBattles,
-  };
-}
+  async getActivity(userId: string) {
+    const user = await this.userModel
+      .findById(userId)
+      .select('activityHeatmap recentActivity lastActiveAt')
+      .lean()
+      .exec();
+    if (!user) return null;
+    const heatmap = (user as any).activityHeatmap || [];
+    const recentActivity = (user as any).recentActivity || [];
+    return {
+      heatmap: heatmap.slice(-365),
+      recentActivity: recentActivity.slice(0, 50),
+      lastActiveAt: (user as any).lastActiveAt,
+    };
+  }
+
+  async getActivityByUsername(username: string) {
+    const user = await this.userModel
+      .findOne({ username: String(username || '').trim() })
+      .select('activityHeatmap recentActivity lastActiveAt')
+      .lean()
+      .exec();
+    if (!user) return null;
+    const heatmap = (user as any).activityHeatmap || [];
+    const recentActivity = (user as any).recentActivity || [];
+    return {
+      heatmap: heatmap.slice(-365),
+      recentActivity: recentActivity.slice(0, 50),
+      lastActiveAt: (user as any).lastActiveAt,
+    };
+  }
+
+  async getSkillTree(userId: string) {
+    const user = await this.userModel
+      .findById(userId)
+      .select('skillTreeProgress')
+      .lean()
+      .exec();
+    if (!user) return null;
+    const progress = (user as any).skillTreeProgress || {};
+    const categories = ['algorithms', 'dataStructures', 'systemDesign', 'frontendBackend'];
+    return categories.map((cat) => ({
+      id: cat,
+      name: cat === 'algorithms' ? 'Algorithms' : cat === 'dataStructures' ? 'Data Structures' : cat === 'systemDesign' ? 'System Design' : 'Frontend/Backend',
+      progress: Math.min(100, progress[cat] ?? 0),
+    }));
+  }
+
+  async getSkillTreeByUsername(username: string) {
+    const user = await this.userModel
+      .findOne({ username: String(username || '').trim() })
+      .select('skillTreeProgress')
+      .lean()
+      .exec();
+    if (!user) return null;
+    const progress = (user as any).skillTreeProgress || {};
+    const categories = ['algorithms', 'dataStructures', 'systemDesign', 'frontendBackend'];
+    return categories.map((cat) => ({
+      id: cat,
+      name: cat === 'algorithms' ? 'Algorithms' : cat === 'dataStructures' ? 'Data Structures' : cat === 'systemDesign' ? 'System Design' : 'Frontend/Backend',
+      progress: Math.min(100, progress[cat] ?? 0),
+    }));
+  }
+
+  async consumeAndReturnNewBadge(userId: string) {
+    const user = await this.userModel
+      .findById(userId)
+      .select('lastUnlockedBadge')
+      .exec();
+    if (!user || !(user as any).lastUnlockedBadge) return null;
+    const badge = (user as any).lastUnlockedBadge;
+    await this.userModel.findByIdAndUpdate(userId, { lastUnlockedBadge: null }).exec();
+    return badge;
+  }
+
+  /** À appeler quand un badge est débloqué (ex: après un défi) pour notifier le client */
+  async setLastUnlockedBadge(userId: string, badgeId: string, name: string) {
+    await this.userModel
+      .findByIdAndUpdate(userId, {
+        lastUnlockedBadge: { badgeId, name },
+        $addToSet: { badgeIds: badgeId },
+      })
+      .exec();
+  }
 }
