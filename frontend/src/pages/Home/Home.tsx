@@ -14,7 +14,7 @@ function Home() {
             src="/bytebattle-logo.png"
             alt="Byte Battle"
             className="h-24 sm:h-28 md:h-32 w-auto origin-center"
-            style={{ transform: 'rotate(-3deg)' }}
+            style={{ transform: 'rotate(-10deg)' }}
           />
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">

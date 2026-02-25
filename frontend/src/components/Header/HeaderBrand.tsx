@@ -9,8 +9,8 @@ export function HeaderBrand() {
       <img
         src="/bytebattle-logo.png"
         alt="Byte Battle"
-        className="h-9 w-auto origin-center"
-        style={{ transform: 'rotate(-3deg)' }}
+        className="h-12 w-auto origin-center"
+        style={{ transform: 'rotate(-10deg)' }}
       />
     </Link>
   );
