@@ -74,7 +74,7 @@ function Login() {
               required
             />
             <Input
-              label="Mot de passe"
+              label="Password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -92,7 +92,7 @@ function Login() {
             </Button>
             <div className="mt-4 text-sm text-gray-300">
               <Link className="text-blue-400 hover:underline" to="/forgot-password">
-                Mot de passe oublié ?
+                Forgot password?
               </Link>
             </div>
           </form>

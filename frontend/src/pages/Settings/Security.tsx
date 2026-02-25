@@ -28,9 +28,9 @@ function SecuritySettings() {
       await usersApi.changePassword({ currentPassword, newPassword });
       setCurrentPassword('');
       setNewPassword('');
-      setSuccess('Mot de passe changé.');
+      setSuccess('Password changed.');
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Erreur');
+      setError(err?.response?.data?.message || err.message || 'Error');
     } finally {
       setLoading(false);
     }
@@ -42,15 +42,16 @@ function SecuritySettings() {
     setLoading(true);
     try {
       await authApi.resendVerification(email || user?.email || '');
-      setSuccess('Email de vérification renvoyé (si le compte existe).');
+      setSuccess('Verification email sent (if the account exists).');
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Erreur');
+      setError(err?.response?.data?.message || err.message || 'Error');
     } finally {
       setLoading(false);
     }
   };
 
   const onLogout = async () => {
+    if (!window.confirm('Are you sure you want to disconnect?')) return;
     try {
       await authApi.logout(refreshToken || undefined);
     } catch {
@@ -68,7 +69,7 @@ function SecuritySettings() {
       const res = await authApi.twofaSetup();
       setTwofaSetup({ qrDataUrl: res.data.qrDataUrl, backupCodes: res.data.backupCodes });
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Erreur');
+      setError(err?.response?.data?.message || err.message || 'Error');
     } finally {
       setLoading(false);
     }
@@ -81,12 +82,12 @@ function SecuritySettings() {
     setLoading(true);
     try {
       await authApi.twofaEnable(twofaCode);
-      setSuccess('2FA activée.');
+      setSuccess('2FA enabled.');
       setTwofaSetup(null);
       setTwofaCode('');
       await dispatch(fetchMe());
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Erreur');
+      setError(err?.response?.data?.message || err.message || 'Error');
     } finally {
       setLoading(false);
     }
@@ -99,12 +100,12 @@ function SecuritySettings() {
     setLoading(true);
     try {
       await authApi.twofaDisable(twofaDisableCode);
-      setSuccess('2FA désactivée.');
+      setSuccess('2FA disabled.');
       setTwofaDisableCode('');
       setTwofaSetup(null);
       await dispatch(fetchMe());
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Erreur');
+      setError(err?.response?.data?.message || err.message || 'Error');
     } finally {
       setLoading(false);
     }
@@ -112,7 +113,7 @@ function SecuritySettings() {
 
   return (
     <PageContainer maxWidth="2xl" className="py-12">
-      <h1 className="text-3xl font-bold text-white mb-8">Sécurité</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Security</h1>
 
       <div className="space-y-8">
         {(error || success) && (
@@ -122,9 +123,9 @@ function SecuritySettings() {
           </>
         )}
 
-        <Card title="Vérification email">
-          <p className="text-gray-300 mb-4">
-            Statut: {user?.emailVerifiedAt ? 'Vérifié' : 'Non vérifié'}
+        <Card title="Email verification">
+          <p className="text-gray-700 dark:text-gray-300 mb-4">
+            Status: {user?.emailVerifiedAt ? 'Verified' : 'Not verified'}
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <Input
@@ -134,25 +135,25 @@ function SecuritySettings() {
               className="flex-1"
             />
             <Button onClick={onResendVerification} disabled={loading} loading={loading}>
-              Renvoyer
+              Resend
             </Button>
             <Button variant="secondary" onClick={() => dispatch(fetchMe())}>
-              Rafraîchir
+              Refresh
             </Button>
           </div>
         </Card>
 
-        <Card title="Changer le mot de passe">
+        <Card title="Change password">
           <form onSubmit={onChangePassword} className="space-y-4">
             <Input
-              label="Mot de passe actuel"
+              label="Current password"
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
             />
             <Input
-              label="Nouveau mot de passe"
+              label="New password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -160,32 +161,32 @@ function SecuritySettings() {
               minLength={8}
             />
             <Button type="submit" disabled={loading} loading={loading}>
-              Mettre à jour
+              Update
             </Button>
           </form>
         </Card>
 
-        <Card title="Authentification à deux facteurs">
-          <p className="text-gray-300 mb-4">
-            Statut: {user?.twoFactorEnabled ? 'Activée' : 'Désactivée'}
+        <Card title="Two-factor authentication">
+          <p className="text-gray-700 dark:text-gray-300 mb-4">
+            Status: {user?.twoFactorEnabled ? 'Enabled' : 'Disabled'}
           </p>
 
           {!user?.twoFactorEnabled && !twofaSetup && (
             <Button onClick={onStart2faSetup} disabled={loading} loading={loading}>
-              Démarrer la configuration 2FA
+              Start 2FA setup
             </Button>
           )}
 
           {twofaSetup && !user?.twoFactorEnabled && (
             <div className="space-y-4">
-              <p className="text-gray-300">
-                Scannez ce QR code avec Google Authenticator / Authy, puis entrez le code généré.
+              <p className="text-gray-700 dark:text-gray-300">
+                Scan this QR code with Google Authenticator or Authy, then enter the generated code.
               </p>
               <img src={twofaSetup.qrDataUrl} alt="QR code 2FA" className="mx-auto" />
               <div>
-                <h3 className="font-semibold text-gray-300 mb-2">Codes de secours</h3>
-                <p className="text-sm text-gray-400 mb-2">
-                  Sauvegardez ces codes dans un endroit sûr. Chaque code ne peut être utilisé qu&apos;une seule fois.
+                <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Backup codes</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                  Save these codes in a safe place. Each code can only be used once.
                 </p>
                 <div className="grid grid-cols-2 gap-2 text-sm font-mono bg-gray-900 p-3 rounded text-gray-300">
                   {twofaSetup.backupCodes.map((c) => (
@@ -202,7 +203,7 @@ function SecuritySettings() {
                   required
                 />
                 <Button type="submit" disabled={loading} loading={loading}>
-                  Activer 2FA
+                  Enable 2FA
                 </Button>
               </form>
             </div>
@@ -210,8 +211,8 @@ function SecuritySettings() {
 
           {user?.twoFactorEnabled && (
             <form onSubmit={onDisable2fa} className="space-y-3">
-              <p className="text-gray-300">
-                Pour désactiver 2FA, entrez un code valide (TOTP ou code de secours).
+              <p className="text-gray-700 dark:text-gray-300">
+                To disable 2FA, enter a valid code (TOTP or backup code).
               </p>
               <Input
                 label="Code 2FA"
@@ -221,7 +222,7 @@ function SecuritySettings() {
                 required
               />
               <Button type="submit" variant="danger" disabled={loading} loading={loading}>
-                Désactiver 2FA
+                Disable 2FA
               </Button>
             </form>
           )}
@@ -229,7 +230,7 @@ function SecuritySettings() {
 
         <Card title="Session">
           <Button variant="danger" onClick={onLogout}>
-            Déconnexion
+            Log out
           </Button>
         </Card>
       </div>

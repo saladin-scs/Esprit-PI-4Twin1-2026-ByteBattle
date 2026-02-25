@@ -57,9 +57,9 @@ function ProfileSettings() {
         links: linkArr.length ? linkArr : undefined,
       });
       await dispatch(fetchMe());
-      setSuccess('Profil mis à jour.');
+      setSuccess('Profile updated.');
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Erreur lors de la sauvegarde');
+      setError(err?.response?.data?.message || err.message || 'Failed to save');
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ function ProfileSettings() {
 
   return (
     <PageContainer maxWidth="2xl" className="py-12">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Paramètres du profil</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Profile settings</h1>
 
       <Card title="">
         <form onSubmit={onSave} className="space-y-4">
@@ -75,7 +75,7 @@ function ProfileSettings() {
           {success && <Alert variant="success">{success}</Alert>}
 
           <Input
-            label="Nom affiché"
+            label="Display name"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
           />
@@ -87,7 +87,7 @@ function ProfileSettings() {
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="Pays (ISO2)"
+              label="Country (ISO2)"
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               maxLength={2}
@@ -99,13 +99,13 @@ function ProfileSettings() {
             />
           </div>
           <Textarea
-            label="Liens (1 par ligne)"
+            label="Links (one per line)"
             value={links}
             onChange={(e) => setLinks(e.target.value)}
             rows={4}
           />
           <Button type="submit" loading={loading} disabled={loading}>
-            Sauvegarder
+            Save
           </Button>
         </form>
       </Card>

@@ -14,8 +14,8 @@ export function ThemeToggle() {
       type="button"
       onClick={handleClick}
       className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer select-none"
-      title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
-      aria-label={theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+      title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {theme === 'dark' ? (
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

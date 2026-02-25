@@ -42,7 +42,7 @@ function PublicProfile() {
       const res = await usersApi.publicByUsername(username || '');
       setProfile(res.data);
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Profil introuvable');
+      setError(err?.response?.data?.message || err.message || 'Profile not found');
     }
   }, [username]);
 
@@ -65,7 +65,7 @@ function PublicProfile() {
       .then((res) => {
         const badge = res.data;
         if (badge?.badgeId && badge?.name) {
-          toast.success(`Nouveau badge débloqué : ${badge.name}`, { duration: 5000, icon: '🏆' });
+          toast.success(`New badge unlocked: ${badge.name}`, { duration: 5000, icon: '🏆' });
         }
       })
       .catch(() => {});
@@ -109,7 +109,7 @@ function PublicProfile() {
 
   if (error) {
     return (
-      <PageContainer maxWidth="3xl" className="py-12">
+      <PageContainer maxWidth="2xl" className="py-12">
         <Alert variant="error">{error}</Alert>
       </PageContainer>
     );
@@ -184,14 +184,14 @@ function PublicProfile() {
                       {profile.displayName || profile.username}
                     </h1>
                     {profile.emailVerifiedAt && (
-                      <span className="text-blue-400" title="Email vérifié">✓</span>
+                      <span className="text-blue-400" title="Email verified">✓</span>
                     )}
                   </div>
                   <p className="text-gray-400">@{profile.username}</p>
                 </div>
                 {isOwner && (
                   <Button type="button" onClick={() => setShowEditModal(true)} className="!py-2 text-sm">
-                    Modifier le profil
+                    Edit profile
                   </Button>
                 )}
               </div>
@@ -204,7 +204,7 @@ function PublicProfile() {
                 )}
                 {profile.memberSince && (
                   <span className="text-gray-400 text-sm">
-                    Rejoint {new Date(profile.memberSince).toLocaleDateString('fr-FR')}
+                    Joined {new Date(profile.memberSince).toLocaleDateString()}
                   </span>
                 )}
               </div>
@@ -245,18 +245,18 @@ function PublicProfile() {
           transition={{ delay: 0.1 }}
           className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Rang & Progression</h2>
+          <h2 className="text-lg font-semibold text-gray-200 mb-4">Rank & Progression</h2>
           <div className="flex flex-wrap items-center gap-6">
             <div
               className={`px-4 py-2 rounded-lg bg-gradient-to-r ${tierColor} font-bold text-lg`}
             >
-              Rang {rankProgress.currentTier}
+              Rank {rankProgress.currentTier}
             </div>
             <div className="flex-1 min-w-[200px]">
               <div className="flex justify-between text-sm text-gray-400 mb-1">
                 <span>{profile.xp ?? 0} XP</span>
                 {rankProgress.nextTier && (
-                  <span>Prochain: Rang {rankProgress.nextTier}</span>
+                  <span>Next: Rank {rankProgress.nextTier}</span>
                 )}
               </div>
               <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
@@ -271,7 +271,7 @@ function PublicProfile() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
             <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">Position globale</div>
+              <div className="text-gray-400 text-xs">Global position</div>
               <div className="text-xl font-semibold">#{profile.globalRank ?? '-'}</div>
             </div>
             {profile.countryRank != null && (
@@ -290,7 +290,7 @@ function PublicProfile() {
           transition={{ delay: 0.15 }}
           className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Activité & Série</h2>
+          <h2 className="text-lg font-semibold text-gray-200 mb-4">Activity & Streak</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-gray-900/50 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-orange-400">{profile.currentStreak ?? 0}</div>
@@ -315,7 +315,7 @@ function PublicProfile() {
           </div>
           {/* Heatmap - données réelles ou fallback */}
           <div className="mt-4">
-            <div className="text-gray-400 text-sm mb-2">Activité (derniers jours)</div>
+            <div className="text-gray-400 text-sm mb-2">Activity (last days)</div>
             <div className="flex flex-wrap gap-0.5 max-w-full" style={{ width: 'min(100%, 52 * 12px)' }}>
               {Array.from({ length: 364 }).map((_, i) => {
                 const day = heatmapSource?.[i];
@@ -422,7 +422,7 @@ function PublicProfile() {
                       paddingAngle={2}
                       dataKey="value"
                       nameKey="name"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                     >
                       {Object.entries(profile.languageStats).map((_, i) => (
                         <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -430,7 +430,7 @@ function PublicProfile() {
                     </Pie>
                     <Tooltip
                       contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
-                      formatter={(value: number) => [value, 'Soumissions']}
+                      formatter={(value: number | undefined) => [value ?? 0, 'Submissions']}
                     />
                     <Legend />
                   </PieChart>
@@ -535,7 +535,7 @@ function PublicProfile() {
           transition={{ delay: 0.33 }}
           className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Activité récente</h2>
+          <h2 className="text-lg font-semibold text-gray-200 mb-4">Recent activity</h2>
           {recentActivity.length > 0 ? (
             <ul className="space-y-2">
               {recentActivity.map((item: any, i: number) => (

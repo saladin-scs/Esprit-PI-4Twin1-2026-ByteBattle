@@ -18,10 +18,10 @@ function ResetPassword() {
     setMessage('');
     try {
       await authApi.resetPassword(token, newPassword);
-      setMessage('Mot de passe réinitialisé.');
+      setMessage('Password has been reset.');
       setNewPassword('');
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Erreur');
+      setError(err?.response?.data?.message || err.message || 'Error');
     } finally {
       setLoading(false);
     }

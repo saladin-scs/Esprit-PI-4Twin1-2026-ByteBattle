@@ -3,9 +3,9 @@ import { PageContainer, Card } from '../../shared/components';
 function Leaderboard() {
   return (
     <PageContainer maxWidth="7xl" className="py-12">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Classement</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Leaderboard</h1>
       <Card>
-        <p className="text-gray-500 dark:text-gray-400">Le classement arrive bientôt…</p>
+        <p className="text-gray-500 dark:text-gray-400">Leaderboard coming soon…</p>
       </Card>
     </PageContainer>
   );

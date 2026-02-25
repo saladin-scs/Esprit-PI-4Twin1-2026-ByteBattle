@@ -12,6 +12,7 @@ function Navbar() {
   const isAdmin = !!user?.roles?.includes('admin');
 
   const handleLogout = () => {
+    if (!window.confirm('Are you sure you want to disconnect?')) return;
     dispatch(logout());
     navigate('/');
   };
@@ -23,18 +24,23 @@ function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="text-2xl font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
-              ByteBattle
+            <Link to="/" className="flex items-center transition-opacity hover:opacity-90">
+              <img
+                src="/bytebattle-logo.png"
+                alt="Byte Battle"
+                className="h-10 w-auto origin-center"
+                style={{ transform: 'rotate(-3deg)' }}
+              />
             </Link>
             <div className="ml-10 flex items-baseline space-x-4">
               <Link to="/challenges" className={linkClass}>
-                Défis
+                Challenges
               </Link>
               <Link to="/competitions" className={linkClass}>
-                Compétitions
+                Competitions
               </Link>
               <Link to="/leaderboard" className={linkClass}>
-                Classement
+                Leaderboard
               </Link>
             </div>
           </div>
@@ -43,20 +49,20 @@ function Navbar() {
             {isAuthenticated ? (
               <>
                 <Link to="/dashboard" className={linkClass}>Dashboard</Link>
-                <Link to="/settings/profile" className={linkClass}>Paramètres</Link>
+                <Link to="/settings/profile" className={linkClass}>Settings</Link>
                 {isAdmin && (
                   <Link to="/admin/users" className={linkClass}>Admin</Link>
                 )}
                 <Link to={`/u/${user?.username}`} className={linkClass}>{user?.username}</Link>
                 <Button variant="danger" onClick={handleLogout} className="!py-1.5">
-                  Déconnexion
+                  Log out
                 </Button>
               </>
             ) : (
               <>
-                <Link to="/login" className={linkClass}>Connexion</Link>
+                <Link to="/login" className={linkClass}>Log in</Link>
                 <Link to="/register">
-                  <Button className="!py-1.5">S’inscrire</Button>
+                  <Button className="!py-1.5">Sign up</Button>
                 </Link>
               </>
             )}

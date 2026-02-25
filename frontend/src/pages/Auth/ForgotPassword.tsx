@@ -15,9 +15,9 @@ function ForgotPassword() {
     setMessage('');
     try {
       await authApi.forgotPassword(email);
-      setMessage('Si le compte existe, un email a été envoyé.');
+      setMessage('If an account exists for this email, a reset link has been sent.');
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Erreur');
+      setError(err?.response?.data?.message || err.message || 'Something went wrong.');
     } finally {
       setLoading(false);
     }
@@ -26,7 +26,7 @@ function ForgotPassword() {
   return (
     <PageContainer maxWidth="md" className="mt-8">
       <Card>
-        <h2 className="text-2xl font-bold text-white mb-6">Mot de passe oublié</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Forgot password</h2>
         <form onSubmit={onSubmit} className="space-y-4">
           {error && <Alert variant="error">{error}</Alert>}
           {message && <Alert variant="success">{message}</Alert>}
@@ -38,7 +38,7 @@ function ForgotPassword() {
             required
           />
           <Button type="submit" fullWidth loading={loading}>
-            Envoyer le lien
+            Send reset link
           </Button>
         </form>
       </Card>

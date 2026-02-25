@@ -284,7 +284,7 @@ function ChallengeDetail() {
               className="!py-3"
               title="Obtenir un retour IA sur votre code"
             >
-              💡 Retour IA
+              💡 AI Feedback
             </Button>
           </div>
 
@@ -317,7 +317,7 @@ function ChallengeDetail() {
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                Retour IA
+                AI Feedback
               </button>
             </div>
           )}
@@ -327,7 +327,7 @@ function ChallengeDetail() {
             <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-b-lg rounded-tr-lg">
               {results ? (
                 <>
-                  <h3 className="font-semibold mb-3 text-gray-900 dark:text-white">Résultats des tests</h3>
+                  <h3 className="font-semibold mb-3 text-gray-900 dark:text-white">Test results</h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-gray-600 dark:text-gray-300">
@@ -355,7 +355,7 @@ function ChallengeDetail() {
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
                           Test {result.testCase}
                           {isHidden && (
-                            <span className="ml-2 text-gray-500 text-xs">(masqué)</span>
+                            <span className="ml-2 text-gray-500 text-xs">(hidden)</span>
                           )}
                         </span>
                         <span
@@ -393,7 +393,7 @@ function ChallengeDetail() {
               </div>
                 </>
               ) : (
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Exécutez votre code pour voir les résultats</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Run your code to see the results</p>
               )}
             </div>
           )}
@@ -416,7 +416,7 @@ function ChallengeDetail() {
               {!feedback && !feedbackLoading && (
                 <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-b-lg rounded-tr-lg">
                   <p className="text-gray-500 dark:text-gray-400 text-sm">
-                    Cliquez sur <strong className="text-gray-900 dark:text-white">Retour IA</strong> pour obtenir une analyse et des suggestions.
+                    Click <strong className="text-gray-900 dark:text-white">AI Feedback</strong> to get analysis and suggestions.
                   </p>
                 </div>
               )}

@@ -28,7 +28,7 @@ function Setup2FA() {
         setSetup({ qrDataUrl: res.data.qrDataUrl, backupCodes: res.data.backupCodes });
       } catch (err: any) {
         setError(err?.response?.data?.message || err?.message || 'Impossible de démarrer la 2FA');
-        toast.error('Erreur lors de la configuration 2FA');
+        toast.error('Error setting up 2FA');
       } finally {
         setLoading(false);
       }

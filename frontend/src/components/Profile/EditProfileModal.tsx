@@ -62,7 +62,7 @@ export default function EditProfileModal({ isOpen, onClose, profile, onSaved }: 
       onSaved();
       onClose();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Erreur lors de la mise à jour');
+      toast.error(err?.response?.data?.message || 'Error updating profile');
     } finally {
       setSaving(false);
     }
@@ -87,7 +87,7 @@ export default function EditProfileModal({ isOpen, onClose, profile, onSaved }: 
           className="relative bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
         >
           <div className="p-6">
-            <h2 className="text-xl font-bold text-white mb-4">Modifier le profil</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Edit profile</h2>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Nom d'affichage</label>

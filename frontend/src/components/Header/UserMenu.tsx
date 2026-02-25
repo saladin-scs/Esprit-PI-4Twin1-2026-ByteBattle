@@ -28,6 +28,7 @@ export function UserMenu() {
   const avatarUrl = user?.avatarUrl ?? null;
 
   const handleLogout = () => {
+    if (!window.confirm('Are you sure you want to disconnect?')) return;
     setOpen(false);
     dispatch(logout());
     navigate('/');

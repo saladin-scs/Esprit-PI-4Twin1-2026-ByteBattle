@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../users/schemas/user.schema';
@@ -61,12 +61,25 @@ export class AdminService {
     return { items, page, limit, total };
   }
 
-  async updateUser(userId: string, update: { roles?: string[]; isActive?: boolean }) {
+  async updateUser(
+    userId: string,
+    update: { roles?: string[]; isActive?: boolean },
+    currentAdminId?: string,
+  ) {
+    // Prevent admin from demoting or deactivating themselves
+    if (currentAdminId && String(userId) === String(currentAdminId)) {
+      if (Array.isArray(update.roles) && !update.roles.includes('admin')) {
+        throw new ForbiddenException('You cannot remove your own admin role');
+      }
+      if (update.isActive === false) {
+        throw new ForbiddenException('You cannot deactivate your own account');
+      }
+    }
+
     const set: any = {};
     if (Array.isArray(update.roles)) {
       const roles = update.roles.length ? update.roles : ['user'];
       set.roles = roles;
-      // keep legacy isAdmin flag in sync for backward compatibility
       set.isAdmin = roles.includes('admin');
     }
     if (typeof update.isActive === 'boolean') set.isActive = update.isActive;

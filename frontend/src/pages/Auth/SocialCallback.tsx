@@ -51,7 +51,7 @@ function SocialCallback() {
       await dispatch(verify2faLogin({ twoFactorToken, code, rememberMe: true })).unwrap();
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Échec de la vérification 2FA');
+      setError(err.message || '2FA verification failed');
     }
   };
 
@@ -72,11 +72,11 @@ function SocialCallback() {
               required
             />
             <Button type="submit" fullWidth>
-              Vérifier
+              Verify
             </Button>
           </form>
         ) : (
-          <p className="text-gray-500 dark:text-gray-400">Finalisation de la connexion sociale…</p>
+          <p className="text-gray-500 dark:text-gray-400">Completing social login…</p>
         )}
       </Card>
     </PageContainer>

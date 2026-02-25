@@ -83,9 +83,9 @@ function Challenges() {
   return (
     <PageContainer maxWidth="7xl" className="py-12">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Défis</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Challenges</h1>
         <p className="text-gray-500 dark:text-gray-400">
-          Entraînez-vous avec validation automatique et retours de l’IA
+          Practice with automatic validation and AI feedback
         </p>
       </div>
 
@@ -93,7 +93,7 @@ function Challenges() {
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <Input
           type="search"
-          placeholder="Rechercher des défis…"
+          placeholder="Search challenges…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 min-w-0"
@@ -135,7 +135,7 @@ function Challenges() {
       {filteredAndSorted.length === 0 ? (
         <Card>
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            <p className="text-lg">Aucun défi ne correspond à vos filtres</p>
+            <p className="text-lg">No challenges match your filters</p>
             <Button
               className="mt-4"
               onClick={() => {
@@ -145,7 +145,7 @@ function Challenges() {
                 setSortBy('default');
               }}
             >
-              Réinitialiser les filtres
+              Reset filters
             </Button>
           </div>
         </Card>

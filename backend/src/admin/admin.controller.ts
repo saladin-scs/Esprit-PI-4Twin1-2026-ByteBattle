@@ -1,4 +1,5 @@
-import { Controller, Get, Patch, Param, Query, Body, UseGuards } from '@nestjs/common';
+/* eslint-disable prettier/prettier */
+import { Controller, Get, Patch, Param, Query, Body, UseGuards, Request } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard, Roles } from '../core';
 import { AdminService } from './admin.service';
@@ -35,8 +36,12 @@ export class AdminController {
 
   @Patch('users/:id')
   @ApiOperation({ summary: 'Update user (admin)' })
-  async updateUser(@Param('id') id: string, @Body() dto: AdminUpdateUserDto) {
-    return this.adminService.updateUser(id, dto as any);
+  async updateUser(
+    @Param('id') id: string,
+    @Body() dto: AdminUpdateUserDto,
+    @Request() req: { user: { userId: string } },
+  ) {
+    return this.adminService.updateUser(id, dto as any, req.user.userId);
   }
 }
 
