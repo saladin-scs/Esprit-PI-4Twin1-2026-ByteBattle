@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 // src/ai/ai.controller.ts
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
