@@ -426,7 +426,7 @@ pipeline {
     // ============================================
     post {
         always {
-            node('master') {
+            node() {
                 script {
                     sh '''
                         echo "🧹 Nettoyage des ressources temporaires..."
