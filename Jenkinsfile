@@ -422,7 +422,7 @@ pipeline {
     }
     
     // ============================================
-    // POST-ACTIONS
+    // POST-ACTIONS CORRIGÉES
     // ============================================
     post {
         always {
@@ -450,8 +450,8 @@ pipeline {
                 ║   ✅ PIPELINE TERMINÉE AVEC SUCCÈS !                     ║
                 ║                                                          ║
                 ║   Build: ${BUILD_NUMBER}                                  ║
-                ║   Branche: ${env.BRANCH_NAME}                                 ║
-                ║   Environnement: ${params.DEPLOY_ENV}                     ║
+                ║   Branche: ${env.BRANCH_NAME}                            ║
+                ║   Environnement: ${params.DEPLOY_ENV}                    ║
                 ║                                                          ║
                 ║   🔗 SonarQube: ${SONAR_HOST_URL}                         ║
                 ║   🔗 Application: http://localhost:30002                  ║
@@ -470,8 +470,8 @@ pipeline {
                 ║   ❌ PIPELINE ÉCHOUÉE !                                  ║
                 ║                                                          ║
                 ║   Build: ${BUILD_NUMBER}                                  ║
-                ║   Branche: ${env.BRANCH_NAME}                                 ║
-                ║   Stage en échec: ${env.STAGE_NAME}                       ║
+                ║   Branche: ${env.BRANCH_NAME}                            ║
+                ║   Stage en échec: ${env.STAGE_NAME}                      ║
                 ║                                                          ║
                 ╚══════════════════════════════════════════════════════════╝
                 """
@@ -487,3 +487,4 @@ pipeline {
             echo "🛑 Pipeline annulée"
         }
     }
+}
