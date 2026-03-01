@@ -426,20 +426,22 @@ pipeline {
     // ============================================
     post {
         always {
-            script {
-                sh '''
-                    echo "🧹 Nettoyage des ressources temporaires..."
-                    rm -f backend.tar frontend.tar
-                    docker system prune -f
-                '''
-                junit '**/test-results/**/*.xml'
-                archiveArtifacts artifacts: '**/coverage/**', fingerprint: true
-                
-                def duration = currentBuild.durationString.replace(' and counting', '')
-                echo "⏱️ Durée totale: ${duration}"
+            node('master') {
+                script {
+                    sh '''
+                        echo "🧹 Nettoyage des ressources temporaires..."
+                        rm -f backend.tar frontend.tar
+                        docker system prune -f
+                    '''
+                    junit '**/test-results/**/*.xml'
+                    archiveArtifacts artifacts: '**/coverage/**', fingerprint: true
+
+                    def duration = currentBuild.durationString.replace(' and counting', '')
+                    echo "⏱️ Durée totale: ${duration}"
+                }
             }
         }
-        
+
         success {
             script {
                 echo """
@@ -448,7 +450,7 @@ pipeline {
                 ║   ✅ PIPELINE TERMINÉE AVEC SUCCÈS !                     ║
                 ║                                                          ║
                 ║   Build: ${BUILD_NUMBER}                                  ║
-                ║   Branche: ${BRANCH_NAME}                                 ║
+                ║   Branche: ${env.BRANCH_NAME}                                 ║
                 ║   Environnement: ${params.DEPLOY_ENV}                     ║
                 ║                                                          ║
                 ║   🔗 SonarQube: ${SONAR_HOST_URL}                         ║
@@ -459,7 +461,7 @@ pipeline {
                 echo "📱 [NOTIFICATION] Build réussi - prêt à notifier Slack/Teams"
             }
         }
-        
+
         failure {
             script {
                 echo """
@@ -468,7 +470,7 @@ pipeline {
                 ║   ❌ PIPELINE ÉCHOUÉE !                                  ║
                 ║                                                          ║
                 ║   Build: ${BUILD_NUMBER}                                  ║
-                ║   Branche: ${BRANCH_NAME}                                 ║
+                ║   Branche: ${env.BRANCH_NAME}                                 ║
                 ║   Stage en échec: ${env.STAGE_NAME}                       ║
                 ║                                                          ║
                 ╚══════════════════════════════════════════════════════════╝
@@ -476,13 +478,12 @@ pipeline {
                 echo "📱 [NOTIFICATION] Build échoué - alerte envoyée"
             }
         }
-        
+
         unstable {
             echo "⚠️ Pipeline instable"
         }
-        
+
         aborted {
             echo "🛑 Pipeline annulée"
         }
     }
-}
