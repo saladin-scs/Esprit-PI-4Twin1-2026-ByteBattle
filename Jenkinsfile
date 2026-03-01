@@ -410,19 +410,17 @@ pipeline {
     // ============================================
     post {
         always {
-            node() {
-                script {
-                    sh '''
-                        echo "🧹 Nettoyage des ressources temporaires..."
-                        rm -f backend.tar frontend.tar
-                        docker system prune -f
-                    '''
-                    junit allowEmptyResults: true, testResults: '**/test-results/**/*.xml'
-                    archiveArtifacts artifacts: '**/coverage/**', fingerprint: true, allowEmptyArchive: true
+            script {
+                sh '''
+                    echo "🧹 Nettoyage des ressources temporaires..."
+                    rm -f backend.tar frontend.tar
+                    docker system prune -f
+                '''
+                junit allowEmptyResults: true, testResults: '**/test-results/**/*.xml'
+                archiveArtifacts artifacts: '**/coverage/**', fingerprint: true, allowEmptyArchive: true
 
-                    def duration = currentBuild.durationString.replace(' and counting', '')
-                    echo "⏱️ Durée totale: ${duration}"
-                }
+                def duration = currentBuild.durationString.replace(' and counting', '')
+                echo "⏱️ Durée totale: ${duration}"
             }
         }
 
@@ -471,4 +469,3 @@ pipeline {
             echo "🛑 Pipeline annulée"
         }
     }
-}
