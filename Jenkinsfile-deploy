@@ -58,7 +58,8 @@ pipeline {
                 script {
                     withKubeConfig([credentialsId: KUBECONFIG_CREDENTIAL]) {
                         sh """
-                            cd /vagrant_data/PiDev-ByteBattle
+                            cd ${WORKSPACE}
+
                             
                             echo "☸️ Déploiement sur Kubernetes (${params.DEPLOY_ENV})..."
                             
