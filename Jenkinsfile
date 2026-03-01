@@ -469,3 +469,4 @@ pipeline {
             echo "🛑 Pipeline annulée"
         }
     }
+}
