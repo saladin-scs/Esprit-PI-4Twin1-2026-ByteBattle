@@ -51,39 +51,42 @@ pipeline {
             }
         }
         
-stage('Deploy to Kubernetes') {
-    steps {
-        script {
-            withKubeConfig([credentialsId: KUBECONFIG_CREDENTIAL]) {
-                // Ajoute cette ligne pour debug
-                sh 'kubectl version --client || echo "kubectl not found"'
-                
-                sh """
-                    cd ${WORKSPACE}
-                    
-                    echo "☸️ Déploiement sur Kubernetes (${params.DEPLOY_ENV})..."
-                    
-                    # Appliquer les configurations
-                    kubectl apply -f mongodb-deployment.yaml
-                    kubectl apply -f backend-deployment.yaml
-                    kubectl apply -f frontend-deployment.yaml
-                    
-                    # Mettre à jour les images
-                    kubectl set image deployment/backend backend=${BACKEND_IMAGE}
-                    kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}
-                    
-                    # Vérifier le déploiement
-                    kubectl rollout status deployment/backend --timeout=120s
-                    kubectl rollout status deployment/frontend --timeout=120s
-                    
-                    # Afficher l'état
-                    kubectl get pods
-                    kubectl get svc
-                """
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    withKubeConfig([credentialsId: KUBECONFIG_CREDENTIAL]) {
+                        sh """
+                            echo "🔍 Vérification de kubectl..."
+                            command -v kubectl || echo "⚠️ kubectl non trouvé dans PATH"
+                            
+                            cd ${WORKSPACE}
+                            
+                            echo "☸️ Déploiement sur Kubernetes (${params.DEPLOY_ENV})..."
+                            
+                            # Appliquer les configurations
+                            kubectl apply -f mongodb-deployment.yaml
+                            kubectl apply -f backend-deployment.yaml
+                            kubectl apply -f frontend-deployment.yaml
+                            
+                            # Mettre à jour les images des déploiements
+                            kubectl set image deployment/backend backend=${BACKEND_IMAGE}
+                            kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}
+                            
+                            # Vérifier le déploiement
+                            echo "⏳ Vérification du déploiement..."
+                            kubectl rollout status deployment/backend --timeout=120s
+                            kubectl rollout status deployment/frontend --timeout=120s
+                            
+                            # Afficher l'état
+                            kubectl get pods
+                            kubectl get svc
+                            
+                            echo "✅ Déploiement terminé sur ${params.DEPLOY_ENV}"
+                        """
+                    }
+                }
             }
         }
-    }
-}
         
         stage('Smoke Tests') {
             steps {
