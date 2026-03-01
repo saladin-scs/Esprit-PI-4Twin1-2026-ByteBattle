@@ -197,7 +197,7 @@ pipeline {
         stage('SonarQube Analysis') {
             when {
                 expression { params.RUN_SONAR }
-                branch 'saladin', 'develop', 'main', 'master'
+                expression { env.BRANCH_NAME ==~ /(saladin|develop|main|master)/ }
             }
             steps {
                 script {
@@ -278,7 +278,7 @@ pipeline {
         // ============================================
         stage('Docker Build') {
             when {
-                branch 'saladin', 'main', 'master', 'production'
+                expression { env.BRANCH_NAME ==~ /(saladin|main|master|production)/ }
             }
             parallel {
                 stage('Backend Image') {
@@ -318,7 +318,7 @@ pipeline {
         // ============================================
         stage('Security Scan') {
             when {
-                branch 'saladin', 'main', 'master'
+                expression { env.BRANCH_NAME ==~ /(saladin|main|master)/ }
             }
             parallel {
                 stage('Dependency Check') {
@@ -343,7 +343,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             when {
                 expression { params.DEPLOY }
-                branch 'saladin', 'main', 'master'
+                expression { env.BRANCH_NAME ==~ /(saladin|main|master)/ }
             }
             steps {
                 script {
