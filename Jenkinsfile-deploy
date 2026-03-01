@@ -1,0 +1,145 @@
+pipeline {
+    agent any
+    
+    tools {
+        nodejs 'nodejs-18'
+    }
+    
+    parameters {
+        choice(
+            name: 'DEPLOY_ENV',
+            choices: ['dev', 'staging', 'production'],
+            description: '🌍 Environnement de déploiement'
+        )
+        string(
+            name: 'BUILD_NUMBER',
+            defaultValue: 'latest',
+            description: '🏷️ Numéro du build à déployer (ex: 12, latest)'
+        )
+    }
+    
+    environment {
+        // Docker
+        BACKEND_IMAGE = "khalfaouisaladin/bytebattle-backend:${params.BUILD_NUMBER}"
+        FRONTEND_IMAGE = "khalfaouisaladin/bytebattle-frontend:${params.BUILD_NUMBER}"
+        
+        // Kubernetes
+        KUBECONFIG_CREDENTIAL = 'kubeconfig-credential'
+    }
+    
+    stages {
+        stage('Check Images on Docker Hub') {
+            steps {
+                script {
+                    sh '''
+                        echo "🔍 Vérification des images sur Docker Hub..."
+                        
+                        # Vérifier que l'image backend existe
+                        docker pull ${BACKEND_IMAGE} || {
+                            echo "❌ Image backend ${BACKEND_IMAGE} non trouvée"
+                            exit 1
+                        }
+                        
+                        # Vérifier que l'image frontend existe
+                        docker pull ${FRONTEND_IMAGE} || {
+                            echo "❌ Image frontend ${FRONTEND_IMAGE} non trouvée"
+                            exit 1
+                        }
+                        
+                        echo "✅ Images trouvées"
+                        docker images | grep khalfaouisaladin
+                    '''
+                }
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    withKubeConfig([credentialsId: KUBECONFIG_CREDENTIAL]) {
+                        sh """
+                            cd /vagrant_data/PiDev-ByteBattle
+                            
+                            echo "☸️ Déploiement sur Kubernetes (${params.DEPLOY_ENV})..."
+                            
+                            # Sauvegarder les images depuis Docker Hub
+                            docker pull ${BACKEND_IMAGE}
+                            docker pull ${FRONTEND_IMAGE}
+                            
+                            # Tagger pour containerd
+                            docker tag ${BACKEND_IMAGE} bytebattle-backend:${params.BUILD_NUMBER}
+                            docker tag ${FRONTEND_IMAGE} bytebattle-frontend:${params.BUILD_NUMBER}
+                            
+                            # Sauvegarder et importer dans containerd
+                            docker save bytebattle-backend:${params.BUILD_NUMBER} -o backend.tar
+                            docker save bytebattle-frontend:${params.BUILD_NUMBER} -o frontend.tar
+                            
+                            sudo ctr -n k8s.io images import backend.tar
+                            sudo ctr -n k8s.io images import frontend.tar
+                            
+                            # Tagguer pour Kubernetes
+                            sudo ctr -n k8s.io images tag docker.io/library/bytebattle-backend:${params.BUILD_NUMBER} docker.io/library/backend:latest
+                            sudo ctr -n k8s.io images tag docker.io/library/bytebattle-frontend:${params.BUILD_NUMBER} docker.io/library/frontend:latest
+                            
+                            # Appliquer les configurations
+                            kubectl apply -f mongodb-deployment.yaml
+                            kubectl apply -f backend-deployment.yaml
+                            kubectl apply -f frontend-deployment.yaml
+                            
+                            # Vérifier le déploiement
+                            echo "⏳ Vérification du déploiement..."
+                            kubectl rollout status deployment/backend --timeout=120s
+                            kubectl rollout status deployment/frontend --timeout=120s
+                            
+                            # Afficher l'état
+                            kubectl get pods
+                            kubectl get svc
+                            
+                            echo "✅ Déploiement terminé sur ${params.DEPLOY_ENV}"
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Smoke Tests') {
+            steps {
+                sh '''
+                    echo "🔥 Tests de non-régression..."
+                    
+                    # Tester le backend
+                    BACKEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:30001)
+                    if [ $BACKEND_RESPONSE -eq 200 ] || [ $BACKEND_RESPONSE -eq 404 ]; then
+                        echo "✅ Backend répond (HTTP $BACKEND_RESPONSE)"
+                    else
+                        echo "❌ Backend ne répond pas (HTTP $BACKEND_RESPONSE)"
+                        exit 1
+                    fi
+                    
+                    # Tester le frontend
+                    FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:30002)
+                    if [ $FRONTEND_RESPONSE -eq 200 ]; then
+                        echo "✅ Frontend répond"
+                    else
+                        echo "❌ Frontend ne répond pas"
+                        exit 1
+                    fi
+                    
+                    echo "✅ Tous les tests passent"
+                '''
+            }
+        }
+    }
+    
+    post {
+        always {
+            sh 'rm -f backend.tar frontend.tar'
+        }
+        success {
+            echo "✅ Déploiement réussi !"
+        }
+        failure {
+            echo "❌ Déploiement échoué !"
+        }
+    }
+}
