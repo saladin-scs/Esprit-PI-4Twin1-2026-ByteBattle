@@ -34,13 +34,11 @@ pipeline {
                     sh '''
                         echo "🔍 Vérification des images sur Docker Hub..."
                         
-                        # Vérifier que l'image backend existe
                         docker pull ${BACKEND_IMAGE} || {
                             echo "❌ Image backend ${BACKEND_IMAGE} non trouvée"
                             exit 1
                         }
                         
-                        # Vérifier que l'image frontend existe
                         docker pull ${FRONTEND_IMAGE} || {
                             echo "❌ Image frontend ${FRONTEND_IMAGE} non trouvée"
                             exit 1
@@ -62,30 +60,14 @@ pipeline {
                             
                             echo "☸️ Déploiement sur Kubernetes (${params.DEPLOY_ENV})..."
                             
-                            # Sauvegarder les images depuis Docker Hub
-                            docker pull ${BACKEND_IMAGE}
-                            docker pull ${FRONTEND_IMAGE}
-                            
-                            # Tagger pour containerd
-                            docker tag ${BACKEND_IMAGE} bytebattle-backend:${params.BUILD_NUMBER}
-                            docker tag ${FRONTEND_IMAGE} bytebattle-frontend:${params.BUILD_NUMBER}
-                            
-                            # Sauvegarder et importer dans containerd (SANS sudo)
-                            docker save bytebattle-backend:${params.BUILD_NUMBER} -o backend.tar
-                            docker save bytebattle-frontend:${params.BUILD_NUMBER} -o frontend.tar
-                            
-                            # Utiliser ctr sans sudo (Jenkins a les droits)
-                            ctr -n k8s.io images import backend.tar || echo "⚠️ Erreur import backend, mais on continue"
-                            ctr -n k8s.io images import frontend.tar || echo "⚠️ Erreur import frontend, mais on continue"
-                            
-                            # Tagguer pour Kubernetes (SANS sudo)
-                            ctr -n k8s.io images tag docker.io/library/bytebattle-backend:${params.BUILD_NUMBER} docker.io/library/backend:latest || echo "⚠️ Erreur tag backend"
-                            ctr -n k8s.io images tag docker.io/library/bytebattle-frontend:${params.BUILD_NUMBER} docker.io/library/frontend:latest || echo "⚠️ Erreur tag frontend"
-                            
-                            # Appliquer les configurations
+                            # Appliquer les configurations directement
                             kubectl apply -f mongodb-deployment.yaml
                             kubectl apply -f backend-deployment.yaml
                             kubectl apply -f frontend-deployment.yaml
+                            
+                            # Mettre à jour les images des déploiements
+                            kubectl set image deployment/backend backend=${BACKEND_IMAGE}
+                            kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}
                             
                             # Vérifier le déploiement
                             echo "⏳ Vérification du déploiement..."
@@ -133,9 +115,6 @@ pipeline {
     }
     
     post {
-        always {
-            sh 'rm -f backend.tar frontend.tar'
-        }
         success {
             echo "✅ Déploiement réussi !"
         }
