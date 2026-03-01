@@ -93,9 +93,15 @@ pipeline {
                 sh '''
                     echo "🔥 Tests de non-régression..."
                     
+                    # Attendre que les services soient prêts
+                    echo "⏳ Pause de 30 secondes pour le démarrage des pods..."
+                    sleep 30
+                    
                     # Tester le backend
-                    BACKEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:30001)
-                    if [ $BACKEND_RESPONSE -eq 200 ] || [ $BACKEND_RESPONSE -eq 404 ]; then
+                    echo "📡 Test du backend sur http://localhost:30001..."
+                    BACKEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:30001 || echo "000")
+                    
+                    if [ "$BACKEND_RESPONSE" -eq 200 ] || [ "$BACKEND_RESPONSE" -eq 404 ]; then
                         echo "✅ Backend répond (HTTP $BACKEND_RESPONSE)"
                     else
                         echo "❌ Backend ne répond pas (HTTP $BACKEND_RESPONSE)"
@@ -103,11 +109,13 @@ pipeline {
                     fi
                     
                     # Tester le frontend
-                    FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:30002)
-                    if [ $FRONTEND_RESPONSE -eq 200 ]; then
+                    echo "📡 Test du frontend sur http://localhost:30002..."
+                    FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:30002 || echo "000")
+                    
+                    if [ "$FRONTEND_RESPONSE" -eq 200 ]; then
                         echo "✅ Frontend répond"
                     else
-                        echo "❌ Frontend ne répond pas"
+                        echo "❌ Frontend ne répond pas (HTTP $FRONTEND_RESPONSE)"
                         exit 1
                     fi
                     
