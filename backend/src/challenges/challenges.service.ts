@@ -2,7 +2,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Challenge, ChallengeDocument } from './schemas/challenge.schema'
+import { Challenge, ChallengeDocument } from './schemas/challenge.schema';
 import { Submission, SubmissionDocument } from './schemas/Submission.schema';
 import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
 import { CodeExecutorService } from './code-executor.service';
