@@ -1,4 +1,5 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+/* eslint-disable prettier/prettier */
+import { IsEmail, IsString, MinLength, IsArray, IsOptional, IsNumber } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
@@ -15,5 +16,11 @@ export class RegisterDto {
   @IsString()
   @MinLength(6)
   password: string;
-}
 
+  // ✅ AJOUT : embedding facial optionnel (128 floats de face-api.js)
+  @ApiProperty({ required: false, description: 'Face embedding vector (128 floats)' })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  faceDescriptor?: number[];
+}

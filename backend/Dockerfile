@@ -1,16 +1,17 @@
+
 FROM node:18-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
-
-RUN npm ci --only=production
-
+# Copier TOUT le dossier (pas de sélection spécifique)
 COPY . .
 
+# Installer les dépendances
+RUN npm install
+
+# Build
 RUN npm run build
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start:prod"]
-
+CMD ["node", "dist/main"]
