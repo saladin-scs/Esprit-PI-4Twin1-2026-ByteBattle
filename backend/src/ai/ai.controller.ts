@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 // src/ai/ai.controller.ts
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -16,5 +17,24 @@ export class AiController {
   async generateChallenge(@Body() body: { difficulty: string; topic: string }) {
     const { difficulty, topic } = body;
     return this.aiService.generateChallenge(difficulty, topic);
+  }
+
+  @Post('analyze-code')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Analyze code using Python AI service' })
+  async analyzeCode(
+    @Body()
+    body: {
+      code: string;
+      language?: string;
+      tests_passed?: boolean;
+      execution_error?: string;
+      runtime_ms?: number;
+      memory_kb?: number;
+      task_description?: string;
+    },
+  ) {
+    return this.aiService.analyzeCode(body);
   }
 }

@@ -1,0 +1,62 @@
+/* eslint-disable prettier/prettier */
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+
+export class AnalyzeCodeDto {
+  @ApiProperty({
+    description: 'The code to analyze',
+    example: 'def add(a, b):\n    return a + b',
+  })
+  @IsString()
+  code: string;
+
+  @ApiPropertyOptional({
+    description: 'Programming language',
+    default: 'python',
+    example: 'python',
+  })
+  @IsString()
+  @IsOptional()
+  language?: string;
+
+  @ApiPropertyOptional({
+    description: 'Whether all tests passed',
+    example: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  tests_passed?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Execution error message if any',
+    example: 'SyntaxError: invalid syntax',
+  })
+  @IsString()
+  @IsOptional()
+  execution_error?: string;
+
+  @ApiPropertyOptional({
+    description: 'Runtime in milliseconds',
+    example: 150.5,
+  })
+  @IsNumber()
+  @IsOptional()
+  runtime_ms?: number;
+
+  @ApiPropertyOptional({
+    description: 'Memory usage in KB',
+    example: 1024,
+  })
+  @IsNumber()
+  @IsOptional()
+  memory_kb?: number;
+
+  @ApiPropertyOptional({
+    description: 'Task description for context',
+    example: 'Write a function that adds two numbers',
+  })
+  @IsString()
+  @IsOptional()
+  task_description?: string;
+}
+

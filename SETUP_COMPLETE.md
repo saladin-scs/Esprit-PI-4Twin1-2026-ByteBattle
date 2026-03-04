@@ -12,7 +12,7 @@
 - ✅ Leaderboard module
 - ✅ Achievement system
 - ✅ Real-time chat (Socket.io Gateway)
-- ✅ AI service module (ready for OpenAI/Anthropic integration)
+- ✅ AI service module (challenge generation via OpenRouter + code analysis via FastAPI microservice)
 - ✅ MongoDB integration with Mongoose
 - ✅ Swagger/OpenAPI documentation
 - ✅ Docker configuration
@@ -55,6 +55,9 @@ npm install
 
 ### 2. Configure Environment
 ```bash
+# Repo root (Docker Compose variables)
+# Copy .env.example to .env and adjust values
+
 # Backend
 cd backend
 cp .env.example .env
@@ -99,7 +102,7 @@ npm run dev
 
 ### 🔄 To Be Implemented
 - Secure code execution engine (Docker-based sandbox)
-- OpenAI/Anthropic API integration
+- OpenRouter API key configuration (optional) and AI service wiring
 - Real-time competition features
 - Leaderboard calculations
 - Achievement system logic
