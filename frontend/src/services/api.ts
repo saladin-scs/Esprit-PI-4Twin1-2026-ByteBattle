@@ -46,5 +46,6 @@ export const leaderboardApi = {
     apiClient.get(`/leaderboard/competition/${id}`),
 };
 
+
 export default apiClient;
 

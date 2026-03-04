@@ -1,10 +1,40 @@
 /* eslint-disable prettier/prettier */
-import { Controller, Get, UseGuards, Request, Put, Body, Post } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Request,
+  Put,
+  Body,
+  Post,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { v4 as uuidv4 } from 'uuid';
+
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateMeDto } from './dto/update-me.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+
+// Optional: Multer file filter
+const imageFileFilter = (req: any, file: any, callback: any) => {
+  if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+    return callback(new BadRequestException('Only image files are allowed!'), false);
+  }
+  callback(null, true);
+};
 
 @ApiTags('Users')
 @Controller('users')
@@ -28,7 +58,11 @@ export class UsersController {
   @Post('me/change-password')
   @ApiOperation({ summary: 'Change current user password' })
   async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
-    return this.usersService.changePassword(req.user.userId, dto.currentPassword, dto.newPassword);
+    return this.usersService.changePassword(
+      req.user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   @Get('me/stats')
@@ -54,5 +88,92 @@ export class UsersController {
   async getNewBadge(@Request() req) {
     return this.usersService.consumeAndReturnNewBadge(req.user.userId);
   }
-}
 
+  /**
+   * Upload avatar image
+   */
+  @Post('me/avatar')
+  @ApiOperation({ summary: 'Upload user avatar' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        avatar: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      storage: diskStorage({
+        destination: './uploads/avatars',
+        filename: (req, file, cb) => {
+          const uniqueName = uuidv4() + extname(file.originalname);
+          cb(null, uniqueName);
+        },
+      }),
+      fileFilter: imageFileFilter,
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    }),
+  )
+  async uploadAvatar(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const avatarUrl = `/uploads/avatars/${file.filename}`;
+    await this.usersService.updateAvatar(req.user.userId, avatarUrl);
+
+    return { avatarUrl };
+  }
+
+  /**
+   * Upload cover image
+   */
+  @Post('me/cover')
+  @ApiOperation({ summary: 'Upload cover image' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        cover: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('cover', {
+      storage: diskStorage({
+        destination: './uploads/covers',
+        filename: (req, file, cb) => {
+          const uniqueName = uuidv4() + extname(file.originalname);
+          cb(null, uniqueName);
+        },
+      }),
+      fileFilter: imageFileFilter,
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  async uploadCover(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const coverUrl = `/uploads/covers/${file.filename}`;
+    await this.usersService.updateCover(req.user.userId, coverUrl);
+
+    return { coverUrl };
+  }
+}

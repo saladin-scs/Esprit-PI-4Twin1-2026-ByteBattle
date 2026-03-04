@@ -51,6 +51,21 @@ export class UsersService {
 
     return user;
   }
+  async updateAvatar(userId: string, avatarUrl: string): Promise<User> {
+  return this.userModel.findByIdAndUpdate(
+    userId,
+    { avatarUrl },
+    { new: true },
+  );
+}
+
+async updateCover(userId: string, coverUrl: string): Promise<User> {
+  return this.userModel.findByIdAndUpdate(
+    userId,
+    { coverImage: coverUrl },
+    { new: true },
+  );
+}
 
   // Find one user by ID
   async findOne(userId: string): Promise<UserDocument | null> {
