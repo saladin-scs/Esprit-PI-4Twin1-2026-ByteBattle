@@ -6,20 +6,33 @@ import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
+import { join } from 'path';
+import * as fs from 'fs';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const bodyLimit = process.env.HTTP_BODY_LIMIT || '1mb';
   app.use(json({ limit: bodyLimit }));
   app.use(urlencoded({ extended: true, limit: bodyLimit }));
-  
-  
+
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
+
+  // Create upload directories if they don't exist
+  ['./uploads/avatars', './uploads/covers'].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
+
+  // Serve static files from uploads directory
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads/' });
+
 
   // Enable CORS
   const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
@@ -45,8 +58,10 @@ async function bootstrap() {
   app.use(async (req: any, res: any, next: any) => {
     try {
       const key = req.ip || req.connection?.remoteAddress || 'unknown';
-      // softer for swagger/assets
-      if (req.path?.startsWith('/api')) return next();
+      // Skip rate limiting for Swagger and static assets
+      if (req.path?.startsWith('/api') || req.path?.startsWith('/uploads')) {
+        return next();
+      }
       await rateLimiter.consume(key, 1);
       return next();
     } catch {
@@ -83,4 +98,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-

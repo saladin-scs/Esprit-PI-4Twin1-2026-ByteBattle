@@ -5,6 +5,14 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000', // 👈 this should be set
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token'); // adjust key if different
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const usersApi = {
   
   me: () => apiClient.get('/users/me'),
@@ -18,11 +26,11 @@ export const usersApi = {
   publicByUsername: (username: string) => apiClient.get(`/users/public/${username}`),
   publicActivity: (username: string) => apiClient.get(`/users/public/${username}/activity`),
   publicSkillTree: (username: string) => apiClient.get(`/users/public/${username}/skill-tree`),
-  uploadAvatar: (formData: FormData) => api.post('/users/avatar', formData, {
+  uploadAvatar: (formData: FormData) => api.post('/users/me/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
 
-  uploadCover: (formData: FormData) => api.post('/users/cover', formData, {
+  uploadCover: (formData: FormData) => api.post('/users/me/cover', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
 };

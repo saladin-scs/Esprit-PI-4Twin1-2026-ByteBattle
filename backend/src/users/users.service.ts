@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Injectable, ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, ForbiddenException, UnauthorizedException , NotFoundException  } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
@@ -52,20 +52,24 @@ export class UsersService {
     return user;
   }
   async updateAvatar(userId: string, avatarUrl: string): Promise<User> {
-  return this.userModel.findByIdAndUpdate(
-    userId,
-    { avatarUrl },
-    { new: true },
-  );
-}
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { avatarUrl },
+      { new: true }, // return the updated document
+    );
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
 
 async updateCover(userId: string, coverUrl: string): Promise<User> {
-  return this.userModel.findByIdAndUpdate(
-    userId,
-    { coverImage: coverUrl },
-    { new: true },
-  );
-}
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { coverImage: coverUrl },
+      { new: true },
+    );
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
 
   // Find one user by ID
   async findOne(userId: string): Promise<UserDocument | null> {
