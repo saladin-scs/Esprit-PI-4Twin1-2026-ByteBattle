@@ -1,26 +1,87 @@
 /* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable prettier/prettier */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
+  private transporter: nodemailer.Transporter;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) {
+    const host = this.configService.get<string>('MAIL_HOST');
+    const port = Number(this.configService.get<string>('MAIL_PORT')) || 587;
+    const user = this.configService.get<string>('MAIL_USER');
+    const pass = this.configService.get<string>('MAIL_PASS');
+
+    this.transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465, // true for 465, false for 587
+      auth: {
+        user,
+        pass,
+      },
+      tls: {
+        rejectUnauthorized: false, // ⚠️ dev only, ignore SSL errors
+      },
+    });
+
+    // Optional: test the transporter immediately
+    this.transporter.verify((err, success) => {
+      if (err) {
+        this.logger.error('SMTP Transporter failed', err);
+      } else {
+        this.logger.log('SMTP Transporter is ready');
+      }
+    });
+  }
 
   async sendEmailVerification(email: string, token: string) {
-    const baseUrl = this.configService.get<string>('APP_BASE_URL') || 'http://localhost:5173';
+    const baseUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      this.configService.get<string>('APP_BASE_URL') ||
+      'http://localhost:5173';
     const url = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
 
-    // No SMTP configured in this project yet: log the link for dev.
-    this.logger.log(`Email verification link for ${email}: ${url}`);
+    const mailOptions = {
+      from: `"ByteBattle" <${this.configService.get<string>('MAIL_USER')}>`,
+      to: email,
+      subject: 'Verify Your Email',
+      html: `<p>Click <a href="${url}">here</a> to verify your email.</p>`,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Verification email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send verification email to ${email}`, error.stack);
+      throw error;
+    }
   }
 
   async sendPasswordReset(email: string, token: string) {
-    const baseUrl = this.configService.get<string>('APP_BASE_URL') || 'http://localhost:5173';
+    const baseUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      this.configService.get<string>('APP_BASE_URL') ||
+      'http://localhost:5173';
     const url = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
-    this.logger.log(`Password reset link for ${email}: ${url}`);
+    const mailOptions = {
+      from: `"ByteBattle" <${this.configService.get<string>('MAIL_USER')}>`,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `<p>Click <a href="${url}">here</a> to reset your password.</p>`,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Password reset email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send password reset email to ${email}`, error.stack);
+      throw error;
+    }
   }
 }
-

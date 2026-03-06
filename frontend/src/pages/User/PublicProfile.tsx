@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { motion } from 'framer-motion';
@@ -36,6 +36,14 @@ function PublicProfile() {
   const [activityData, setActivityData] = useState<ActivityData | null>(null);
   const [skillTreeData, setSkillTreeData] = useState<SkillTreeItem[] | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // Image upload states
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -99,6 +107,76 @@ function PublicProfile() {
     load();
   }, [username, isOwner]);
 
+  // Handlers for image upload
+  const handleAvatarClick = () => {
+    if (isOwner) avatarInputRef.current?.click();
+  };
+
+  const handleCoverClick = () => {
+    if (isOwner) coverInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Preview
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const response = await usersApi.uploadAvatar(formData);
+
+        console.log('Full response:', response); // 
+    console.log('Response data:', response.data); // 
+      // Update profile with new avatar URL from server
+      setProfile(prev => {
+      const updated = prev ? { ...prev, avatarUrl: response.data.avatarUrl } : null;
+      console.log('Updated profile avatarUrl:', updated?.avatarUrl); // 
+      return updated;
+    });
+      
+      toast.success('Avatar mis à jour');
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Échec de la mise à jour de l\'avatar';
+      toast.error(message);
+    } finally {
+      setUploadingAvatar(false);
+      // Revoke preview URL to avoid memory leak
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      setAvatarPreview(null);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
+  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    setCoverPreview(previewUrl);
+
+    setUploadingCover(true);
+    try {
+      const formData = new FormData();
+      formData.append('cover', file);
+      const response = await usersApi.uploadCover(formData);
+      setProfile(prev => prev ? { ...prev, coverImage: response.data.coverUrl } : null);
+      toast.success('Image de couverture mise à jour');
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Échec de la mise à jour de la couverture';
+      toast.error(message);
+    } finally {
+      setUploadingCover(false);
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+      setCoverPreview(null);
+      if (coverInputRef.current) coverInputRef.current.value = '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
@@ -145,37 +223,99 @@ function PublicProfile() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white pb-20">
+      {/* Hidden file inputs */}
+      <input
+        type="file"
+        ref={avatarInputRef}
+        onChange={handleAvatarChange}
+        accept="image/*"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={coverInputRef}
+        onChange={handleCoverChange}
+        accept="image/*"
+        className="hidden"
+      />
+
       <EditProfileModal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         profile={profile}
         onSaved={() => { loadProfile(); dispatch(fetchMe()); }}
       />
+      
       {/* 1. Cover + Identity */}
       <section className="relative">
+        {/* Cover image */}
         <div
-          className="h-40 sm:h-52 bg-gradient-to-r from-slate-600 to-slate-700 dark:from-slate-800 dark:to-slate-900"
-          style={
-            profile.coverImage
-              ? { backgroundImage: `url(${profile.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-              : {}
-          }
-        />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 -mt-16 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col sm:flex-row items-start sm:items-end gap-4"
-          >
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-gray-200 dark:border-gray-800 bg-gray-200 dark:bg-gray-800 overflow-hidden flex-shrink-0">
-              {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+          className={`h-48 sm:h-64 w-full relative group ${isOwner ? 'cursor-pointer' : ''}`}
+          onClick={handleCoverClick}
+        >
+          <div
+            className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-900"
+            style={
+              coverPreview
+                ? { backgroundImage: `url(${coverPreview})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : profile.coverImage
+                ? { backgroundImage: `url(${profile.coverImage}?t=${Date.now()})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : {}
+            }
+          />
+          {isOwner && (
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              {uploadingCover ? (
+                <Spinner size="sm" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-gray-500 dark:text-gray-400">
-                  {(profile.displayName || profile.username).charAt(0).toUpperCase()}
-                </div>
+                <span className="text-white bg-gray-800/80 px-3 py-1 rounded-full text-sm">
+                  Changer la couverture
+                </span>
               )}
             </div>
+          )}
+        </div>
+      </section>
+
+      {/* ========== PROFILE CARD (below cover, no overlap) ========== */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 -mt-12 relative z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 shadow-xl"
+        >
+          <div className="flex flex-col sm:flex-row items-start gap-6">
+            {/* Avatar */}
+            <div className="relative -mt-16 sm:-mt-20">
+              <div
+                className={`w-24 h-24 sm:w-32 sm:h-32 rounded-2xl border-4 border-gray-800 bg-gray-800 overflow-hidden flex-shrink-0 relative group ${isOwner ? 'cursor-pointer' : ''}`}
+                onClick={handleAvatarClick}
+              >
+                {(avatarPreview || profile.avatarUrl) ? (
+                  <img
+                    key={profile.avatarUrl}
+                    src={avatarPreview || profile.avatarUrl + '?t=' + Date.now()}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-gray-500">
+                    {(profile.displayName || profile.username).charAt(0).toUpperCase()}
+                  </div>
+                )}
+                {isOwner && (
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    {uploadingAvatar ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <span className="text-white text-xs">Changer</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* User details */}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 justify-between">
                 <div>
@@ -195,9 +335,11 @@ function PublicProfile() {
                   </Button>
                 )}
               </div>
+
               {profile.bio && (
                 <p className="mt-2 text-gray-600 dark:text-gray-300 whitespace-pre-wrap max-w-2xl">{profile.bio}</p>
               )}
+
               <div className="flex flex-wrap gap-3 mt-2">
                 {profile.country && (
                   <span className="text-gray-500 dark:text-gray-400 text-sm">📍 {profile.country}</span>
@@ -208,6 +350,7 @@ function PublicProfile() {
                   </span>
                 )}
               </div>
+
               {(profile.socialLinks && Object.values(profile.socialLinks).some(Boolean)) && (
                 <div className="flex gap-3 mt-3">
                   {profile.socialLinks.github && (
@@ -233,9 +376,10 @@ function PublicProfile() {
                 </div>
               )}
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
       </section>
+
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8 space-y-8">
         {/* 2. Rank & Progression */}

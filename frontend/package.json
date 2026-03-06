@@ -12,10 +12,13 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@monaco-editor/react": "^4.6.0",
+    "@nestjs/swagger": "^11.2.6",
     "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.13.3",
     "framer-motion": "^12.34.3",
+    "helmet": "^8.1.0",
     "monaco-editor": "^0.45.0",
+    "rate-limiter-flexible": "^9.1.1",
     "react": "^18.2.0",
     "react-datepicker": "^9.1.0",
     "react-dom": "^18.2.0",
