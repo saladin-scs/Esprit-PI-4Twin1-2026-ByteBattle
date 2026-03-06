@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+// pages/Register.tsx
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
@@ -14,9 +15,41 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useDebounce } from 'use-debounce';
 import toast from 'react-hot-toast';
-import { GoogleIcon, GithubIcon } from '../../components/icons/SocialAuthIcons';
+import * as faceapi from 'face-api.js';
+import axios from 'axios';
 
-// Validation schema
+// Icons
+const GoogleIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24">
+    <path
+      fill="currentColor"
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+    />
+    <path
+      fill="currentColor"
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+    />
+    <path
+      fill="currentColor"
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+    />
+    <path
+      fill="currentColor"
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+    />
+  </svg>
+);
+
+const GithubIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24">
+    <path
+      fill="currentColor"
+      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+    />
+  </svg>
+);
+
+// ==================== Validation Schema ====================
 const registerSchema = yup.object().shape({
   email: yup.string()
     .email('Invalid email format')
@@ -73,11 +106,92 @@ const registerSchema = yup.object().shape({
     .oneOf([true], 'You must accept the terms and conditions'),
   
   newsletter: yup.boolean().optional().default(false),
-  
   referralSource: yup.string().optional().default(''),
 });
 
 type RegisterFormData = yup.InferType<typeof registerSchema>;
+
+// ==================== Custom Hooks ====================
+
+// Email availability check hook
+const useEmailAvailability = (email: string, apiUrl: string) => {
+  const [debouncedEmail] = useDebounce(email, 500);
+  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+
+  useEffect(() => {
+    const checkEmail = async () => {
+      if (!debouncedEmail || !debouncedEmail.includes('@')) {
+        setIsAvailable(null);
+        return;
+      }
+
+      setIsChecking(true);
+      try {
+        const response = await fetch(
+          `${apiUrl}/auth/check-email?email=${encodeURIComponent(debouncedEmail)}`,
+        );
+        const data = await response.json();
+        setIsAvailable(data.available);
+      } catch (error) {
+        console.error('Email check failed:', error);
+        setIsAvailable(null);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkEmail();
+  }, [debouncedEmail, apiUrl]);
+
+  return { isAvailable, isChecking };
+};
+
+// Face recognition hook
+const useFaceRecognition = (modelsUrl: string = '/models') => {
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        setIsLoading(true);
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(modelsUrl),
+          faceapi.nets.faceLandmark68Net.loadFromUri(modelsUrl),
+          faceapi.nets.faceRecognitionNet.loadFromUri(modelsUrl),
+        ]);
+        setModelsLoaded(true);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load face recognition models');
+        console.error('Face models loading error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadModels();
+  }, [modelsUrl]);
+
+  const detectFace = async (videoElement: HTMLVideoElement) => {
+    if (!modelsLoaded) {
+      throw new Error('Models not loaded');
+    }
+
+    const detection = await faceapi
+      .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    return detection;
+  };
+
+  return { modelsLoaded, isLoading, error, detectFace };
+};
+
+// ==================== Components ====================
 
 // Password strength indicator component
 const PasswordStrengthIndicator = ({ password }: { password: string }) => {
@@ -133,54 +247,105 @@ const PasswordStrengthIndicator = ({ password }: { password: string }) => {
   );
 };
 
-// Email availability check hook
-const useEmailAvailability = (email: string, apiUrl: string) => {
-  const [debouncedEmail] = useDebounce(email, 500);
-  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
+// Progress bar component
+const ProgressBar = ({ currentStep, steps }: { currentStep: number; steps: { title: string }[] }) => (
+  <div className="mb-8">
+    <div className="flex justify-between items-center">
+      {steps.map((step, index) => (
+        <div key={step.title} className="flex-1 text-center">
+          <div className={`
+            w-8 h-8 mx-auto rounded-full flex items-center justify-center
+            ${index <= currentStep 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+            }
+          `}>
+            {index + 1}
+          </div>
+          <div className="text-xs mt-2 text-gray-500 dark:text-gray-400">{step.title}</div>
+        </div>
+      ))}
+    </div>
+    <div className="relative mt-2">
+      <div className="absolute top-0 left-0 h-1 bg-gray-300 dark:bg-gray-700 w-full rounded" />
+      <div 
+        className="absolute top-0 left-0 h-1 bg-blue-600 rounded transition-all duration-300"
+        style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
+      />
+    </div>
+  </div>
+);
 
-  useEffect(() => {
-    const checkEmail = async () => {
-      if (!debouncedEmail || !debouncedEmail.includes('@')) {
-        setIsAvailable(null);
-        return;
-      }
-
-      setIsChecking(true);
-      try {
-        const response = await fetch(
-          `${apiUrl}/auth/check-email?email=${encodeURIComponent(
-            debouncedEmail,
-          )}`,
-        );
-        const data = await response.json();
-        setIsAvailable(data.available);
-      } catch (error) {
-        console.error('Email check failed:', error);
-        setIsAvailable(null);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
-    checkEmail();
-  }, [debouncedEmail]);
-
-  return { isAvailable, isChecking };
+// Camera component
+const Camera = ({ 
+  videoRef, 
+  isActive,
+  onFaceDetected, 
+  isLoading 
+}: { 
+  videoRef: React.RefObject<HTMLVideoElement>; 
+  isActive: boolean;
+  onFaceDetected?: () => void;
+  isLoading?: boolean;
+}) => {
+  return (
+    <div className="relative">
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        className="w-full max-w-md mx-auto rounded-lg border-2 border-gray-300 dark:border-gray-600"
+      />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        </div>
+      )}
+      {!isActive && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
+          <p className="text-white text-sm">Camera inactive</p>
+        </div>
+      )}
+    </div>
+  );
 };
+
+// ==================== Main Register Component ====================
+
+type RegisterMode = 'standard' | 'face';
 
 function Register() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as
-    | string
-    | undefined;
+  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+  
+  // Mode state
+  const [mode, setMode] = useState<RegisterMode>('standard');
+  
+  // Standard registration states
   const [currentStep, setCurrentStep] = useState(0);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
+  
+  // Face registration states
+  const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  
+  // Common states
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  // Hooks
+  const { modelsLoaded, isLoading: faceModelsLoading, error: faceError, detectFace } = useFaceRecognition();
+  
+  // Form
   const {
     register,
     handleSubmit,
@@ -188,9 +353,11 @@ function Register() {
     watch,
     formState: { errors, isSubmitting },
     trigger,
-    setError,
+    setError: setFormError,
+    getValues,
+    setValue,
   } = useForm<RegisterFormData>({
-    resolver: yupResolver(registerSchema) as any, // Type assertion to fix resolver type issue
+    resolver: yupResolver(registerSchema) as any,
     mode: 'onChange',
     defaultValues: {
       email: '',
@@ -207,24 +374,57 @@ function Register() {
     },
   });
 
+  // Watchers
   const watchEmail = watch('email');
   const watchPassword = watch('password');
   const { isAvailable: isEmailAvailable, isChecking: isCheckingEmail } =
     useEmailAvailability(watchEmail, API_URL);
 
+  // Registration steps
   const steps = [
     { title: 'Account', fields: ['email', 'username', 'password', 'confirmPassword'] },
     { title: 'Personal', fields: ['firstName', 'lastName', 'phone', 'dateOfBirth'] },
     { title: 'Preferences', fields: ['termsAccepted', 'newsletter', 'referralSource'] },
   ];
 
+  // Camera management
+  useEffect(() => {
+    if (mode !== 'face') {
+      stopCamera();
+      return;
+    }
+
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        setError("Unable to access camera. Please check permissions.");
+      }
+    };
+
+    startCamera();
+    return () => stopCamera();
+  }, [mode]);
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
+
+  // Navigation
   const nextStep = async () => {
     const fieldsToValidate = steps[currentStep].fields;
     const isStepValid = await trigger(fieldsToValidate as any);
     
     if (isStepValid) {
       if (currentStep === 0 && isEmailAvailable === false) {
-        setError('email', { 
+        setFormError('email', { 
           type: 'manual', 
           message: 'This email is already registered' 
         });
@@ -238,7 +438,90 @@ function Register() {
     setCurrentStep(prev => Math.max(prev - 1, 0));
   };
 
-  const onSubmit = async (data: RegisterFormData) => {
+  // Social login
+  const redirectToSocial = (provider: 'google' | 'github') => {
+    stopCamera();
+    window.location.href = `${API_URL}/auth/${provider}`;
+  };
+
+  // ========== Face Registration Handlers ==========
+
+  const captureFace = async () => {
+    if (!videoRef.current || !modelsLoaded) {
+      setError("Face recognition models not loaded or camera not available.");
+      return;
+    }
+
+    setCapturing(true);
+    setError("");
+
+    try {
+      const detection = await detectFace(videoRef.current);
+      
+      if (!detection) {
+        setError("No face detected. Please ensure you are facing the camera.");
+        return;
+      }
+
+      setFaceDescriptor(Array.from(detection.descriptor));
+      setSuccess("Face captured successfully! ✅");
+    } catch (err) {
+      setError("Error capturing face. Please try again.");
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const handleFaceRegister = async () => {
+    const formData = getValues();
+    
+    // Basic validation
+    if (!formData.email || !formData.username || !formData.password) {
+      setError("Please fill in all required fields (email, username, password).");
+      return;
+    }
+
+    if (formData.username.length < 3) {
+      setError("Username must be at least 3 characters.");
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      await axios.post(`${API_URL}/auth/register`, {
+        email: formData.email,
+        username: formData.username.trim(),
+        password: formData.password,
+        faceDescriptor: faceDescriptor ?? null,
+      });
+
+      setSuccess("Registration successful! 🎉 You can now log in.");
+      stopCamera();
+      
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+    } catch (err: any) {
+      const raw = err?.response?.data?.message;
+      const message = Array.isArray(raw) ? raw.join(", ") : raw || "Registration failed.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========== Standard Registration Handler ==========
+
+  const onStandardSubmit = async (data: RegisterFormData) => {
     if (RECAPTCHA_SITE_KEY && !captchaToken) {
       toast.error('Please complete the CAPTCHA verification');
       return;
@@ -248,6 +531,9 @@ function Register() {
       toast.error('This email is already registered');
       return;
     }
+
+    setLoading(true);
+    setError('');
 
     try {
       const { email, username, password } = data;
@@ -260,391 +546,587 @@ function Register() {
       ).unwrap();
 
       if (result.twoFactorSetupRequired) {
-        toast.success('Compte créé. Configurez la 2FA pour continuer.');
+        toast.success('Account created. Please set up 2FA to continue.');
         navigate('/setup-2fa');
       } else {
-        toast.success('Inscription réussie. Vérifiez votre email.');
-        navigate('/');
+        toast.success('Registration successful! Please check your email.');
+        navigate('/login');
       }
     } catch (err: any) {
-      toast.error(err?.message || "Échec de l'inscription.");
+      setError(err?.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const redirectToSocial = (provider: 'google' | 'github') => {
-    window.location.href = `${API_URL}/auth/${provider}`;
-  };
-
-  // Helper function to register fields without conflicting with Redux
+  // Helper function to register fields
   const registerField = (name: keyof RegisterFormData) => {
     return register(name);
   };
 
+  // ========== Render Methods ==========
+
+  const renderModeToggle = () => (
+    <div className="flex gap-4 mb-6">
+      <button
+        type="button"
+        onClick={() => setMode('standard')}
+        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+          mode === 'standard'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+        }`}
+      >
+        Standard Registration
+      </button>
+      <button
+        type="button"
+        onClick={() => setMode('face')}
+        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+          mode === 'face'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+        }`}
+      >
+        Register with Face
+      </button>
+    </div>
+  );
+
+  const renderStandardForm = () => (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.3 }}
+    >
+      <form onSubmit={handleSubmit(onStandardSubmit)} className="space-y-6">
+        {/* Progress Bar */}
+        <ProgressBar currentStep={currentStep} steps={steps} />
+
+        {/* Form Steps */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Step 1: Account Info */}
+            {currentStep === 0 && (
+              <div className="space-y-4">
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      {...registerField('email')}
+                      className={`
+                        w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 
+                        text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
+                        ${errors.email ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
+                      `}
+                      placeholder="you@example.com"
+                    />
+                    {isCheckingEmail && (
+                      <div className="absolute right-3 top-2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                      </div>
+                    )}
+                  </div>
+                  {!isCheckingEmail && isEmailAvailable === false && watchEmail && (
+                    <p className="text-red-500 text-xs mt-1">Email is already taken</p>
+                  )}
+                  {!isCheckingEmail && isEmailAvailable === true && watchEmail && (
+                    <p className="text-green-500 text-xs mt-1">Email is available</p>
+                  )}
+                  {errors.email && (
+                    <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+                  )}
+                </div>
+
+                {/* Username */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Username <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...registerField('username')}
+                    className={`
+                      w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 
+                      text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
+                      ${errors.username ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
+                    `}
+                    placeholder="johndoe123"
+                  />
+                  {errors.username && (
+                    <p className="text-red-500 text-xs mt-1">{errors.username.message}</p>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      {...registerField('password')}
+                      className={`
+                        w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 
+                        text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
+                        ${errors.password ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
+                      `}
+                      placeholder="********"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
+                  )}
+                  <PasswordStrengthIndicator password={watchPassword} />
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Confirm Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      {...registerField('confirmPassword')}
+                      className={`
+                        w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 
+                        text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
+                        ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
+                      `}
+                      placeholder="********"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    >
+                      {showConfirmPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Personal Info */}
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                {/* First Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...registerField('firstName')}
+                    className={`
+                      w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 
+                      text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
+                      ${errors.firstName ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
+                    `}
+                    placeholder="John"
+                  />
+                  {errors.firstName && (
+                    <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>
+                  )}
+                </div>
+
+                {/* Last Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...registerField('lastName')}
+                    className={`
+                      w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 
+                      text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
+                      ${errors.lastName ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
+                    `}
+                    placeholder="Doe"
+                  />
+                  {errors.lastName && (
+                    <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>
+                  )}
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <Controller
+                    name="phone"
+                    control={control}
+                    render={({ field }) => (
+                      <PhoneInput
+                        country={'us'}
+                        value={field.value}
+                        onChange={field.onChange}
+                        inputClass="!w-full !bg-gray-100 dark:!bg-gray-700 !text-gray-900 dark:!text-white !border-gray-300 dark:!border-gray-600 !rounded-lg !px-4 !py-6"
+                        containerClass="!w-full"
+                        buttonClass="!bg-gray-100 dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600"
+                      />
+                    )}
+                  />
+                  {errors.phone && (
+                    <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
+                  )}
+                </div>
+
+                {/* Date of Birth */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Date of Birth <span className="text-red-500">*</span>
+                  </label>
+                  <Controller
+                    name="dateOfBirth"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePicker
+                        selected={field.value}
+                        onChange={field.onChange}
+                        maxDate={new Date()}
+                        showYearDropdown
+                        scrollableYearDropdown
+                        yearDropdownItemNumber={100}
+                        placeholderText="Select your birth date"
+                        className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+                      />
+                    )}
+                  />
+                  {errors.dateOfBirth && (
+                    <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth.message}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Preferences */}
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                {/* Newsletter */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...registerField('newsletter')}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-400 dark:border-gray-600 rounded focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    Subscribe to our newsletter for updates and offers
+                  </label>
+                </div>
+
+                {/* Terms */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...registerField('termsAccepted')}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-400 dark:border-gray-600 rounded focus:ring-blue-500"
+                  />
+                  <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    I accept the <a href="/terms" className="text-blue-500 hover:underline">Terms and Conditions</a> <span className="text-red-500">*</span>
+                  </label>
+                </div>
+                {errors.termsAccepted && (
+                  <p className="text-red-500 text-xs mt-1">{errors.termsAccepted.message}</p>
+                )}
+
+                {/* Referral Source */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    How did you hear about us?
+                  </label>
+                  <select
+                    {...registerField('referralSource')}
+                    className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+                  >
+                    <option value="">Select an option</option>
+                    <option value="social">Social Media</option>
+                    <option value="friend">Friend Referral</option>
+                    <option value="google">Google Search</option>
+                    <option value="ad">Advertisement</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {/* reCAPTCHA */}
+                <div className="mt-4">
+                  {RECAPTCHA_SITE_KEY ? (
+                    <ReCAPTCHA
+                      sitekey={RECAPTCHA_SITE_KEY}
+                      onChange={setCaptchaToken}
+                    />
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      reCAPTCHA is disabled in this environment.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between mt-8">
+          {currentStep > 0 && (
+            <button
+              type="button"
+              onClick={prevStep}
+              className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              Previous
+            </button>
+          )}
+          
+          {currentStep < steps.length - 1 ? (
+            <button
+              type="button"
+              onClick={nextStep}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ml-auto"
+            >
+              Next
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={loading || (Boolean(RECAPTCHA_SITE_KEY) && !captchaToken)}
+              className={`
+                px-6 py-2 bg-blue-600 text-white rounded-lg transition-colors ml-auto
+                ${loading || (Boolean(RECAPTCHA_SITE_KEY) && !captchaToken)
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'hover:bg-blue-700'
+                }
+              `}
+            >
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Creating Account...
+                </div>
+              ) : (
+                'Create Account'
+              )}
+            </button>
+          )}
+        </div>
+      </form>
+    </motion.div>
+  );
+
+  const renderFaceForm = () => (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      {/* Email */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Email <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="email"
+          value={getValues('email')}
+          onChange={(e) => setValue('email', e.target.value)}
+          className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+          placeholder="you@example.com"
+        />
+      </div>
+
+      {/* Username */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Username <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={getValues('username')}
+          onChange={(e) => setValue('username', e.target.value)}
+          className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+          placeholder="johndoe123"
+        />
+      </div>
+
+      {/* Password */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Password <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="password"
+          value={getValues('password')}
+          onChange={(e) => setValue('password', e.target.value)}
+          className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+          placeholder="********"
+        />
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Minimum 8 characters</p>
+      </div>
+
+      {/* Camera Section */}
+      {faceModelsLoading ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-gray-500 dark:text-gray-400 mt-2">Loading face recognition models...</p>
+        </div>
+      ) : (
+        <>
+          <Camera 
+            videoRef={videoRef} 
+            isActive={true}
+            isLoading={capturing}
+          />
+
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={captureFace}
+              disabled={capturing || !modelsLoaded}
+              className="flex-1 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {capturing ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Capturing...
+                </div>
+              ) : faceDescriptor ? (
+                'Recapture Face 🔄'
+              ) : (
+                'Capture Face 📸'
+              )}
+            </button>
+          </div>
+
+          {faceDescriptor && (
+            <div className="p-3 bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-800 text-green-700 dark:text-green-400 rounded-lg">
+              ✓ Face captured successfully
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleFaceRegister}
+            disabled={loading}
+            className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Registering...
+              </div>
+            ) : (
+              'Register with Face'
+            )}
+          </button>
+
+          {!faceDescriptor && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              Face capture is optional but enables face login later
+            </p>
+          )}
+        </>
+      )}
+    </motion.div>
+  );
+
+  // ========== Main Render ==========
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            {steps.map((step, index) => (
-              <div key={step.title} className="flex-1 text-center">
-                <div className={`
-                  w-8 h-8 mx-auto rounded-full flex items-center justify-center
-                  ${index <= currentStep 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
-                  }
-                `}>
-                  {index + 1}
-                </div>
-                <div className="text-xs mt-2 text-gray-500 dark:text-gray-400">{step.title}</div>
-              </div>
-            ))}
-          </div>
-          <div className="relative mt-2">
-            <div className="absolute top-0 left-0 h-1 bg-gray-300 dark:bg-gray-700 w-full rounded" />
-            <div 
-              className="absolute top-0 left-0 h-1 bg-blue-600 rounded transition-all duration-300"
-              style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Form */}
         <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl border border-gray-200 dark:border-transparent">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Create Your Account</h2>
-          
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentStep}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {/* Step 1: Account Info */}
-                {currentStep === 0 && (
-                  <div className="space-y-4">
-                    {/* Email */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Email <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="email"
-                          {...registerField('email')}
-                          className={`
-                            w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
-                            ${errors.email 
-                              ? 'border-red-500 focus:ring-red-500' 
-                              : 'focus:ring-blue-500'
-                            }
-                          `}
-                          placeholder="you@example.com"
-                        />
-                        {isCheckingEmail && (
-                          <div className="absolute right-3 top-2">
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                          </div>
-                        )}
-                        {!isCheckingEmail && isEmailAvailable === false && (
-                          <p className="text-red-500 text-xs mt-1">Email is already taken</p>
-                        )}
-                        {!isCheckingEmail && isEmailAvailable === true && watchEmail && (
-                          <p className="text-green-500 text-xs mt-1">Email is available</p>
-                        )}
-                      </div>
-                      {errors.email && (
-                        <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
-                      )}
-                    </div>
+          {/* Header */}
+          <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
+            Create Your Account
+          </h2>
 
-                    {/* Username */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Username <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        {...registerField('username')}
-                        className={`
-                          w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
-                          ${errors.username ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
-                        `}
-                        placeholder="johndoe123"
-                      />
-                      {errors.username && (
-                        <p className="text-red-500 text-xs mt-1">{errors.username.message}</p>
-                      )}
-                    </div>
+          {/* Mode Toggle */}
+          {renderModeToggle()}
 
-                    {/* Password */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Password <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          {...registerField('password')}
-                          className={`
-                            w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
-                            ${errors.password ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
-                          `}
-                          placeholder="********"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                        >
-                          {showPassword ? 'Hide' : 'Show'}
-                        </button>
-                      </div>
-                      {errors.password && (
-                        <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
-                      )}
-                      <PasswordStrengthIndicator password={watchPassword} />
-                    </div>
-
-                    {/* Confirm Password */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Confirm Password <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          {...registerField('confirmPassword')}
-                          className={`
-                            w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
-                            ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
-                          `}
-                          placeholder="********"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                        >
-                          {showConfirmPassword ? 'Hide' : 'Show'}
-                        </button>
-                      </div>
-                      {errors.confirmPassword && (
-                        <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 2: Personal Info */}
-                {currentStep === 1 && (
-                  <div className="space-y-4">
-                    {/* First Name */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        First Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        {...registerField('firstName')}
-                        className={`
-                          w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
-                          ${errors.firstName ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
-                        `}
-                        placeholder="John"
-                      />
-                      {errors.firstName && (
-                        <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>
-                      )}
-                    </div>
-
-                    {/* Last Name */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Last Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        {...registerField('lastName')}
-                        className={`
-                          w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
-                          ${errors.lastName ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
-                        `}
-                        placeholder="Doe"
-                      />
-                      {errors.lastName && (
-                        <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>
-                      )}
-                    </div>
-
-                    {/* Phone */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Phone Number <span className="text-red-500">*</span>
-                      </label>
-                      <Controller
-                        name="phone"
-                        control={control}
-                        render={({ field }) => (
-                          <PhoneInput
-                            country={'us'}
-                            value={field.value}
-                            onChange={field.onChange}
-                            inputClass="!w-full !bg-gray-100 dark:!bg-gray-700 !text-gray-900 dark:!text-white !border-gray-300 dark:!border-gray-600 !rounded-lg !px-4 !py-6"
-                            containerClass="!w-full"
-                            buttonClass="!bg-gray-100 dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600"
-                          />
-                        )}
-                      />
-                      {errors.phone && (
-                        <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
-                      )}
-                    </div>
-
-                    {/* Date of Birth */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Date of Birth <span className="text-red-500">*</span>
-                      </label>
-                      <Controller
-                        name="dateOfBirth"
-                        control={control}
-                        render={({ field }) => (
-                          <DatePicker
-                            selected={field.value}
-                            onChange={field.onChange}
-                            maxDate={new Date()}
-                            showYearDropdown
-                            scrollableYearDropdown
-                            yearDropdownItemNumber={100}
-                            placeholderText="Select your birth date"
-                            className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
-                          />
-                        )}
-                      />
-                      {errors.dateOfBirth && (
-                        <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth.message}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 3: Preferences */}
-                {currentStep === 2 && (
-                  <div className="space-y-4">
-                    {/* Newsletter */}
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        {...registerField('newsletter')}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-400 dark:border-gray-600 rounded focus:ring-blue-500"
-                      />
-                      <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                        Subscribe to our newsletter for updates and offers
-                      </label>
-                    </div>
-
-                    {/* Terms */}
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        {...registerField('termsAccepted')}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-400 dark:border-gray-600 rounded focus:ring-blue-500"
-                      />
-                      <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                        I accept the <a href="/terms" className="text-blue-500 hover:underline">Terms and Conditions</a> <span className="text-red-500">*</span>
-                      </label>
-                    </div>
-                    {errors.termsAccepted && (
-                      <p className="text-red-500 text-xs mt-1">{errors.termsAccepted.message}</p>
-                    )}
-
-                    {/* Referral Source */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        How did you hear about us?
-                      </label>
-                      <select
-                        {...registerField('referralSource')}
-                        className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
-                      >
-                        <option value="">Select an option</option>
-                        <option value="social">Social Media</option>
-                        <option value="friend">Friend Referral</option>
-                        <option value="google">Google Search</option>
-                        <option value="ad">Advertisement</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-
-                    {/* reCAPTCHA */}
-                    <div className="mt-4">
-                      {RECAPTCHA_SITE_KEY ? (
-                        <ReCAPTCHA
-                          sitekey={RECAPTCHA_SITE_KEY}
-                          onChange={setCaptchaToken}
-                        />
-                      ) : (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          reCAPTCHA is disabled in this environment.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-8">
-              {currentStep > 0 && (
-                <button
-                  type="button"
-                  onClick={prevStep}
-                  className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Previous
-                </button>
-              )}
-              
-              {currentStep < steps.length - 1 ? (
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ml-auto"
-                >
-                  Next
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={
-                    isSubmitting ||
-                    (Boolean(RECAPTCHA_SITE_KEY) && !captchaToken)
-                  }
-                  className={`
-                    px-6 py-2 bg-blue-600 text-white rounded-lg transition-colors ml-auto
-                    ${isSubmitting || (Boolean(RECAPTCHA_SITE_KEY) && !captchaToken)
-                      ? 'opacity-50 cursor-not-allowed'
-                      : 'hover:bg-blue-700'
-                    }
-                  `}
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Creating Account...
-                    </div>
-                  ) : (
-                    'Create Account'
-                  )}
-                </button>
-              )}
+          {/* Error Messages */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 rounded-lg">
+              {error}
             </div>
-          </form>
+          )}
+
+          {/* Success Messages */}
+          {success && (
+            <div className="mb-4 p-3 bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-800 text-green-700 dark:text-green-400 rounded-lg">
+              {success}
+            </div>
+          )}
+
+          {/* Face Error */}
+          {faceError && mode === 'face' && (
+            <div className="mb-4 p-3 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-400 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400 rounded-lg">
+              {faceError}
+            </div>
+          )}
+
+          {/* Forms Container */}
+          <AnimatePresence mode="wait">
+            {mode === 'standard' && renderStandardForm()}
+            {mode === 'face' && renderFaceForm()}
+          </AnimatePresence>
+
+          {/* Separator */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          {/* Social Login */}
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => redirectToSocial('google')}
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 dark:bg-gray-100 dark:hover:bg-gray-200 text-gray-800 dark:text-gray-900 py-2.5 rounded-lg font-semibold border border-gray-300 dark:border-gray-400 transition-colors"
+            >
+              <GoogleIcon />
+              Continue with Google
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => redirectToSocial('github')}
+              className="w-full flex items-center justify-center gap-3 bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white py-2.5 rounded-lg font-semibold border border-gray-600 dark:border-gray-500 transition-colors"
+            >
+              <GithubIcon />
+              Continue with GitHub
+            </button>
+          </div>
 
           {/* Login Link */}
           <p className="text-center text-gray-500 dark:text-gray-400 mt-6">
@@ -653,25 +1135,6 @@ function Register() {
               Sign in
             </a>
           </p>
-
-          <div className="mt-6 space-y-3">
-            <button
-              type="button"
-              onClick={() => redirectToSocial('google')}
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 dark:bg-gray-100 dark:hover:bg-gray-200 text-gray-800 dark:text-gray-900 py-2.5 rounded-lg font-semibold border border-gray-300 dark:border-gray-400 transition-colors"
-            >
-              <GoogleIcon className="w-5 h-5 shrink-0" />
-              Continue with Google
-            </button>
-            <button
-              type="button"
-              onClick={() => redirectToSocial('github')}
-              className="w-full flex items-center justify-center gap-3 bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white py-2.5 rounded-lg font-semibold border border-gray-600 dark:border-gray-500 transition-colors"
-            >
-              <GithubIcon className="w-5 h-5 shrink-0" />
-              Continue with GitHub
-            </button>
-          </div>
         </div>
       </div>
     </div>

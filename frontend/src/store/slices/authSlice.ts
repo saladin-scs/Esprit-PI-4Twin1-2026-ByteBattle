@@ -51,7 +51,18 @@ export const login = createAsyncThunk(
     return response.data;
   }
 );
-
+export const verifyFace = createAsyncThunk(
+  'auth/verifyFace',
+  async ({ userId, embedding }: { userId: string; embedding: number[] }) => {
+    const res = await fetch('http://localhost:3000/users/verify-face', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, embedding }),
+    });
+    const data = await res.json();
+    return data;
+  }
+);
 export const verify2faLogin = createAsyncThunk(
   'auth/verify2faLogin',
   async (data: { twoFactorToken: string; code: string; rememberMe?: boolean }) => {

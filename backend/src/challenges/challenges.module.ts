@@ -1,21 +1,21 @@
 /* eslint-disable prettier/prettier */
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { ChallengesController } from './challenges.controller';
-import { ChallengesService } from './challenges.service';
+import { ChallengeController } from './challenges.controller';
+import { ChallengeService } from './challenges.service';
+import { CodeExecutorService } from './code-executor.service';
 import { Challenge, ChallengeSchema } from './schemas/challenge.schema';
-import { AiModule } from '../ai/ai.module';
+import { Submission, SubmissionSchema } from './schemas/Submission.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Challenge.name, schema: ChallengeSchema },
+      { name: Submission.name, schema: SubmissionSchema },
     ]),
-    AiModule,
   ],
-  controllers: [ChallengesController],
-  providers: [ChallengesService],
-  exports: [ChallengesService],
+  controllers: [ChallengeController],
+  providers: [ChallengeService, CodeExecutorService],
+  exports: [ChallengeService],
 })
-export class ChallengesModule {}
-
+export class ChallengeModule {}

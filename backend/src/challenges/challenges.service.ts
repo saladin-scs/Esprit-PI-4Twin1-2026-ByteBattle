@@ -1,103 +1,204 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prettier/prettier */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Challenge, ChallengeDocument } from './schemas/challenge.schema';
-import { CreateChallengeDto } from './dto/create-challenge.dto';
-import { AiService } from '../ai/ai.service';
+import { Submission, SubmissionDocument } from './schemas/Submission.schema';
+import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
+import { CodeExecutorService } from './code-executor.service';
 
 @Injectable()
-export class ChallengesService {
-  private readonly logger = new Logger(ChallengesService.name);
-
+export class ChallengeService {
   constructor(
-    @InjectModel(Challenge.name)
-    private challengeModel: Model<ChallengeDocument>,
-    private aiService: AiService,
+    @InjectModel(Challenge.name) private challengeModel: Model<ChallengeDocument>,
+    @InjectModel(Submission.name) private submissionModel: Model<SubmissionDocument>,
+    private codeExecutor: CodeExecutorService,
   ) {}
 
-  /**
-   * Get all challenges
-   */
-  async findAll(): Promise<ChallengeDocument[]> {
-    try {
-      return await this.challengeModel.find().exec();
-    } catch (error) {
-      this.logger.error('Error fetching challenges', error);
-      return [];
-    }
-  }
+  // ─── XP par difficulté ───────────────────────────────────────────────────
+  private readonly XP_MAP = { easy: 50, medium: 100, hard: 200, expert: 400 };
 
-  /**
-   * Get one challenge by ID
-   */
-  async findOne(id: string): Promise<ChallengeDocument | null> {
-    try {
-      return await this.challengeModel.findById(id).exec();
-    } catch (error) {
-      this.logger.error(`Error fetching challenge with id ${id}`, error);
-      return null;
-    }
-  }
-
-  /**
-   * Create a new challenge manually
-   */
+  // ─── Créer un challenge (admin) ──────────────────────────────────────────
   async create(dto: CreateChallengeDto): Promise<ChallengeDocument> {
-    try {
-      const challenge = new this.challengeModel({
-        ...dto,
-        solvedCount: 0,
-        attemptCount: 0,
-      });
-      return await challenge.save();
-    } catch (error) {
-      this.logger.error('Error creating challenge', error);
-      throw error;
+    if (!dto.xpReward) {
+      dto.xpReward = this.XP_MAP[dto.difficulty] ?? 50;
     }
+    return new this.challengeModel(dto).save();
   }
 
-  /**
-   * Generate challenge using AI and save it
-   */
-  async generateWithAI(difficulty: string, topic: string): Promise<ChallengeDocument> {
-    try {
-      // Call AI service
-      const aiChallenge = await this.aiService.generateChallenge(difficulty, topic);
+  // ─── Liste des challenges (publique) ────────────────────────────────────
+  async findAll(query: GetChallengesDto) {
+    const { difficulty, language, tag, search, page = 1, limit = 20 } = query;
+    const filter: any = { isPublished: true };
 
-      // Ensure fallback in case AI fails or returns invalid JSON
-      const challengeData = {
-        title: aiChallenge?.title || `AI-generated ${topic} challenge`,
-        description: aiChallenge?.description || `Solve this ${difficulty} challenge about ${topic}`,
-        difficulty: aiChallenge?.difficulty || difficulty,
-        testCases: aiChallenge?.testCases || [],
-        starterCode: aiChallenge?.starterCode || '',
-        tags: aiChallenge?.tags || [topic, difficulty],
-        solvedCount: 0,
-        attemptCount: 0,
-      };
+    if (difficulty) filter.difficulty = difficulty;
+    if (language)   filter.languages = language;
+    if (tag)        filter.tags = tag;
+    if (search)     filter.title = { $regex: search, $options: 'i' };
 
-      const challenge = new this.challengeModel(challengeData);
-      return await challenge.save();
-    } catch (error) {
-      this.logger.error('Error generating challenge with AI', error);
-      // Return a safe fallback challenge instead of crashing
-      const fallbackChallenge = new this.challengeModel({
-        title: 'AI generation failed',
-        description: 'Unable to generate challenge from AI',
-        difficulty,
-        testCases: [],
-        starterCode: '',
-        tags: [topic, difficulty],
-        solvedCount: 0,
-        attemptCount: 0,
-      });
-      return fallbackChallenge.save();
-    }
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [challenges, total] = await Promise.all([
+      this.challengeModel
+        .find(filter)
+        .select('-testCases') // ← ne jamais envoyer les tests au frontend
+        .sort({ difficulty: 1, createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean()
+        .exec(),
+      this.challengeModel.countDocuments(filter),
+    ]);
+
+    return {
+      challenges,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+    };
   }
 
+  // ─── Détail d'un challenge ───────────────────────────────────────────────
+  async findOne(id: string): Promise<ChallengeDocument> {
+    const challenge = await this.challengeModel
+      .findById(id)
+      .select('-testCases') // ← ne jamais exposer les tests
+      .exec();
+    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    return challenge;
+  }
 
+  // ─── Soumettre une solution ──────────────────────────────────────────────
+  async submit(challengeId: string, userId: string, dto: SubmitChallengeDto) {
+    // 1. Charger le challenge AVEC les testCases (select: false dans le schema)
+    const challenge = await this.challengeModel
+      .findById(challengeId)
+      .select('+testCases')
+      .exec();
+    if (!challenge) throw new NotFoundException('Challenge non trouvé');
 
+    if (!challenge.languages.includes(dto.language as any)) {
+      throw new BadRequestException(`Le langage ${dto.language} n'est pas supporté pour ce challenge`);
+    }
 
-  
+    if (!challenge.testCases?.length) {
+      throw new BadRequestException('Ce challenge n\'a pas de tests configurés');
+    }
+
+    // 2. Exécuter le code sur chaque test case
+    const testResults: any[] = [];
+    let passedTests = 0;
+    let totalTimeMs = 0;
+
+    for (const tc of challenge.testCases) {
+      const result = await this.codeExecutor.execute(dto.code, dto.language, tc.input);
+      totalTimeMs += result.executionTimeMs;
+
+      const actualOutput = result.output?.trim() ?? '';
+      const expectedOutput = tc.expectedOutput?.trim() ?? '';
+      const passed = !result.error && actualOutput === expectedOutput;
+
+      if (passed) passedTests++;
+
+      testResults.push({
+        input: tc.input,
+        expectedOutput,
+        actualOutput,
+        passed,
+        error: result.error,
+      });
+    }
+
+    const totalTests = challenge.testCases.length;
+    const allPassed = passedTests === totalTests;
+    const status = allPassed ? 'accepted' : testResults.some(r => r.error) ? 'runtime_error' : 'wrong_answer';
+
+    // 3. Calculer XP (seulement si accepted + première fois)
+    let xpEarned = 0;
+    if (allPassed) {
+      const alreadyAccepted = await this.submissionModel.findOne({
+        userId: new Types.ObjectId(userId),
+        challengeId: new Types.ObjectId(challengeId),
+        status: 'accepted',
+      });
+      if (!alreadyAccepted) {
+        xpEarned = challenge.xpReward ?? this.XP_MAP[challenge.difficulty] ?? 50;
+      }
+    }
+
+    // 4. Sauvegarder la soumission
+    const submission = await new this.submissionModel({
+      userId: new Types.ObjectId(userId),
+      challengeId: new Types.ObjectId(challengeId),
+      code: dto.code,
+      language: dto.language,
+      status,
+      testResults,
+      passedTests,
+      totalTests,
+      xpEarned,
+      executionTimeMs: Math.round(totalTimeMs / totalTests),
+    }).save();
+
+    // 5. Mettre à jour les stats du challenge
+    await this.challengeModel.findByIdAndUpdate(challengeId, {
+      $inc: {
+        totalSubmissions: 1,
+        ...(allPassed ? { totalAccepted: 1 } : {}),
+      },
+    });
+
+    // 6. Attribuer XP à l'utilisateur si gagné
+    if (xpEarned > 0) {
+      const { Model: UserModel } = await import('mongoose');
+      // On utilise une mise à jour directe via mongoose pour ne pas créer de dépendance circulaire
+      const mongoose = await import('mongoose');
+      const UserSchema = mongoose.model('User');
+      await UserSchema.findByIdAndUpdate(userId, { $inc: { xp: xpEarned, totalChallengesSolved: 1 } });
+    }
+
+    return {
+      status,
+      passedTests,
+      totalTests,
+      xpEarned,
+      executionTimeMs: Math.round(totalTimeMs / totalTests),
+      testResults: testResults.map((r, i) => ({
+        testNumber: i + 1,
+        passed: r.passed,
+        // On n'expose l'input/output attendu que si le test a échoué (feedback pédagogique)
+        ...(r.passed ? {} : {
+          input: r.input,
+          expectedOutput: r.expectedOutput,
+          actualOutput: r.actualOutput,
+          error: r.error,
+        }),
+      })),
+    };
+  }
+
+  // ─── Historique des soumissions d'un user ───────────────────────────────
+  async getUserSubmissions(userId: string, challengeId?: string) {
+    const filter: any = { userId: new Types.ObjectId(userId) };
+    if (challengeId) filter.challengeId = new Types.ObjectId(challengeId);
+
+    return this.submissionModel
+      .find(filter)
+      .populate('challengeId', 'title difficulty')
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean()
+      .exec();
+  }
+
+  // ─── Stats d'un challenge ────────────────────────────────────────────────
+  async getStats(challengeId: string) {
+    const challenge = await this.challengeModel.findById(challengeId).select('totalSubmissions totalAccepted difficulty xpReward').lean().exec();
+    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    const acceptanceRate = challenge.totalSubmissions > 0
+      ? Math.round((challenge.totalAccepted / challenge.totalSubmissions) * 100)
+      : 0;
+    return { ...challenge, acceptanceRate };
+  }
 }

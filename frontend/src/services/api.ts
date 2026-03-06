@@ -14,6 +14,17 @@ export const challengesApi = {
   generate: (data: { difficulty: string; topic: string }) =>
     apiClient.post('/challenges/generate', data),
 };
+const API = axios.create({
+  baseURL: "http://localhost:5000/api"
+});
+
+API.interceptors.request.use((req) => {
+  if (localStorage.getItem("token")) {
+    req.headers.Authorization =
+      `Bearer ${localStorage.getItem("token")}`;
+  }
+  return req;
+});
 
 export const codeExecutionApi = {
   execute: (data: { code: string; language: string; testCases: ExecuteTestCase[] }) =>
