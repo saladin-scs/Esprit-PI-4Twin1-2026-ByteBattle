@@ -101,7 +101,7 @@ function PublicProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
         <Spinner size="lg" />
       </div>
     );
@@ -154,7 +154,7 @@ function PublicProfile() {
       {/* 1. Cover + Identity */}
       <section className="relative">
         <div
-          className="h-40 sm:h-52 bg-gradient-to-r from-slate-800 to-slate-900"
+          className="h-40 sm:h-52 bg-gradient-to-r from-slate-600 to-slate-700 dark:from-slate-800 dark:to-slate-900"
           style={
             profile.coverImage
               ? { backgroundImage: `url(${profile.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
@@ -167,11 +167,11 @@ function PublicProfile() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col sm:flex-row items-start sm:items-end gap-4"
           >
-            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-gray-800 bg-gray-800 overflow-hidden flex-shrink-0">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-gray-200 dark:border-gray-800 bg-gray-200 dark:bg-gray-800 overflow-hidden flex-shrink-0">
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-gray-500">
+                <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-gray-500 dark:text-gray-400">
                   {(profile.displayName || profile.username).charAt(0).toUpperCase()}
                 </div>
               )}
@@ -180,14 +180,14 @@ function PublicProfile() {
               <div className="flex flex-wrap items-center gap-2 justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                       {profile.displayName || profile.username}
                     </h1>
                     {profile.emailVerifiedAt && (
-                      <span className="text-blue-400" title="Email verified">✓</span>
+                      <span className="text-blue-500 dark:text-blue-400" title="Email verified">✓</span>
                     )}
                   </div>
-                  <p className="text-gray-400">@{profile.username}</p>
+                  <p className="text-gray-500 dark:text-gray-400">@{profile.username}</p>
                 </div>
                 {isOwner && (
                   <Button type="button" onClick={() => setShowEditModal(true)} className="!py-2 text-sm">
@@ -196,14 +196,14 @@ function PublicProfile() {
                 )}
               </div>
               {profile.bio && (
-                <p className="mt-2 text-gray-300 whitespace-pre-wrap max-w-2xl">{profile.bio}</p>
+                <p className="mt-2 text-gray-600 dark:text-gray-300 whitespace-pre-wrap max-w-2xl">{profile.bio}</p>
               )}
               <div className="flex flex-wrap gap-3 mt-2">
                 {profile.country && (
-                  <span className="text-gray-400 text-sm">📍 {profile.country}</span>
+                  <span className="text-gray-500 dark:text-gray-400 text-sm">📍 {profile.country}</span>
                 )}
                 {profile.memberSince && (
-                  <span className="text-gray-400 text-sm">
+                  <span className="text-gray-500 dark:text-gray-400 text-sm">
                     Joined {new Date(profile.memberSince).toLocaleDateString()}
                   </span>
                 )}
@@ -211,22 +211,22 @@ function PublicProfile() {
               {(profile.socialLinks && Object.values(profile.socialLinks).some(Boolean)) && (
                 <div className="flex gap-3 mt-3">
                   {profile.socialLinks.github && (
-                    <a href={profile.socialLinks.github} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
+                    <a href={profile.socialLinks.github} target="_blank" rel="noreferrer" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                       GitHub
                     </a>
                   )}
                   {profile.socialLinks.linkedin && (
-                    <a href={profile.socialLinks.linkedin} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
+                    <a href={profile.socialLinks.linkedin} target="_blank" rel="noreferrer" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                       LinkedIn
                     </a>
                   )}
                   {profile.socialLinks.twitter && (
-                    <a href={profile.socialLinks.twitter} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
+                    <a href={profile.socialLinks.twitter} target="_blank" rel="noreferrer" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                       Twitter
                     </a>
                   )}
                   {profile.socialLinks.portfolio && (
-                    <a href={profile.socialLinks.portfolio} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white">
+                    <a href={profile.socialLinks.portfolio} target="_blank" rel="noreferrer" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                       Portfolio
                     </a>
                   )}
@@ -243,23 +243,23 @@ function PublicProfile() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
+          className="bg-white dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-sm dark:shadow-none"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Rank & Progression</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Rank & Progression</h2>
           <div className="flex flex-wrap items-center gap-6">
             <div
-              className={`px-4 py-2 rounded-lg bg-gradient-to-r ${tierColor} font-bold text-lg`}
+              className={`px-4 py-2 rounded-lg bg-gradient-to-r ${tierColor} font-bold text-lg text-white`}
             >
               Rank {rankProgress.currentTier}
             </div>
             <div className="flex-1 min-w-[200px]">
-              <div className="flex justify-between text-sm text-gray-400 mb-1">
+              <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-1">
                 <span>{profile.xp ?? 0} XP</span>
                 {rankProgress.nextTier && (
                   <span>Next: Rank {rankProgress.nextTier}</span>
                 )}
               </div>
-              <div className="h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${rankProgress.progressPercent}%` }}
@@ -270,14 +270,14 @@ function PublicProfile() {
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-            <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">Global position</div>
-              <div className="text-xl font-semibold">#{profile.globalRank ?? '-'}</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+              <div className="text-gray-500 dark:text-gray-400 text-xs">Global position</div>
+              <div className="text-xl font-semibold text-gray-900 dark:text-white">#{profile.globalRank ?? '-'}</div>
             </div>
             {profile.countryRank != null && (
-              <div className="bg-gray-900/50 rounded-lg p-3">
-                <div className="text-gray-400 text-xs">Pays</div>
-                <div className="text-xl font-semibold">#{profile.countryRank}</div>
+              <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+                <div className="text-gray-500 dark:text-gray-400 text-xs">Country</div>
+                <div className="text-xl font-semibold text-gray-900 dark:text-white">#{profile.countryRank}</div>
               </div>
             )}
           </div>
@@ -288,34 +288,34 @@ function PublicProfile() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15 }}
-          className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
+          className="bg-white dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-sm dark:shadow-none"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Activity & Streak</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Activity & Streak</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-gray-900/50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-orange-400">{profile.currentStreak ?? 0}</div>
-              <div className="text-gray-400 text-sm">Jours consécutifs</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-orange-500 dark:text-orange-400">{profile.currentStreak ?? 0}</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">Current streak</div>
             </div>
-            <div className="bg-gray-900/50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-amber-400">{profile.longestStreak ?? 0}</div>
-              <div className="text-gray-400 text-sm">Record série</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-amber-500 dark:text-amber-400">{profile.longestStreak ?? 0}</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">Longest streak</div>
             </div>
-            <div className="bg-gray-900/50 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold">{profile.totalActiveDays ?? 0}</div>
-              <div className="text-gray-400 text-sm">Jours actifs</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{profile.totalActiveDays ?? 0}</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">Active days</div>
             </div>
-            <div className="bg-gray-900/50 rounded-lg p-4 text-center">
-              <div className="text-gray-400 text-sm">Dernière activité</div>
-              <div className="text-sm mt-1">
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-4 text-center">
+              <div className="text-gray-500 dark:text-gray-400 text-sm">Last activity</div>
+              <div className="text-sm mt-1 text-gray-900 dark:text-white">
                 {profile.lastActiveAt
-                  ? new Date(profile.lastActiveAt).toLocaleDateString('fr-FR')
+                  ? new Date(profile.lastActiveAt).toLocaleDateString()
                   : '-'}
               </div>
             </div>
           </div>
-          {/* Heatmap - données réelles ou fallback */}
+          {/* Heatmap */}
           <div className="mt-4">
-            <div className="text-gray-400 text-sm mb-2">Activity (last days)</div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm mb-2">Activity (last days)</div>
             <div className="flex flex-wrap gap-0.5 max-w-full" style={{ width: 'min(100%, 52 * 12px)' }}>
               {Array.from({ length: 364 }).map((_, i) => {
                 const day = heatmapSource?.[i];
@@ -323,7 +323,7 @@ function PublicProfile() {
                 return (
                   <div
                     key={i}
-                    className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm flex-shrink-0 bg-gray-700"
+                    className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm flex-shrink-0 bg-gray-200 dark:bg-gray-700"
                     style={{
                       backgroundColor:
                         level === 0 ? undefined : (['#1e3a5f', '#2563eb', '#3b82f6', '#60a5fa'] as const)[level - 1],
@@ -341,47 +341,47 @@ function PublicProfile() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
+          className="bg-white dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-sm dark:shadow-none"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Statistiques de code</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Coding statistics</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-            <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">Problèmes résolus</div>
-              <div className="text-xl font-semibold">{profile.totalChallengesSolved ?? 0}</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+              <div className="text-gray-500 dark:text-gray-400 text-xs">Solved</div>
+              <div className="text-xl font-semibold text-gray-900 dark:text-white">{profile.totalChallengesSolved ?? 0}</div>
             </div>
-            <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">Taux d'acceptation</div>
-              <div className="text-xl font-semibold">{profile.acceptanceRate ?? 0}%</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+              <div className="text-gray-500 dark:text-gray-400 text-xs">Acceptance rate</div>
+              <div className="text-xl font-semibold text-gray-900 dark:text-white">{profile.acceptanceRate ?? 0}%</div>
             </div>
-            <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">Soumissions</div>
-              <div className="text-xl font-semibold">{profile.totalSubmissions ?? 0}</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+              <div className="text-gray-500 dark:text-gray-400 text-xs">Submissions</div>
+              <div className="text-xl font-semibold text-gray-900 dark:text-white">{profile.totalSubmissions ?? 0}</div>
             </div>
-            <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">Acceptées</div>
-              <div className="text-xl font-semibold">{profile.totalAccepted ?? 0}</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+              <div className="text-gray-500 dark:text-gray-400 text-xs">Accepted</div>
+              <div className="text-xl font-semibold text-gray-900 dark:text-white">{profile.totalAccepted ?? 0}</div>
             </div>
           </div>
           <div>
-            <div className="text-gray-400 text-sm mb-2">Par difficulté</div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm mb-2">By difficulty</div>
             <div className="flex gap-2">
-              <div className="flex-1 bg-gray-900/50 rounded-lg p-3 text-center">
-                <div className="text-green-500 font-semibold">{problems.easy}</div>
-                <div className="text-xs text-gray-400">Facile</div>
+              <div className="flex-1 bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3 text-center">
+                <div className="text-green-600 dark:text-green-500 font-semibold">{problems.easy}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Easy</div>
               </div>
-              <div className="flex-1 bg-gray-900/50 rounded-lg p-3 text-center">
-                <div className="text-yellow-500 font-semibold">{problems.medium}</div>
-                <div className="text-xs text-gray-400">Moyen</div>
+              <div className="flex-1 bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3 text-center">
+                <div className="text-yellow-600 dark:text-yellow-500 font-semibold">{problems.medium}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Medium</div>
               </div>
-              <div className="flex-1 bg-gray-900/50 rounded-lg p-3 text-center">
-                <div className="text-red-500 font-semibold">{problems.hard}</div>
-                <div className="text-xs text-gray-400">Difficile</div>
+              <div className="flex-1 bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3 text-center">
+                <div className="text-red-600 dark:text-red-500 font-semibold">{problems.hard}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Hard</div>
               </div>
             </div>
           </div>
-          {/* Graphique taux d'acceptation (Recharts) */}
+          {/* Acceptance rate chart */}
           <div className="mt-4">
-            <div className="text-gray-400 text-sm mb-2">Taux d'acceptation</div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm mb-2">Acceptance rate</div>
             <div className="h-32 w-full max-w-xs">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -402,10 +402,10 @@ function PublicProfile() {
               </ResponsiveContainer>
             </div>
           </div>
-          {/* Graphique langues (Recharts) */}
+          {/* Language distribution */}
           {profile.languageStats && Object.keys(profile.languageStats).length > 0 && (
             <div className="mt-4">
-              <div className="text-gray-400 text-sm mb-2">Répartition par langue</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm mb-2">By language</div>
               <div className="h-48 w-full max-w-xs">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -445,11 +445,11 @@ function PublicProfile() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.25 }}
-          className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
+          className="bg-white dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-sm dark:shadow-none"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Badges</h2>
-          <div className="flex justify-between text-sm text-gray-400 mb-3">
-            <span>{unlockedBadgeIds.size} / {BADGE_CATALOG.length} débloqués</span>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Badges</h2>
+          <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mb-3">
+            <span>{unlockedBadgeIds.size} / {BADGE_CATALOG.length} unlocked</span>
             <span>{BADGE_CATALOG.length ? Math.round((100 * unlockedBadgeIds.size) / BADGE_CATALOG.length) : 0}%</span>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
@@ -459,31 +459,31 @@ function PublicProfile() {
                 <div
                   key={badge.id}
                   className={`rounded-lg p-2 text-center border transition ${
-                    unlocked ? 'bg-amber-500/20 border-amber-500/50' : 'bg-gray-900/50 border-gray-700 opacity-60'
+                    unlocked ? 'bg-amber-500/20 border-amber-500/50' : 'bg-gray-100 dark:bg-gray-900/50 border-gray-300 dark:border-gray-700 opacity-60'
                   }`}
                   title={`${badge.name}: ${badge.description}`}
                 >
                   <div className="text-2xl">{badge.icon}</div>
-                  <div className="text-xs truncate mt-1">{badge.name}</div>
+                  <div className="text-xs truncate mt-1 text-gray-900 dark:text-white">{badge.name}</div>
                 </div>
               );
             })}
           </div>
         </motion.section>
 
-        {/* 5b. Skill Tree - données réelles */}
+        {/* 5b. Skill Tree */}
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.28 }}
-          className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
+          className="bg-white dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-sm dark:shadow-none"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Arbre de compétences</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Skill tree</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {skillTreeItems.map((skill) => (
-              <div key={skill.id} className="bg-gray-900/50 rounded-lg p-3 text-center">
-                <div className="text-sm font-medium text-gray-300">{skill.name}</div>
-                <div className="h-2 bg-gray-700 rounded-full mt-2 overflow-hidden">
+              <div key={skill.id} className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3 text-center">
+                <div className="text-sm font-medium text-gray-800 dark:text-gray-300">{skill.name}</div>
+                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full mt-2 overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${skill.progress}%` }}
@@ -491,7 +491,7 @@ function PublicProfile() {
                     className="h-full bg-blue-500 rounded-full"
                   />
                 </div>
-                <div className="text-xs text-gray-500 mt-1">{skill.progress}%</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{skill.progress}%</div>
               </div>
             ))}
           </div>
@@ -502,40 +502,40 @@ function PublicProfile() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
+          className="bg-white dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-sm dark:shadow-none"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Combat & Classement</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Combat & Ranking</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">Victoires</div>
-              <div className="text-xl font-semibold text-green-400">{profile.totalBattlesWon ?? 0}</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+              <div className="text-gray-500 dark:text-gray-400 text-xs">Wins</div>
+              <div className="text-xl font-semibold text-green-600 dark:text-green-400">{profile.totalBattlesWon ?? 0}</div>
             </div>
-            <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">Défaites</div>
-              <div className="text-xl font-semibold text-red-400">{profile.battleLosses ?? 0}</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+              <div className="text-gray-500 dark:text-gray-400 text-xs">Losses</div>
+              <div className="text-xl font-semibold text-red-600 dark:text-red-400">{profile.battleLosses ?? 0}</div>
             </div>
-            <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">Taux de victoire</div>
-              <div className="text-xl font-semibold">{winRate}%</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+              <div className="text-gray-500 dark:text-gray-400 text-xs">Win rate</div>
+              <div className="text-xl font-semibold text-gray-900 dark:text-white">{winRate}%</div>
             </div>
-            <div className="bg-gray-900/50 rounded-lg p-3">
-              <div className="text-gray-400 text-xs">ELO</div>
-              <div className="text-xl font-semibold">{profile.eloRating ?? 1000}</div>
+            <div className="bg-gray-100 dark:bg-gray-900/50 rounded-lg p-3">
+              <div className="text-gray-500 dark:text-gray-400 text-xs">ELO</div>
+              <div className="text-xl font-semibold text-gray-900 dark:text-white">{profile.eloRating ?? 1000}</div>
             </div>
           </div>
           {profile.guildId && (
-            <div className="mt-3 text-gray-400 text-sm">Guild: {profile.guildId}</div>
+            <div className="mt-3 text-gray-500 dark:text-gray-400 text-sm">Guild: {profile.guildId}</div>
           )}
         </motion.section>
 
-        {/* 6b. Recent Activity - données réelles */}
+        {/* 6b. Recent Activity */}
         <motion.section
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.33 }}
-          className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
+          className="bg-white dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-sm dark:shadow-none"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Recent activity</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Recent activity</h2>
           {recentActivity.length > 0 ? (
             <ul className="space-y-2">
               {recentActivity.map((item: any, i: number) => (
@@ -547,15 +547,15 @@ function PublicProfile() {
                   ) : (
                     <span className="text-gray-500">⏳</span>
                   )}
-                  <span className="text-gray-300">{item.title || item.type}</span>
+                  <span className="text-gray-700 dark:text-gray-300">{item.title || item.type}</span>
                   <span className="text-gray-500 text-xs">
-                    {item.date ? new Date(item.date).toLocaleDateString('fr-FR') : ''}
+                    {item.date ? new Date(item.date).toLocaleDateString() : ''}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-500 text-sm">Aucune activité récente.</p>
+            <p className="text-gray-500 text-sm">No recent activity.</p>
           )}
         </motion.section>
 
@@ -564,32 +564,32 @@ function PublicProfile() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35 }}
-          className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
+          className="bg-white dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-sm dark:shadow-none"
         >
-          <h2 className="text-lg font-semibold text-gray-200 mb-4">Codyn Coins</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Codyn Coins</h2>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-amber-500/20 border border-amber-500/50 rounded-lg px-4 py-2">
               <span className="text-2xl">🪙</span>
-              <span className="text-xl font-bold text-amber-400">{profile.codynCoins ?? 0}</span>
+              <span className="text-xl font-bold text-amber-600 dark:text-amber-400">{profile.codynCoins ?? 0}</span>
             </div>
-            <span className="text-gray-400 text-sm">Monnaie virtuelle pour récompenses et bonus</span>
+            <span className="text-gray-500 dark:text-gray-400 text-sm">Virtual currency for rewards and bonuses</span>
           </div>
         </motion.section>
 
-        {/* 8. Legacy achievements (string list) + Links */}
+        {/* 8. Legacy achievements + Links */}
         {(Array.isArray(profile.achievements) && profile.achievements.length > 0) || (Array.isArray(profile.links) && profile.links.length > 0) ? (
           <motion.section
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="bg-gray-800/80 rounded-xl p-6 border border-gray-700/50"
+            className="bg-white dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700/50 shadow-sm dark:shadow-none"
           >
             {Array.isArray(profile.achievements) && profile.achievements.length > 0 && (
               <>
-                <h2 className="text-lg font-semibold text-gray-200 mb-2">Succès</h2>
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Achievements</h2>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {profile.achievements.map((a: string) => (
-                    <span key={a} className="bg-gray-700 px-3 py-1 rounded text-sm">
+                    <span key={a} className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 rounded text-sm">
                       {a}
                     </span>
                   ))}
@@ -598,11 +598,11 @@ function PublicProfile() {
             )}
             {Array.isArray(profile.links) && profile.links.length > 0 && (
               <>
-                <h2 className="text-lg font-semibold text-gray-200 mb-2">Liens</h2>
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Links</h2>
                 <ul className="space-y-1">
                   {profile.links.map((l: string) => (
                     <li key={l}>
-                      <a className="text-blue-400 hover:underline" href={l} target="_blank" rel="noreferrer">
+                      <a className="text-blue-600 dark:text-blue-400 hover:underline" href={l} target="_blank" rel="noreferrer">
                         {l}
                       </a>
                     </li>

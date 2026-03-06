@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { login, verify2faLogin } from '../../store/slices/authSlice';
 import { AppDispatch } from '../../store/store';
 import { Button, Input, Card, Alert, PageContainer, Checkbox } from '../../shared/components';
+import { GoogleIcon, GithubIcon } from '../../components/icons/SocialAuthIcons';
 
 function Login() {
   const dispatch = useDispatch<AppDispatch>();
@@ -131,19 +132,27 @@ function Login() {
         <div className="mt-6 space-y-3 border-t border-gray-700 pt-6">
           <Button
             type="button"
-            variant="danger"
+            variant="secondary"
             fullWidth
             onClick={() => redirectToSocial('google')}
+            className="!bg-white !text-gray-800 hover:!bg-gray-100 dark:!bg-gray-100 dark:!text-gray-900 dark:hover:!bg-gray-200 !border !border-gray-300 dark:!border-gray-400"
           >
-            Continuer avec Google
+            <span className="flex items-center justify-center gap-3">
+              <GoogleIcon className="w-5 h-5 shrink-0" />
+              Continue with Google
+            </span>
           </Button>
           <Button
             type="button"
             variant="secondary"
             fullWidth
             onClick={() => redirectToSocial('github')}
+            className="!bg-gray-800 !text-white hover:!bg-gray-700 dark:!bg-gray-700 dark:hover:!bg-gray-600 !border !border-gray-600 dark:!border-gray-500"
           >
-            Continuer avec GitHub
+            <span className="flex items-center justify-center gap-3">
+              <GithubIcon className="w-5 h-5 shrink-0" />
+              Continue with GitHub
+            </span>
           </Button>
         </div>
       </Card>

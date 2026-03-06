@@ -14,6 +14,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useDebounce } from 'use-debounce';
 import toast from 'react-hot-toast';
+import { GoogleIcon, GithubIcon } from '../../components/icons/SocialAuthIcons';
 
 // Validation schema
 const registerSchema = yup.object().shape({
@@ -103,13 +104,13 @@ const PasswordStrengthIndicator = ({ password }: { password: string }) => {
   return (
     <div className="mt-2">
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+        <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
           <div 
             className={`h-full ${strengthColor} transition-all duration-300`}
             style={{ width: `${(strength / 5) * 100}%` }}
           />
         </div>
-        <span className="text-xs text-gray-400">{strengthText}</span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">{strengthText}</span>
       </div>
       <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
         <div className={`flex items-center gap-1 ${password.length >= 8 ? 'text-green-500' : 'text-gray-500'}`}>
@@ -280,7 +281,7 @@ function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto">
         {/* Progress Bar */}
         <div className="mb-8">
@@ -291,17 +292,17 @@ function Register() {
                   w-8 h-8 mx-auto rounded-full flex items-center justify-center
                   ${index <= currentStep 
                     ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-700 text-gray-400'
+                    : 'bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
                   }
                 `}>
                   {index + 1}
                 </div>
-                <div className="text-xs mt-2 text-gray-400">{step.title}</div>
+                <div className="text-xs mt-2 text-gray-500 dark:text-gray-400">{step.title}</div>
               </div>
             ))}
           </div>
           <div className="relative mt-2">
-            <div className="absolute top-0 left-0 h-1 bg-gray-700 w-full rounded" />
+            <div className="absolute top-0 left-0 h-1 bg-gray-300 dark:bg-gray-700 w-full rounded" />
             <div 
               className="absolute top-0 left-0 h-1 bg-blue-600 rounded transition-all duration-300"
               style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
@@ -310,8 +311,8 @@ function Register() {
         </div>
 
         {/* Form */}
-        <div className="bg-gray-800 p-8 rounded-lg shadow-xl">
-          <h2 className="text-2xl font-bold mb-6 text-white">Create Your Account</h2>
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl border border-gray-200 dark:border-transparent">
+          <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Create Your Account</h2>
           
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <AnimatePresence mode="wait">
@@ -327,7 +328,7 @@ function Register() {
                   <div className="space-y-4">
                     {/* Email */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Email <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
@@ -335,7 +336,7 @@ function Register() {
                           type="email"
                           {...registerField('email')}
                           className={`
-                            w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-white
+                            w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
                             ${errors.email 
                               ? 'border-red-500 focus:ring-red-500' 
                               : 'focus:ring-blue-500'
@@ -362,14 +363,14 @@ function Register() {
 
                     {/* Username */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Username <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         {...registerField('username')}
                         className={`
-                          w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-white
+                          w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
                           ${errors.username ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
                         `}
                         placeholder="johndoe123"
@@ -381,7 +382,7 @@ function Register() {
 
                     {/* Password */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Password <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
@@ -389,7 +390,7 @@ function Register() {
                           type={showPassword ? 'text' : 'password'}
                           {...registerField('password')}
                           className={`
-                            w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-white
+                            w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
                             ${errors.password ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
                           `}
                           placeholder="********"
@@ -397,7 +398,7 @@ function Register() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-2 text-gray-400 hover:text-white"
+                          className="absolute right-3 top-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                         >
                           {showPassword ? 'Hide' : 'Show'}
                         </button>
@@ -410,7 +411,7 @@ function Register() {
 
                     {/* Confirm Password */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Confirm Password <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
@@ -418,7 +419,7 @@ function Register() {
                           type={showConfirmPassword ? 'text' : 'password'}
                           {...registerField('confirmPassword')}
                           className={`
-                            w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-white
+                            w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
                             ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
                           `}
                           placeholder="********"
@@ -426,7 +427,7 @@ function Register() {
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-2 text-gray-400 hover:text-white"
+                          className="absolute right-3 top-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                         >
                           {showConfirmPassword ? 'Hide' : 'Show'}
                         </button>
@@ -443,14 +444,14 @@ function Register() {
                   <div className="space-y-4">
                     {/* First Name */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         First Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         {...registerField('firstName')}
                         className={`
-                          w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-white
+                          w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
                           ${errors.firstName ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
                         `}
                         placeholder="John"
@@ -462,14 +463,14 @@ function Register() {
 
                     {/* Last Name */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Last Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         {...registerField('lastName')}
                         className={`
-                          w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-white
+                          w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
                           ${errors.lastName ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
                         `}
                         placeholder="Doe"
@@ -481,7 +482,7 @@ function Register() {
 
                     {/* Phone */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Phone Number <span className="text-red-500">*</span>
                       </label>
                       <Controller
@@ -492,9 +493,9 @@ function Register() {
                             country={'us'}
                             value={field.value}
                             onChange={field.onChange}
-                            inputClass="!w-full !bg-gray-700 !text-white !border-gray-600 !rounded-lg !px-4 !py-6"
+                            inputClass="!w-full !bg-gray-100 dark:!bg-gray-700 !text-gray-900 dark:!text-white !border-gray-300 dark:!border-gray-600 !rounded-lg !px-4 !py-6"
                             containerClass="!w-full"
-                            buttonClass="!bg-gray-700 !border-gray-600"
+                            buttonClass="!bg-gray-100 dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600"
                           />
                         )}
                       />
@@ -505,7 +506,7 @@ function Register() {
 
                     {/* Date of Birth */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Date of Birth <span className="text-red-500">*</span>
                       </label>
                       <Controller
@@ -520,7 +521,7 @@ function Register() {
                             scrollableYearDropdown
                             yearDropdownItemNumber={100}
                             placeholderText="Select your birth date"
-                            className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                            className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
                           />
                         )}
                       />
@@ -539,9 +540,9 @@ function Register() {
                       <input
                         type="checkbox"
                         {...registerField('newsletter')}
-                        className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-400 dark:border-gray-600 rounded focus:ring-blue-500"
                       />
-                      <label className="ml-2 text-sm text-gray-300">
+                      <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                         Subscribe to our newsletter for updates and offers
                       </label>
                     </div>
@@ -551,9 +552,9 @@ function Register() {
                       <input
                         type="checkbox"
                         {...registerField('termsAccepted')}
-                        className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-700 border-gray-400 dark:border-gray-600 rounded focus:ring-blue-500"
                       />
-                      <label className="ml-2 text-sm text-gray-300">
+                      <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                         I accept the <a href="/terms" className="text-blue-500 hover:underline">Terms and Conditions</a> <span className="text-red-500">*</span>
                       </label>
                     </div>
@@ -563,12 +564,12 @@ function Register() {
 
                     {/* Referral Source */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         How did you hear about us?
                       </label>
                       <select
                         {...registerField('referralSource')}
-                        className="w-full px-4 py-2 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                        className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
                       >
                         <option value="">Select an option</option>
                         <option value="social">Social Media</option>
@@ -587,7 +588,7 @@ function Register() {
                           onChange={setCaptchaToken}
                         />
                       ) : (
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           reCAPTCHA is disabled in this environment.
                         </p>
                       )}
@@ -603,7 +604,7 @@ function Register() {
                 <button
                   type="button"
                   onClick={prevStep}
-                  className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                 >
                   Previous
                 </button>
@@ -646,7 +647,7 @@ function Register() {
           </form>
 
           {/* Login Link */}
-          <p className="text-center text-gray-400 mt-6">
+          <p className="text-center text-gray-500 dark:text-gray-400 mt-6">
             Already have an account?{' '}
             <a href="/login" className="text-blue-500 hover:underline">
               Sign in
@@ -657,15 +658,17 @@ function Register() {
             <button
               type="button"
               onClick={() => redirectToSocial('google')}
-              className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-semibold"
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 dark:bg-gray-100 dark:hover:bg-gray-200 text-gray-800 dark:text-gray-900 py-2.5 rounded-lg font-semibold border border-gray-300 dark:border-gray-400 transition-colors"
             >
+              <GoogleIcon className="w-5 h-5 shrink-0" />
               Continue with Google
             </button>
             <button
               type="button"
               onClick={() => redirectToSocial('github')}
-              className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg font-semibold"
+              className="w-full flex items-center justify-center gap-3 bg-gray-800 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white py-2.5 rounded-lg font-semibold border border-gray-600 dark:border-gray-500 transition-colors"
             >
+              <GithubIcon className="w-5 h-5 shrink-0" />
               Continue with GitHub
             </button>
           </div>
