@@ -1,0 +1,166 @@
+pipeline {
+    agent any
+    
+    tools {
+        nodejs 'nodejs-18'
+    }
+    
+    parameters {
+        choice(
+            name: 'DEPLOY_ENV',
+            choices: ['dev', 'staging', 'production'],
+            description: '🌍 Environnement de déploiement'
+        )
+        string(
+            name: 'BUILD_NUMBER',
+            defaultValue: 'latest',
+            description: '🏷️ Numéro du build à déployer (ex: 12, latest)'
+        )
+    }
+    
+    environment {
+        // Docker
+        BACKEND_IMAGE = "khalfaouisaladin/bytebattle-backend:${params.BUILD_NUMBER}"
+        FRONTEND_IMAGE = "khalfaouisaladin/bytebattle-frontend:${params.BUILD_NUMBER}"
+        
+        // Kubernetes
+        KUBECONFIG_CREDENTIAL = 'kubeconfig-credential'
+    }
+    
+    stages {
+        stage('Check Images on Docker Hub') {
+            steps {
+                script {
+                    sh '''
+                        echo "🔍 Vérification des images sur Docker Hub..."
+                        
+                        docker pull ${BACKEND_IMAGE} || {
+                            echo "❌ Image backend ${BACKEND_IMAGE} non trouvée"
+                            exit 1
+                        }
+                        
+                        docker pull ${FRONTEND_IMAGE} || {
+                            echo "❌ Image frontend ${FRONTEND_IMAGE} non trouvée"
+                            exit 1
+                        }
+                        
+                        echo "✅ Images trouvées"
+                        docker images | grep khalfaouisaladin
+                    '''
+                }
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    withKubeConfig([credentialsId: KUBECONFIG_CREDENTIAL]) {
+                        sh """
+                            echo "🔍 Vérification de kubectl..."
+                            command -v kubectl || echo "⚠️ kubectl non trouvé dans PATH"
+                            
+                            cd ${WORKSPACE}
+                            
+                            echo "☸️ Déploiement sur Kubernetes (${params.DEPLOY_ENV})..."
+                            
+                            # Appliquer les configurations
+                            kubectl apply -f mongodb-deployment.yaml
+                            kubectl apply -f backend-deployment.yaml
+                            kubectl apply -f frontend-deployment.yaml
+                            
+                            # Mettre à jour les images des déploiements
+                            kubectl set image deployment/backend backend=${BACKEND_IMAGE}
+                            kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}
+                            
+                            # Vérifier le déploiement
+                            echo "⏳ Vérification du déploiement..."
+                            kubectl rollout status deployment/backend --timeout=120s
+                            kubectl rollout status deployment/frontend --timeout=120s
+                            
+                            # Afficher l'état
+                            kubectl get pods
+                            kubectl get svc
+                            
+                            echo "✅ Déploiement terminé sur ${params.DEPLOY_ENV}"
+                        """
+                    }
+                }
+            }
+        }
+        
+stage('Smoke Tests') {
+    steps {
+        script {
+            withKubeConfig([credentialsId: KUBECONFIG_CREDENTIAL]) {
+                sh '''
+                    echo "🔥 Tests de non-régression..."
+                    
+                    echo "⏳ Mise en place du port-forwarding..."
+                    
+                    # Port-forward pour le backend API (port 3000)
+                    kubectl port-forward svc/backend-service 3000:3000 &
+                    BACKEND_PF_PID=$!
+                    
+                    # Port-forward pour le frontend (port 80 -> 3000 local)
+                    kubectl port-forward svc/frontend-service 3001:80 &
+                    FRONTEND_PF_PID=$!
+                    
+                    # Attendre que les port-forwards soient établis
+                    sleep 5
+                    
+                    # Tester le backend API
+                    echo "📡 Test du backend sur http://localhost:3000..."
+                    BACKEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || echo "000")
+                    
+                    if [ "$BACKEND_RESPONSE" -eq 200 ] || [ "$BACKEND_RESPONSE" -eq 404 ] || [ "$BACKEND_RESPONSE" -eq 401 ]; then
+                        echo "✅ Backend répond (HTTP $BACKEND_RESPONSE)"
+                        BACKEND_TEST="PASS"
+                    else
+                        echo "❌ Backend ne répond pas (HTTP $BACKEND_RESPONSE)"
+                        BACKEND_TEST="FAIL"
+                        
+                        # Debug : afficher plus d'infos
+                        echo "🔍 Test avec verbose pour debug :"
+                        curl -v http://localhost:3000/health || true
+                    fi
+                    
+                    # Tester le frontend
+                    echo "📡 Test du frontend sur http://localhost:3001..."
+                    FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001 || echo "000")
+                    
+                    if [ "$FRONTEND_RESPONSE" -eq 200 ]; then
+                        echo "✅ Frontend répond (HTTP $FRONTEND_RESPONSE)"
+                        FRONTEND_TEST="PASS"
+                    else
+                        echo "❌ Frontend ne répond pas (HTTP $FRONTEND_RESPONSE)"
+                        FRONTEND_TEST="FAIL"
+                    fi
+                    
+                    # Nettoyer les port-forwards
+                    echo "🧹 Nettoyage des port-forwards..."
+                    kill $BACKEND_PF_PID 2>/dev/null || true
+                    kill $FRONTEND_PF_PID 2>/dev/null || true
+                    
+                    # Vérifier les résultats
+                    if [ "$BACKEND_TEST" = "FAIL" ] || [ "$FRONTEND_TEST" = "FAIL" ]; then
+                        echo "❌ Les tests ont échoué"
+                        exit 1
+                    fi
+                    
+                    echo "✅ Tous les tests passent"
+                '''
+            }
+        }
+    }
+}
+}
+    
+    post {
+        success {
+            echo "✅ Déploiement réussi !"
+        }
+        failure {
+            echo "❌ Déploiement échoué !"
+        }
+    }
+}
