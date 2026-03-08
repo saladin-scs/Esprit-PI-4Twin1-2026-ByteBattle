@@ -32,6 +32,7 @@ export function Avatar({ src, fallback, size = 'md', className = '', ...imgProps
       <img
         src={src}
         alt=""
+        loading="lazy"
         className={`inline-block rounded-full object-cover ring-2 ring-white dark:ring-gray-700 shadow-header ${sizeClass} ${className}`}
         {...imgProps}
       />

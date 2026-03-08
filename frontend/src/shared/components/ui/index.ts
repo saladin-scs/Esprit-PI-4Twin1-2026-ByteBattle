@@ -12,3 +12,4 @@ export {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from './DropdownMenu';
+export { Modal } from './Modal';

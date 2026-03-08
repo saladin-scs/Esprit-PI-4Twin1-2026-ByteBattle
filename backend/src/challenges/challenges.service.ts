@@ -5,7 +5,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Challenge, ChallengeDocument } from './schemas/challenge.schema';
 import { Submission, SubmissionDocument } from './schemas/Submission.schema';
+import { Solution, SolutionDocument } from './schemas/solution.schema';
 import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
+import { CreateSolutionDto } from './dto/solution.dto';
 import { CodeExecutorService } from './code-executor.service';
 
 @Injectable()
@@ -13,6 +15,7 @@ export class ChallengeService {
   constructor(
     @InjectModel(Challenge.name) private challengeModel: Model<ChallengeDocument>,
     @InjectModel(Submission.name) private submissionModel: Model<SubmissionDocument>,
+    @InjectModel(Solution.name) private solutionModel: Model<SolutionDocument>,
     private codeExecutor: CodeExecutorService,
   ) {}
 
@@ -200,5 +203,65 @@ export class ChallengeService {
       ? Math.round((challenge.totalAccepted / challenge.totalSubmissions) * 100)
       : 0;
     return { ...challenge, acceptanceRate };
+  }
+
+  // ─── Communauté : Solutions ──────────────────────────────────────────────
+  async createSolution(userId: string, challengeId: string, dto: CreateSolutionDto) {
+    const challenge = await this.challengeModel.findById(challengeId).select('_id').exec();
+    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+
+    return new this.solutionModel({
+      userId: new Types.ObjectId(userId),
+      challengeId: new Types.ObjectId(challengeId),
+      ...dto,
+    }).save();
+  }
+
+  async getSolutions(challengeId: string, page = 1, limit = 20) {
+    const skip = (Number(page) - 1) * Number(limit);
+    const filter = { challengeId: new Types.ObjectId(challengeId) };
+
+    const [solutions, total] = await Promise.all([
+      this.solutionModel
+        .find(filter)
+        .populate('userId', 'username avatarUrl')
+        .sort({ upvotes: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean()
+        .exec(),
+      this.solutionModel.countDocuments(filter),
+    ]);
+
+    return {
+      solutions,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / Number(limit)),
+    };
+  }
+
+  async upvoteSolution(userId: string, solutionId: string) {
+    const solution = await this.solutionModel.findById(solutionId).exec();
+    if (!solution) throw new NotFoundException('Solution non trouvée');
+
+    const uid = new Types.ObjectId(userId);
+    const hasUpvoted = solution.upvotedBy.some(id => id.equals(uid));
+
+    if (hasUpvoted) {
+      // Remove upvote
+      return this.solutionModel.findByIdAndUpdate(
+        solutionId,
+        { $inc: { upvotes: -1 }, $pull: { upvotedBy: uid } },
+        { new: true }
+      ).populate('userId', 'username avatarUrl').lean();
+    } else {
+      // Add upvote
+      return this.solutionModel.findByIdAndUpdate(
+        solutionId,
+        { $inc: { upvotes: 1 }, $push: { upvotedBy: uid } },
+        { new: true }
+      ).populate('userId', 'username avatarUrl').lean();
+    }
   }
 }

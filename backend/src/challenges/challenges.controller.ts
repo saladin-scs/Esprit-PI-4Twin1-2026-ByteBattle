@@ -3,6 +3,7 @@ import { Controller, Get, Post, Body, Param, Query, UseGuards, Req } from '@nest
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChallengeService } from './challenges.service';
 import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
+import { CreateSolutionDto } from './dto/solution.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -52,6 +53,38 @@ export class ChallengeController {
   @ApiOperation({ summary: 'Mes soumissions' })
   async mySubmissions(@Req() req: any, @Query('challengeId') challengeId?: string) {
     return this.challengeService.getUserSubmissions(req.user.userId, challengeId);
+  }
+
+  // ─── Communauté : Solutions ──────────────────────────────────────────────
+
+  @Get(':id/solutions')
+  @ApiOperation({ summary: 'Voir les solutions de la communauté pour un challenge' })
+  async getSolutions(
+    @Param('id') challengeId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.challengeService.getSolutions(challengeId, page, limit);
+  }
+
+  @Post(':id/solutions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Partager une solution' })
+  async createSolution(
+    @Param('id') challengeId: string,
+    @Body() dto: CreateSolutionDto,
+    @Req() req: any,
+  ) {
+    return this.challengeService.createSolution(req.user.userId, challengeId, dto);
+  }
+
+  @Post('solutions/:solutionId/upvote')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upvoter/Downvoter une solution' })
+  async upvoteSolution(@Param('solutionId') solutionId: string, @Req() req: any) {
+    return this.challengeService.upvoteSolution(req.user.userId, solutionId);
   }
 
   // ─── Route ADMIN (créer un challenge) ───────────────────────────────────

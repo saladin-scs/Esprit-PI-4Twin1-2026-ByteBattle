@@ -337,7 +337,8 @@ function Auth() {
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
   
   // State
-  const [mode, setMode] = useState<AuthMode>('login');
+  const initialMode = (localStorage.getItem('preferred_login_mode') as AuthMode) || 'login';
+  const [mode, setMode] = useState<AuthMode>(['login', 'face-login'].includes(initialMode) ? initialMode : 'login');
   const [currentStep, setCurrentStep] = useState(0);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -349,6 +350,13 @@ function Auth() {
   // Hooks
   const { modelsLoaded, isLoading: faceModelsLoading, error: faceError, detectFace } = useFaceRecognition();
   
+  const handleModeChange = (newMode: AuthMode) => {
+    setMode(newMode);
+    if (newMode === 'login' || newMode === 'face-login') {
+      localStorage.setItem('preferred_login_mode', newMode);
+    }
+  };
+
   // Forms
   const registerForm = useForm<RegisterFormData>({
     resolver: yupResolver(registerSchema) as any,
@@ -410,13 +418,19 @@ function Auth() {
 
     const startCamera = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await (navigator.mediaDevices?.getUserMedia || (navigator as any).webkitGetUserMedia || (navigator as any).mozGetUserMedia).call(navigator.mediaDevices || navigator, { video: true });
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-      } catch (err) {
-        setError("Unable to access camera. Please check permissions.");
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setError("Camera access denied. Please allow camera permissions in your browser settings.");
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          setError("No camera found. Please connect a camera and try again.");
+        } else {
+          setError("Unable to access camera. Please check your browser settings or use manual login instead.");
+        }
       }
     };
 
@@ -485,7 +499,7 @@ function Auth() {
         navigate('/setup-2fa');
       } else {
         toast.success('Registration successful! Please check your email.');
-        setMode('login');
+        handleModeChange('login');
         registerForm.reset();
       }
     } catch (err: any) {
@@ -505,7 +519,7 @@ function Auth() {
 
       if (res?.twoFactorRequired && res?.twoFactorToken) {
         setTwoFactorToken(res.twoFactorToken);
-        setMode('2fa');
+        handleModeChange('2fa');
         return;
       }
 
@@ -690,7 +704,7 @@ function Auth() {
         {/* Face Login Button */}
         <button
           type="button"
-          onClick={() => setMode('face-login')}
+          onClick={() => handleModeChange('face-login')}
           className="w-full px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
         >
           Login with Face Recognition
@@ -702,7 +716,7 @@ function Auth() {
           <button
             type="button"
             onClick={() => {
-              setMode('register');
+              handleModeChange('register');
               setCurrentStep(0);
               setError('');
             }}
@@ -1063,7 +1077,7 @@ function Auth() {
           <button
             type="button"
             onClick={() => {
-              setMode('login');
+              handleModeChange('login');
               setError('');
             }}
             className="text-blue-500 hover:underline"
@@ -1128,7 +1142,7 @@ function Auth() {
         <button
           type="button"
           onClick={() => {
-            setMode('login');
+            handleModeChange('login');
             setTwoFactorToken(null);
             setError('');
           }}
@@ -1195,7 +1209,7 @@ function Auth() {
       <button
         type="button"
         onClick={() => {
-          setMode('login');
+          handleModeChange('login');
           stopCamera();
           setError('');
         }}

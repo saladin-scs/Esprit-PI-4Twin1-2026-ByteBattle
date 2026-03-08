@@ -24,11 +24,16 @@ export class Challenge {
 
   // Tests cachés pour la correction automatique
   @Prop({
-    type: [{ input: String, expectedOutput: String }],
+    type: [{ 
+      input: String, 
+      expectedOutput: String, 
+      isHidden: { type: Boolean, default: true },
+      isPerformance: { type: Boolean, default: false }
+    }],
     default: [],
-    select: false, // ← jamais exposé au frontend
+    select: false, // ← jamais exposé au frontend par défaut
   })
-  testCases: Array<{ input: string; expectedOutput: string }>;
+  testCases: Array<{ input: string; expectedOutput: string; isHidden?: boolean; isPerformance?: boolean }>;
 
   @Prop({ enum: ['easy', 'medium', 'hard', 'expert'], default: 'easy' })
   difficulty: Difficulty;
@@ -59,6 +64,25 @@ export class Challenge {
   // Contraintes affichées (ex: "1 <= n <= 10^5")
   @Prop({ type: [String], default: [] })
   constraints: string[];
+
+  // Time Limit in milliseconds
+  @Prop({ type: Number, default: 2000 })
+  timeLimit: number;
+
+  // Memory Limit in MB
+  @Prop({ type: Number, default: 256 })
+  memoryLimit: number;
+
+  // Cover Image
+  @Prop({ type: String, required: false })
+  coverImage?: string;
+
+  // Hints
+  @Prop({
+    type: [{ text: String, tier: String, cost: Number }],
+    default: [],
+  })
+  hints: Array<{ text: string; tier: 'basic' | 'detailed' | 'premium'; cost: number }>;
 }
 
 export const ChallengeSchema = SchemaFactory.createForClass(Challenge);

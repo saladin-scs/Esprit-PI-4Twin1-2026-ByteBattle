@@ -1,20 +1,6 @@
 import { apiClient } from './client';
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000', // 👈 this should be set
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token'); // adjust key if different
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
 
 export const usersApi = {
-  
   me: () => apiClient.get('/users/me'),
   updateMe: (data: Record<string, unknown> | object) => apiClient.put('/users/me', data),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
@@ -26,11 +12,16 @@ export const usersApi = {
   publicByUsername: (username: string) => apiClient.get(`/users/public/${username}`),
   publicActivity: (username: string) => apiClient.get(`/users/public/${username}/activity`),
   publicSkillTree: (username: string) => apiClient.get(`/users/public/${username}/skill-tree`),
-  uploadAvatar: (formData: FormData) => api.post('/users/me/avatar', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
 
-  uploadCover: (formData: FormData) => api.post('/users/me/cover', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
+  uploadAvatar: (formData: FormData, config?: any) =>
+    apiClient.post('/users/me/avatar', formData, {
+      headers: { 'Content-Type': undefined }, // let browser set multipart/form-data with boundary
+      ...config,
+    }),
+
+  uploadCover: (formData: FormData, config?: any) =>
+    apiClient.post('/users/me/cover', formData, {
+      headers: { 'Content-Type': undefined }, // let browser set multipart/form-data with boundary
+      ...config,
+    }),
 };

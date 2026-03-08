@@ -4,7 +4,7 @@
  */
 import { apiClient, authApi, usersApi, adminApi } from '../core/api';
 import type { ExecuteTestCase } from '../types/challenge';
-import axios from 'axios';
+
 export { apiClient, authApi, usersApi, adminApi };
 
 export const challengesApi = {
@@ -14,17 +14,7 @@ export const challengesApi = {
   generate: (data: { difficulty: string; topic: string }) =>
     apiClient.post('/challenges/generate', data),
 };
-const API = axios.create({
-  baseURL: "http://localhost:5000/api"
-});
 
-API.interceptors.request.use((req) => {
-  if (localStorage.getItem("token")) {
-    req.headers.Authorization =
-      `Bearer ${localStorage.getItem("token")}`;
-  }
-  return req;
-});
 
 export const codeExecutionApi = {
   execute: (data: { code: string; language: string; testCases: ExecuteTestCase[] }) =>
@@ -56,18 +46,7 @@ export const leaderboardApi = {
   getCompetition: (id: string) =>
     apiClient.get(`/leaderboard/competition/${id}`),
 };
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
-});
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {config.headers.Authorization = `Bearer ${token}`;}
-  else {
-      console.warn('No token found in localStorage'); // optional debug
-    }
-  return config;
-});
 
 
 export default apiClient;

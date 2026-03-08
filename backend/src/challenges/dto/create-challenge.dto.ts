@@ -21,7 +21,7 @@ export class CreateChallengeDto {
 
   @ApiProperty()
   @IsArray()
-  testCases: Array<{ input: string; expectedOutput: string }>;
+  testCases: Array<{ input: string; expectedOutput: string; isHidden?: boolean; isPerformance?: boolean }>;
 
   @ApiProperty({ enum: ['easy', 'medium', 'hard', 'expert'] })
   @IsEnum(['easy', 'medium', 'hard', 'expert'])
@@ -54,6 +54,26 @@ export class CreateChallengeDto {
   @IsBoolean()
   @IsOptional()
   isPublished?: boolean;
+
+  @ApiProperty()
+  @IsNumber()
+  @IsOptional()
+  timeLimit?: number;
+
+  @ApiProperty()
+  @IsNumber()
+  @IsOptional()
+  memoryLimit?: number;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  coverImage?: string;
+
+  @ApiProperty()
+  @IsArray()
+  @IsOptional()
+  hints?: Array<{ text: string; tier: 'basic' | 'detailed' | 'premium'; cost: number }>;
 }
 
 export class SubmitChallengeDto {
