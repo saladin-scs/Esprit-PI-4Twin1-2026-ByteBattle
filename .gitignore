@@ -41,6 +41,8 @@ Thumbs.db
 # Backend specific
 backend/dist/
 backend/.env
+backend/uploads/
+uploads/
 
 # Frontend specific
 frontend/dist/

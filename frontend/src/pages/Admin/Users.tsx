@@ -50,7 +50,7 @@ function AdminUsers() {
     setLoading(true);
     setError('');
     try {
-      const params: Record<string, string | number | undefined> = {
+      const params: Record<string, string | number | boolean | undefined> = {
         page,
         limit: PAGE_SIZE,
         q: query.trim() || undefined,

@@ -1,6 +1,10 @@
 /* eslint-disable prettier/prettier */
-import { Controller, Get, UseGuards, Request, Put, Body, Post } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, UseGuards, Request, Put, Body, Post, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
+import { mkdirSync } from 'fs';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateMeDto } from './dto/update-me.dto';
@@ -46,6 +50,80 @@ export class UsersController {
   @ApiOperation({ summary: 'Update current user profile' })
   async updateMe(@Request() req, @Body() updateData: UpdateMeDto) {
     return this.usersService.updateMe(req.user.userId, updateData);
+  }
+
+  @Post('me/avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const dir = join(process.cwd(), 'uploads', 'avatars');
+          mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (req, file, cb) => {
+          const userId = (req as any).user?.userId || 'user';
+          const ext = extname(file.originalname) || '.jpg';
+          const safeExt = ['.png', '.jpeg', '.jpg', '.webp'].includes(ext.toLowerCase()) ? ext : '.jpg';
+          cb(null, `${userId}-${Date.now()}${safeExt}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+        if (allowed.includes(file.mimetype)) return cb(null, true);
+        cb(new BadRequestException('Only PNG, JPG, WEBP images allowed'), false);
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOperation({ summary: 'Upload avatar image' })
+  async uploadAvatar(@Request() req, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    const baseUrl = process.env.API_URL || process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+    const avatarUrl = `${baseUrl.replace(/\/$/, '')}/uploads/avatars/${file.filename}`;
+    await this.usersService.updateAvatar(req.user.userId, avatarUrl);
+    return { avatarUrl };
+  }
+
+  @Post('me/cover')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const dir = join(process.cwd(), 'uploads', 'covers');
+          mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (req, file, cb) => {
+          const userId = (req as any).user?.userId || 'user';
+          const ext = extname(file.originalname) || '.jpg';
+          const safeExt = ['.png', '.jpeg', '.jpg', '.webp'].includes(ext.toLowerCase()) ? ext : '.jpg';
+          cb(null, `${userId}-${Date.now()}${safeExt}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+        if (allowed.includes(file.mimetype)) return cb(null, true);
+        cb(new BadRequestException('Only PNG, JPG, WEBP images allowed'), false);
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiOperation({ summary: 'Upload cover image' })
+  async uploadCover(@Request() req, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    const baseUrl = process.env.API_URL || process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+    const coverUrl = `${baseUrl.replace(/\/$/, '')}/uploads/covers/${file.filename}`;
+    await this.usersService.updateCover(req.user.userId, coverUrl);
+    return { coverUrl, coverImage: coverUrl };
   }
 
   @Post('me/change-password')

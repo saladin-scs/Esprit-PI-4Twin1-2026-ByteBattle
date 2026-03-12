@@ -14,14 +14,8 @@ export const usersApi = {
   publicSkillTree: (username: string) => apiClient.get(`/users/public/${username}/skill-tree`),
 
   uploadAvatar: (formData: FormData, config?: any) =>
-    apiClient.post('/users/me/avatar', formData, {
-      headers: { 'Content-Type': undefined }, // let browser set multipart/form-data with boundary
-      ...config,
-    }),
+    apiClient.post('/users/me/avatar', formData, config),
 
   uploadCover: (formData: FormData, config?: any) =>
-    apiClient.post('/users/me/cover', formData, {
-      headers: { 'Content-Type': undefined }, // let browser set multipart/form-data with boundary
-      ...config,
-    }),
+    apiClient.post('/users/me/cover', formData, config),
 };

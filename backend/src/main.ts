@@ -2,6 +2,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { join } from 'path';
+import * as express from 'express';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
@@ -9,6 +11,10 @@ import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Serve uploaded files (avatars, covers)
+  const uploadsPath = join(process.cwd(), 'uploads');
+  app.use('/uploads', express.static(uploadsPath));
 
   const bodyLimit = process.env.HTTP_BODY_LIMIT || '1mb';
   app.use(json({ limit: bodyLimit }));

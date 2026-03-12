@@ -1,11 +1,11 @@
 // pages/Auth.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { login, verify2faLogin, register as registerAction } from '../../store/slices/authSlice';
+import { login, faceLogin, verify2faLogin, register as registerAction } from '../../store/slices/authSlice';
 import { AppDispatch } from '../../store/store';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReCAPTCHA from 'react-google-recaptcha';
@@ -16,7 +16,6 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useDebounce } from 'use-debounce';
 import toast from 'react-hot-toast';
 import * as faceapi from 'face-api.js';
-import axios from 'axios';
 
 // Icons
 const GoogleIcon = () => (
@@ -297,7 +296,6 @@ const ProgressBar = ({ currentStep, steps }: { currentStep: number; steps: { tit
 // Camera component
 const Camera = ({ 
   videoRef, 
-  onFaceDetected, 
   isLoading 
 }: { 
   videoRef: React.RefObject<HTMLVideoElement>; 
@@ -329,7 +327,6 @@ type AuthMode = 'login' | 'register' | '2fa' | 'face-login';
 function Auth() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const location = useLocation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
@@ -397,7 +394,6 @@ function Auth() {
   // Watchers
   const watchRegisterEmail = registerForm.watch('email');
   const watchRegisterPassword = registerForm.watch('password');
-  const watchLoginEmail = loginForm.watch('email');
   
   const { isAvailable: isEmailAvailable, isChecking: isCheckingEmail } = 
     useEmailAvailability(watchRegisterEmail, API_URL);
@@ -589,18 +585,15 @@ function Auth() {
 
       const embedding = Array.from(detection.descriptor);
 
-      const response = await axios.post(`${API_URL}/users/verify-face`, {
+      await dispatch(faceLogin({
         email,
         embedding,
-      });
+        rememberMe: loginForm.getValues('rememberMe'),
+      })).unwrap();
 
-      if (response.data.match) {
-        stopCamera();
-        navigate('/dashboard');
-        toast.success('Face recognition successful!');
-      } else {
-        setError('Face not recognized. Please try again or use password.');
-      }
+      stopCamera();
+      navigate('/dashboard');
+      toast.success('Face recognition successful!');
     } catch (err: any) {
       const message = err?.response?.data?.message || err.message || 'Face login failed';
       setError(message);
@@ -1169,12 +1162,13 @@ function Auth() {
         </label>
         <input
           type="email"
-          value={loginForm.getValues('email')}
-          onChange={(e) => loginForm.setValue('email', e.target.value)}
-          className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+          {...loginForm.register('email')}
+          className={`w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 ${loginForm.formState.errors.email ? 'border-red-500' : ''}`}
           placeholder="you@example.com"
-          required
         />
+        {loginForm.formState.errors.email && (
+          <p className="text-red-500 text-xs mt-1">{loginForm.formState.errors.email.message}</p>
+        )}
       </div>
 
       {/* Camera */}

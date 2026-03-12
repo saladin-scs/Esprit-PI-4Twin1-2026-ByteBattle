@@ -51,16 +51,17 @@ export const login = createAsyncThunk(
     return response.data;
   }
 );
-export const verifyFace = createAsyncThunk(
-  'auth/verifyFace',
-  async ({ userId, embedding }: { userId: string; embedding: number[] }) => {
-    const res = await fetch('http://localhost:3000/users/verify-face', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, embedding }),
-    });
-    const data = await res.json();
-    return data;
+export const faceLogin = createAsyncThunk(
+  'auth/faceLogin',
+  async (data: { email: string; embedding: number[]; rememberMe?: boolean }) => {
+    const response = await authApi.faceLogin(data);
+    if (response.data?.access_token) {
+      localStorage.setItem('token', response.data.access_token);
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+      }
+    }
+    return response.data;
   }
 );
 export const verify2faLogin = createAsyncThunk(
@@ -154,6 +155,21 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Login failed';
+      })
+      .addCase(faceLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(faceLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload?.user ?? null;
+        state.token = action.payload?.access_token ?? null;
+        state.refreshToken = action.payload?.refresh_token ?? state.refreshToken;
+        state.isAuthenticated = !!action.payload?.access_token;
+      })
+      .addCase(faceLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Face login failed';
       })
       .addCase(verify2faLogin.pending, (state) => {
         state.loading = true;

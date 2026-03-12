@@ -280,7 +280,6 @@ const ProgressBar = ({ currentStep, steps }: { currentStep: number; steps: { tit
 const Camera = ({ 
   videoRef, 
   isActive,
-  onFaceDetected, 
   isLoading 
 }: { 
   videoRef: React.RefObject<HTMLVideoElement>; 
@@ -351,7 +350,7 @@ function Register() {
     handleSubmit,
     control,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors },
     trigger,
     setError: setFormError,
     getValues,
@@ -496,20 +495,22 @@ function Register() {
     setSuccess("");
 
     try {
-      await axios.post(`${API_URL}/auth/register`, {
+      const response = await axios.post(`${API_URL}/auth/register`, {
         email: formData.email,
         username: formData.username.trim(),
         password: formData.password,
-        faceDescriptor: faceDescriptor ?? null,
+        faceDescriptor: faceDescriptor ?? undefined,
       });
 
-      setSuccess("Registration successful! 🎉 You can now log in.");
+      setSuccess("Registration successful! 🎉");
       stopCamera();
-      
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+
+      if (response.data?.twoFactorSetupRequired && response.data?.setupToken) {
+        localStorage.setItem('token', response.data.setupToken);
+        navigate('/setup-2fa');
+      } else {
+        setTimeout(() => navigate('/login'), 2000);
+      }
     } catch (err: any) {
       const raw = err?.response?.data?.message;
       const message = Array.isArray(raw) ? raw.join(", ") : raw || "Registration failed.";
@@ -953,11 +954,13 @@ function Register() {
         </label>
         <input
           type="email"
-          value={getValues('email')}
-          onChange={(e) => setValue('email', e.target.value)}
-          className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+          {...register('email')}
+          className={`w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 ${errors.email ? 'border-red-500' : ''}`}
           placeholder="you@example.com"
         />
+        {errors.email && (
+          <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+        )}
       </div>
 
       {/* Username */}
@@ -967,11 +970,13 @@ function Register() {
         </label>
         <input
           type="text"
-          value={getValues('username')}
-          onChange={(e) => setValue('username', e.target.value)}
-          className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+          {...register('username')}
+          className={`w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 ${errors.username ? 'border-red-500' : ''}`}
           placeholder="johndoe123"
         />
+        {errors.username && (
+          <p className="text-red-500 text-xs mt-1">{errors.username.message}</p>
+        )}
       </div>
 
       {/* Password */}
@@ -981,11 +986,13 @@ function Register() {
         </label>
         <input
           type="password"
-          value={getValues('password')}
-          onChange={(e) => setValue('password', e.target.value)}
-          className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+          {...register('password')}
+          className={`w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 ${errors.password ? 'border-red-500' : ''}`}
           placeholder="********"
         />
+        {errors.password && (
+          <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
+        )}
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Minimum 8 characters</p>
       </div>
 

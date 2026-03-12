@@ -20,7 +20,18 @@ export class UsersService {
       const email = String(dto.email || '').toLowerCase().trim();
       const username = String(dto.username || '').trim();
       const hashedPassword = await bcrypt.hash(dto.password, 10);
-      const user = new this.userModel({ ...dto, email, username, password: hashedPassword, roles: dto.roles?.length ? dto.roles : undefined });
+      const { faceDescriptor, ...rest } = dto;
+      const faceEmbedding = Array.isArray(faceDescriptor) && faceDescriptor.length === 128
+        ? faceDescriptor
+        : undefined;
+      const user = new this.userModel({
+        ...rest,
+        email,
+        username,
+        password: hashedPassword,
+        roles: dto.roles?.length ? dto.roles : undefined,
+        ...(faceEmbedding && { faceEmbedding }),
+      });
       return await user.save();
     } catch (err: any) {
       if (err.code === 11000) {
@@ -224,7 +235,6 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
 
   // ✅ NOUVEAU : vérifie le visage par email (utilisé par POST /users/verify-face)
   async verifyFaceByEmail(email: string, embedding: number[]): Promise<boolean> {
-    // ✅ FIX : +faceEmbedding obligatoire car select:false dans le schema
     const user = await this.userModel
       .findOne({ email: String(email || '').toLowerCase().trim() })
       .select('+faceEmbedding')
@@ -236,5 +246,21 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     }
 
     return this.euclideanDistance((user as any).faceEmbedding, embedding) < 0.6;
+  }
+
+  /** Returns the user when face matches, null otherwise. Throws if user not found or no face registered. */
+  async verifyFaceByEmailAndGetUser(email: string, embedding: number[]): Promise<UserDocument | null> {
+    const user = await this.userModel
+      .findOne({ email: String(email || '').toLowerCase().trim() })
+      .select('+faceEmbedding')
+      .exec();
+
+    if (!user) throw new UnauthorizedException('Utilisateur non trouvé');
+    if (!(user as any).faceEmbedding?.length) {
+      throw new UnauthorizedException('Aucun visage enregistré pour ce compte. Inscrivez-vous avec la reconnaissance faciale.');
+    }
+
+    const match = this.euclideanDistance((user as any).faceEmbedding, embedding) < 0.6;
+    return match ? user : null;
   }
 }

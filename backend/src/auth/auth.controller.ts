@@ -23,6 +23,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Enable2FADto } from './dto/enable-2fa.dto';
 import { Disable2FADto } from './dto/disable-2fa.dto';
 import { Verify2FALoginDto } from './dto/verify-2fa-login.dto';
+import { FaceLoginDto } from './dto/face-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleProfilePayload, GithubProfilePayload } from './strategies';
 import { AuthGuard } from '@nestjs/passport';
@@ -43,6 +44,19 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Post('face-login')
+  async faceLogin(
+    @Body() dto: FaceLoginDto,
+    @Req() req: Request,
+  ) {
+    const meta = {
+      ip: (req as any).ip || (req as any).connection?.remoteAddress,
+      userAgent: (req as any).headers?.['user-agent'],
+      rememberMe: dto.rememberMe,
+    };
+    return this.authService.faceLogin(dto.email, dto.embedding, meta);
   }
 
   @Post('refresh')

@@ -256,6 +256,29 @@ export class AuthService {
     return this.usersService.validateUser(email, password);
   }
 
+  async faceLogin(
+    email: string,
+    embedding: number[],
+    meta?: { ip?: string; userAgent?: string; rememberMe?: boolean },
+  ) {
+    const user = await this.usersService.verifyFaceByEmailAndGetUser(email, embedding);
+    if (!user) {
+      throw new UnauthorizedException('Face not recognized. Please try again or use password.');
+    }
+    if ((user as any).isActive === false) {
+      throw new UnauthorizedException('Account is disabled');
+    }
+
+    await this.securityEvents.record({
+      type: 'auth.face_login',
+      userId: String(user._id),
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+
+    return this.issueTokensForUser(String(user._id), meta);
+  }
+
   async socialLogin(
     profile: GoogleProfilePayload | GithubProfilePayload,
     meta?: { ip?: string; userAgent?: string },

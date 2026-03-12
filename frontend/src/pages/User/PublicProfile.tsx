@@ -127,26 +127,18 @@ function PublicProfile() {
     setUploadingAvatar(true);
     try {
       const formData = new FormData();
-      formData.append('avatar', file);
+      formData.append('file', file);
       const response = await usersApi.uploadAvatar(formData);
-
-        console.log('Full response:', response); // 
-    console.log('Response data:', response.data); // 
-      // Update profile with new avatar URL from server
-      setProfile(prev => {
-      const updated = prev ? { ...prev, avatarUrl: response.data.avatarUrl } : null;
-      console.log('Updated profile avatarUrl:', updated?.avatarUrl); // 
-      return updated;
-    });
+      setProfile(prev => prev ? { ...prev, avatarUrl: response.data.avatarUrl } : null);
       
       toast.success('Avatar mis à jour');
+      dispatch(fetchMe());
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Échec de la mise à jour de l\'avatar';
       toast.error(message);
     } finally {
       setUploadingAvatar(false);
-      // Revoke preview URL to avoid memory leak
-      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      URL.revokeObjectURL(previewUrl);
       setAvatarPreview(null);
       if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
@@ -162,16 +154,17 @@ function PublicProfile() {
     setUploadingCover(true);
     try {
       const formData = new FormData();
-      formData.append('cover', file);
+      formData.append('file', file);
       const response = await usersApi.uploadCover(formData);
-      setProfile(prev => prev ? { ...prev, coverImage: response.data.coverUrl } : null);
+      setProfile(prev => prev ? { ...prev, coverImage: response.data.coverImage || response.data.coverUrl } : null);
       toast.success('Image de couverture mise à jour');
+      dispatch(fetchMe());
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Échec de la mise à jour de la couverture';
       toast.error(message);
     } finally {
       setUploadingCover(false);
-      if (coverPreview) URL.revokeObjectURL(coverPreview);
+      URL.revokeObjectURL(previewUrl);
       setCoverPreview(null);
       if (coverInputRef.current) coverInputRef.current.value = '';
     }

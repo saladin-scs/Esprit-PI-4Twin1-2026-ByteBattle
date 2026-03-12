@@ -18,7 +18,7 @@ function ProfileSettings() {
   const [bio, setBio] = useState('');
   const [country, setCountry] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [coverUrl, setCoverUrl] = useState('');
+  const [coverImage, setCoverImage] = useState('');
   const [links, setLinks] = useState('');
 
   const [avatarUploadProgress, setAvatarUploadProgress] = useState(0);
@@ -28,8 +28,8 @@ function ProfileSettings() {
     setDisplayName(user?.displayName || '');
     setAvatarUrl(user?.avatarUrl || '');
     // Assuming backend may return coverUrl, otherwise it remains empty
-    setCoverUrl((user as any)?.coverUrl || '');
-  }, [user?.displayName, user?.avatarUrl, (user as any)?.coverUrl]);
+    setCoverImage((user as any)?.coverImage || (user as any)?.coverUrl || '');
+  }, [user?.displayName, user?.avatarUrl, (user as any)?.coverImage, (user as any)?.coverUrl]);
 
   useEffect(() => {
     (async () => {
@@ -40,7 +40,7 @@ function ProfileSettings() {
         setBio(u.bio || '');
         setCountry(u.country || '');
         setAvatarUrl(u.avatarUrl || '');
-        setCoverUrl(u.coverUrl || '');
+        setCoverImage(u.coverImage || u.coverUrl || '');
         setLinks(Array.isArray(u.links) ? u.links.join('\n') : '');
       } catch {
         // ignore
@@ -91,7 +91,7 @@ function ProfileSettings() {
           }
         }
       });
-      setCoverUrl(res.data?.coverUrl || res.data?.url || res.data || coverUrl);
+      setCoverImage(res.data?.coverImage || res.data?.coverUrl || res.data?.url || res.data || coverImage);
       toast.success('Cover uploaded successfully');
       dispatch(fetchMe());
     } catch (err: any) {
@@ -117,7 +117,7 @@ function ProfileSettings() {
         bio: bio || undefined,
         country: country || undefined,
         avatarUrl: avatarUrl || undefined,
-        coverUrl: coverUrl || undefined,
+        coverImage: coverImage || undefined,
         links: linkArr.length ? linkArr : undefined,
       });
       await dispatch(fetchMe());
@@ -183,9 +183,9 @@ function ProfileSettings() {
             <div className="flex flex-col space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Cover Image</label>
               <div className="flex-1 relative border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-center">
-                {coverUrl ? (
+                {coverImage ? (
                   <div className="relative w-full h-20 rounded overflow-hidden mb-2">
-                    <img src={coverUrl} alt="Cover" loading="lazy" className="w-full h-full object-cover" />
+                    <img src={coverImage} alt="Cover" loading="lazy" className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div className="w-full h-20 bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center mb-2">
