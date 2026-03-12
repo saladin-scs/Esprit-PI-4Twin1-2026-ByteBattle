@@ -1,30 +1,23 @@
-import React, { useEffect, useState, useRef } from "react";
-import axios from "axios";
-import { useParams, useNavigate } from "react-router-dom";
-import Editor from "@monaco-editor/react";
-import { Group, Panel, Separator } from "react-resizable-panels";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
-import { initVimMode } from "monaco-vim";
-import { Moon, Sun, Keyboard, Bug, AlignLeft, Lightbulb } from "lucide-react";
-import CommunitySolutions from "./CommunitySolutions";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-
-const DIFFICULTY_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  easy:   { bg: "#d1fae5", color: "#065f46", label: "Facile" },
-  medium: { bg: "#fef3c7", color: "#92400e", label: "Moyen" },
-  hard:   { bg: "#fee2e2", color: "#991b1b", label: "Difficile" },
-  expert: { bg: "#ede9fe", color: "#5b21b6", label: "Expert" },
-};
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import Editor from '@monaco-editor/react';
+import { Group, Panel, Separator } from 'react-resizable-panels';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
+import { initVimMode } from 'monaco-vim';
+import { Play, Send, Keyboard, AlignLeft, Lightbulb } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
+import { challengesApi } from '../../services/api';
+import { DifficultyBadge } from '../../components/Challenges';
+import CommunitySolutions from './CommunitySolutions';
 
 const MONACO_LANG: Record<string, string> = {
-  javascript: "javascript",
-  python: "python",
-  java: "java",
-  cpp: "cpp",
+  javascript: 'javascript',
+  python: 'python',
+  java: 'java',
+  cpp: 'cpp',
 };
 
 interface Challenge {
@@ -39,6 +32,20 @@ interface Challenge {
   xpReward: number;
   starterCode: Record<string, string>;
   hints?: Array<{ text: string; tier: string; cost: number }>;
+}
+
+interface RunResult {
+  results: Array<{
+    testNumber: number;
+    passed: boolean;
+    input?: string;
+    expectedOutput?: string;
+    actualOutput?: string;
+    error?: string;
+    executionTimeMs?: number;
+  }>;
+  overall: { passed: number; total: number };
+  executionTimeMs?: number;
 }
 
 interface SubmissionResult {
@@ -60,23 +67,27 @@ interface SubmissionResult {
 const ChallengeDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
-  const [selectedLang, setSelectedLang] = useState("javascript");
-  const [code, setCode] = useState("");
+  const [selectedLang, setSelectedLang] = useState('javascript');
+  const [code, setCode] = useState('');
+  const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [result, setResult] = useState<SubmissionResult | null>(null);
-  const [activeTab, setActiveTab] = useState<"description" | "result" | "solutions">("description");
+  const [activeTab, setActiveTab] = useState<'description' | 'result' | 'solutions'>('description');
   const [isVimMode, setIsVimMode] = useState(false);
-  const [editorTheme, setEditorTheme] = useState("vs-dark");
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
-  const [selectedTestCase, setSelectedTestCase] = useState<number>(0);
-  
+  const [selectedTestCase, setSelectedTestCase] = useState(0);
+
   const editorRef = useRef<any>(null);
   const vimModeRef = useRef<any>(null);
+
+  const editorTheme = theme === 'dark' ? 'vs-dark' : 'light';
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
@@ -100,14 +111,15 @@ const ChallengeDetail = () => {
 
   useEffect(() => {
     const fetchChallenge = async () => {
+      if (!id) return;
       try {
-        const res = await axios.get(`${API_URL}/challenges/${id}`);
-        setChallenge(res.data);
-        const firstLang = res.data.languages[0] || "javascript";
+        const res = await challengesApi.getOne(id);
+        setChallenge(res.data as Challenge);
+        const firstLang = (res.data as Challenge).languages?.[0] || 'javascript';
         setSelectedLang(firstLang);
-        setCode(res.data.starterCode?.[firstLang] || "");
+        setCode((res.data as Challenge).starterCode?.[firstLang] || '');
       } catch {
-        setError("Challenge introuvable.");
+        setError('Challenge not found.');
       } finally {
         setLoading(false);
       }
@@ -117,348 +129,372 @@ const ChallengeDetail = () => {
 
   const handleLangChange = (lang: string) => {
     setSelectedLang(lang);
-    setCode(challenge?.starterCode?.[lang] || "");
+    setCode(challenge?.starterCode?.[lang] || '');
+  };
+
+  const handleRun = async () => {
+    if (!id) return;
+    setRunning(true);
+    setRunResult(null);
+    try {
+      const res = await challengesApi.run(id, { code, language: selectedLang });
+      setRunResult(res.data as RunResult);
+      setActiveTab('result');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Run failed.';
+      setError(Array.isArray(msg) ? msg.join(', ') : msg);
+    } finally {
+      setRunning(false);
+    }
   };
 
   const handleSubmit = async () => {
-    const token = localStorage.getItem("access_token");
-    if (!token) { navigate("/login"); return; }
-
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    if (!id) return;
     setSubmitting(true);
     setResult(null);
-
+    setRunResult(null);
     try {
-      const res = await axios.post(
-        `${API_URL}/challenges/${id}/submit`,
-        { code, language: selectedLang },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setResult(res.data);
-      setActiveTab("result");
+      const res = await challengesApi.submit(id, { code, language: selectedLang });
+      setResult(res.data as SubmissionResult);
+      setActiveTab('result');
     } catch (err: any) {
-      const msg = err?.response?.data?.message || "Erreur lors de la soumission.";
-      setError(Array.isArray(msg) ? msg.join(", ") : msg);
+      const msg = err?.response?.data?.message || 'Submission failed.';
+      setError(Array.isArray(msg) ? msg.join(', ') : msg);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const s: Record<string, React.CSSProperties> = {
-    page:     { display: "flex", height: "calc(100vh - 60px)", fontFamily: "sans-serif", overflow: "hidden" },
-    left:     { width: "45%", overflowY: "auto" as const, borderRight: "1px solid #e5e7eb", background: "#fff" },
-    right:    { flex: 1, display: "flex", flexDirection: "column" as const, background: "#1e1e1e" },
-    topbar:   { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: "#252526", borderBottom: "1px solid #3e3e42" },
-    langBtn:  { padding: "5px 14px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 13, marginRight: 6 },
-    submitBtn:{ padding: "8px 24px", borderRadius: 6, background: "#22c55e", color: "#fff", border: "none", cursor: "pointer", fontWeight: 700, fontSize: 14 },
-    tabs:     { display: "flex", borderBottom: "1px solid #e5e7eb" },
-    tab:      { padding: "12px 20px", cursor: "pointer", fontSize: 14, fontWeight: 500, borderBottom: "2px solid transparent" },
-    content:  { padding: "20px 24px" },
-    badge:    { padding: "3px 10px", borderRadius: 99, fontSize: 12, fontWeight: 600 },
-    exBox:    { background: "#f9fafb", borderRadius: 8, padding: "12px 16px", marginBottom: 12, fontSize: 13 },
-    code:     { fontFamily: "monospace", background: "#f0f0f0", padding: "2px 6px", borderRadius: 3 },
-    resultBox:{ padding: "20px 24px", overflowY: "auto" as const, flex: 1 },
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] text-gray-500 dark:text-gray-400">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-indigo-500 border-t-transparent" />
+      </div>
+    );
+  }
+  if (error || !challenge) {
+    return (
+      <div className="p-8 text-red-600 dark:text-red-400">
+        {error || 'Challenge not found'}
+      </div>
+    );
+  }
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center" }}>Chargement...</div>;
-  if (error || !challenge) return <div style={{ padding: 40, color: "red" }}>{error || "Challenge introuvable"}</div>;
-
-  const diff = DIFFICULTY_COLORS[challenge.difficulty] ?? { bg: "#f0f0f0", color: "#333", label: challenge.difficulty };
+  const displayResult = result ?? (runResult ? {
+    status: runResult.overall.passed === runResult.overall.total ? 'accepted' : 'wrong_answer',
+    passedTests: runResult.overall.passed,
+    totalTests: runResult.overall.total,
+    xpEarned: 0,
+    executionTimeMs: runResult.executionTimeMs ?? 0,
+    testResults: runResult.results.map((r, i) => ({
+      testNumber: r.testNumber ?? i + 1,
+      passed: r.passed,
+      input: r.input,
+      expectedOutput: r.expectedOutput,
+      actualOutput: r.actualOutput,
+      error: r.error,
+    })),
+  } as SubmissionResult : null);
 
   return (
-    <div style={s.page}>
-      <Group orientation="horizontal">
-        {/* ─── Panneau gauche : description ─── */}
-        <Panel defaultSize="45%" minSize="30%">
-          <div style={{ ...s.left, width: '100%', height: '100%' }}>
-            <div style={s.tabs}>
-              <div
-                style={{ ...s.tab, borderBottomColor: activeTab === "description" ? "#4f46e5" : "transparent", color: activeTab === "description" ? "#4f46e5" : "#666" }}
-                onClick={() => setActiveTab("description")}
-              >Description</div>
-              <div
-                style={{ ...s.tab, borderBottomColor: activeTab === "solutions" ? "#4f46e5" : "transparent", color: activeTab === "solutions" ? "#4f46e5" : "#666" }}
-                onClick={() => setActiveTab("solutions")}
-              >Solutions</div>
-              {result && (
-                <div
-                  style={{ ...s.tab, borderBottomColor: activeTab === "result" ? "#4f46e5" : "transparent", color: activeTab === "result" ? "#4f46e5" : "#666" }}
-                  onClick={() => setActiveTab("result")}
+    <div className="flex h-[calc(100vh-4rem)] font-sans overflow-hidden bg-gray-50 dark:bg-gray-900">
+      <Group direction="horizontal">
+        <Panel defaultSize={45} minSize={30}>
+          <div className="h-full flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="flex border-b border-gray-200 dark:border-gray-700 shrink-0">
+              {['description', 'solutions'].map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab as any)}
+                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors capitalize ${
+                    activeTab === tab
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
                 >
-                  Résultat {result.status === "accepted" ? "✅" : "❌"}
-                </div>
+                  {tab}
+                </button>
+              ))}
+              {displayResult && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('result')}
+                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'result'
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400'
+                  }`}
+                >
+                  Result {displayResult.status === 'accepted' ? '✅' : '❌'}
+                </button>
               )}
             </div>
 
-            {activeTab === "description" ? (
-              <div style={s.content}>
-                {/* Titre + badge */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                  <h2 style={{ margin: 0, fontSize: 20 }}>{challenge.title}</h2>
-                  <span style={{ ...s.badge, background: diff.bg, color: diff.color }}>{diff.label}</span>
-                  <span style={{ marginLeft: "auto", fontWeight: 700, color: "#f59e0b" }}>+{challenge.xpReward} XP</span>
-                </div>
-
-                {/* Tags */}
-                <div style={{ marginBottom: 16, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {challenge.tags.map(t => (
-                    <span key={t} style={{ padding: "2px 8px", borderRadius: 4, background: "#e0e7ff", color: "#3730a3", fontSize: 12 }}>{t}</span>
-                  ))}
-                </div>
-
-                {/* Description avec Markdown et LaTeX */}
-                <div style={{ lineHeight: 1.7, color: "#374151", fontSize: 15, marginBottom: 20 }} className="markdown-body">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                    {challenge.description}
-                  </ReactMarkdown>
-                </div>
-
-                {/* Exemples */}
-                {challenge.examples?.length > 0 && (
-                  <>
-                    <h3 style={{ fontSize: 15, marginTop: 20 }}>Exemples</h3>
-                    {challenge.examples.map((ex, i) => (
-                      <div key={i} style={s.exBox}>
-                        <div><strong>Entrée :</strong> <code style={s.code}>{ex.input}</code></div>
-                        <div style={{ marginTop: 6 }}><strong>Sortie :</strong> <code style={s.code}>{ex.output}</code></div>
-                        {ex.explanation && <div style={{ marginTop: 6, color: "#666" }}><strong>Explication :</strong> {ex.explanation}</div>}
-                      </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {activeTab === 'description' && (
+                <>
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{challenge.title}</h2>
+                    <DifficultyBadge difficulty={challenge.difficulty} />
+                    <span className="ml-auto font-semibold text-amber-600 dark:text-amber-400">+{challenge.xpReward} XP</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {challenge.tags.map((t) => (
+                      <span key={t} className="px-2 py-0.5 rounded text-xs bg-indigo-500/10 dark:bg-indigo-400/10 text-indigo-700 dark:text-indigo-300">
+                        {t}
+                      </span>
                     ))}
-                  </>
-                )}
-
-                {/* Contraintes */}
-                {challenge.constraints?.length > 0 && (
-                  <>
-                    <h3 style={{ fontSize: 15, marginTop: 20 }}>Contraintes</h3>
-                    <ul style={{ paddingLeft: 20, color: "#374151", lineHeight: 1.8 }}>
-                      {challenge.constraints.map((c, i) => <li key={i}><code style={s.code}>{c}</code></li>)}
-                    </ul>
-                  </>
-                )}
-
-                {/* Hints */}
-                {challenge.hints && challenge.hints.length > 0 && (
-                  <div style={{ marginTop: 24 }}>
-                    <h3 style={{ fontSize: 15, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Lightbulb size={16} color="#f59e0b" /> Indices ({challenge.hints.length})
-                    </h3>
-                    {challenge.hints.map((hint, i) => {
-                      const isRevealed = revealedHints.includes(i);
-                      return (
-                        <div key={i} style={{ marginBottom: 8, padding: 12, borderRadius: 6, background: isRevealed ? '#fef3c7' : '#f3f4f6', border: `1px solid ${isRevealed ? '#fde68a' : '#e5e7eb'}` }}>
-                          {isRevealed ? (
-                            <div style={{ color: '#92400e', fontSize: 14 }}>
-                              <strong style={{ display: 'block', marginBottom: 4 }}>Indice {i + 1} ({hint.tier})</strong>
-                              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>{hint.text}</ReactMarkdown>
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ color: '#6b7280', fontSize: 14 }}>Indice {i + 1} masqué {hint.cost > 0 && `(Coût : ${hint.cost} XP)`}</span>
-                              <button 
-                                onClick={() => setRevealedHints([...revealedHints, i])}
-                                style={{ padding: '4px 12px', background: '#e5e7eb', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#374151' }}
-                              >
-                                Révéler
-                              </button>
-                            </div>
-                          )}
+                  </div>
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 mb-6 markdown-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                      {challenge.description}
+                    </ReactMarkdown>
+                  </div>
+                  {challenge.examples?.length > 0 && (
+                    <>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mt-6 mb-2">Examples</h3>
+                      {challenge.examples.map((ex, i) => (
+                        <div key={i} className="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-sm">
+                          <div><strong>Input:</strong> <code className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-600 font-mono text-xs">{ex.input}</code></div>
+                          <div className="mt-2"><strong>Output:</strong> <code className="px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-600 font-mono text-xs">{ex.output}</code></div>
+                          {ex.explanation && <div className="mt-2 text-gray-600 dark:text-gray-400"><strong>Explanation:</strong> {ex.explanation}</div>}
                         </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : activeTab === "result" ? (
-              /* ─── Onglet résultat ─── */
-              result && (
-                <div style={s.resultBox}>
-                  {/* Status global */}
-                  <div style={{
-                    padding: "16px 20px", borderRadius: 10, marginBottom: 20,
-                    background: result.status === "accepted" ? "#d1fae5" : "#fee2e2",
-                    color: result.status === "accepted" ? "#065f46" : "#991b1b",
-                  }}>
-                    <div style={{ fontSize: 18, fontWeight: 700 }}>
-                      {result.status === "accepted" ? "✅ Accepté !" : result.status === "wrong_answer" ? "❌ Mauvaise réponse" : "💥 Erreur d'exécution"}
+                      ))}
+                    </>
+                  )}
+                  {challenge.constraints?.length > 0 && (
+                    <>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mt-6 mb-2">Constraints</h3>
+                      <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                        {challenge.constraints.map((c, i) => (
+                          <li key={i}><code className="px-1 rounded bg-gray-200 dark:bg-gray-600 text-xs">{c}</code></li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {challenge.hints && challenge.hints.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-1.5">
+                        <Lightbulb className="w-4 h-4 text-amber-500" /> Hints ({challenge.hints.length})
+                      </h3>
+                      {challenge.hints.map((hint, i) => {
+                        const isRevealed = revealedHints.includes(i);
+                        return (
+                          <div
+                            key={i}
+                            className={`mb-2 p-3 rounded-lg border text-sm ${
+                              isRevealed
+                                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                                : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'
+                            }`}
+                          >
+                            {isRevealed ? (
+                              <div>
+                                <strong className="block mb-1">Hint {i + 1} ({hint.tier})</strong>
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>{hint.text}</ReactMarkdown>
+                              </div>
+                            ) : (
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-500 dark:text-gray-400">Hint {i + 1} hidden {hint.cost > 0 && `(${hint.cost} XP)`}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setRevealedHints([...revealedHints, i])}
+                                  className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 text-xs font-medium hover:bg-gray-300 dark:hover:bg-gray-500"
+                                >
+                                  Reveal
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div style={{ marginTop: 8, fontSize: 14 }}>
-                      Tests : <strong>{result.passedTests}/{result.totalTests}</strong> passés
-                      {" · "}{result.executionTimeMs}ms
-                      {result.xpEarned > 0 && <span style={{ marginLeft: 12, fontWeight: 700, color: "#f59e0b" }}>+{result.xpEarned} XP gagnés 🎉</span>}
-                    </div>
-                  </div>
+                  )}
+                </>
+              )}
 
-                  {/* Détail des tests */}
-                  {result.testResults.map((t) => (
-                    <div key={t.testNumber} style={{ marginBottom: 12, padding: "12px 16px", borderRadius: 8, border: `1px solid ${t.passed ? "#86efac" : "#fca5a5"}`, background: t.passed ? "#f0fdf4" : "#fff1f2" }}>
-                      <div style={{ fontWeight: 600, color: t.passed ? "#16a34a" : "#dc2626" }}>
-                        {t.passed ? "✅" : "❌"} Test #{t.testNumber}
+              {activeTab === 'result' && displayResult && (
+                <div className="space-y-4">
+                  <div
+                    className={`p-4 rounded-lg ${
+                      displayResult.status === 'accepted'
+                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                    }`}
+                  >
+                    <div className="font-semibold">
+                      {displayResult.status === 'accepted' ? '✅ Accepted!' : displayResult.status === 'wrong_answer' ? '❌ Wrong Answer' : '❌ Runtime Error'}
+                    </div>
+                    <div className="mt-1 text-sm">
+                      Tests: <strong>{displayResult.passedTests}/{displayResult.totalTests}</strong> passed · {displayResult.executionTimeMs}ms
+                      {displayResult.xpEarned > 0 && <span className="ml-2 font-semibold text-amber-600 dark:text-amber-400">+{displayResult.xpEarned} XP 🎉</span>}
+                    </div>
+                  </div>
+                  {displayResult.testResults.map((t) => (
+                    <div
+                      key={t.testNumber}
+                      className={`p-3 rounded-lg border text-sm ${
+                        t.passed
+                          ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
+                          : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                      }`}
+                    >
+                      <div className={`font-medium ${t.passed ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                        {t.passed ? '✅' : '❌'} Test #{t.testNumber}
                       </div>
                       {!t.passed && (
-                        <div style={{ marginTop: 8, fontSize: 13 }}>
-                          {t.input && <div><strong>Entrée :</strong> <code>{t.input}</code></div>}
-                          {t.expectedOutput && <div><strong>Attendu :</strong> <code>{t.expectedOutput}</code></div>}
-                          {t.actualOutput && <div><strong>Obtenu :</strong> <code>{t.actualOutput}</code></div>}
-                          {t.error && <div style={{ color: "#dc2626", marginTop: 4 }}><strong>Erreur :</strong> {t.error}</div>}
+                        <div className="mt-2 space-y-1 text-xs">
+                          {t.input != null && <div><strong>Input:</strong> <code className="ml-1">{t.input}</code></div>}
+                          {t.expectedOutput != null && <div><strong>Expected:</strong> <code className="ml-1">{t.expectedOutput}</code></div>}
+                          {t.actualOutput != null && <div><strong>Got:</strong> <code className="ml-1">{t.actualOutput}</code></div>}
+                          {t.error && <div className="text-red-600 dark:text-red-400"><strong>Error:</strong> {t.error}</div>}
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
-              )
-            ) : activeTab === "solutions" ? (
-              <div style={{ flex: 1, overflowY: 'hidden' }}>
-                <CommunitySolutions challengeId={id as string} />
-              </div>
-            ) : null}
+              )}
+
+              {activeTab === 'solutions' && (
+                <div className="h-full min-h-0">
+                  <CommunitySolutions challengeId={id!} />
+                </div>
+              )}
+            </div>
           </div>
         </Panel>
 
-        {/* Poignée centrale */}
-        <Separator style={{ width: 8, background: '#f3f4f6', cursor: 'col-resize', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}>
-          <div style={{ width: 4, height: 24, background: '#9ca3af', borderRadius: 2 }} />
-        </Separator>
+        <Separator className="w-2 bg-gray-200 dark:bg-gray-700 hover:bg-indigo-500/30 transition-colors cursor-col-resize" />
 
-        {/* ─── Panneau droit : Workspace (Éditeur + Console) ─── */}
-        <Panel minSize="30%">
-          <Group orientation="vertical">
-            {/* Haut droit : Éditeur Monaco */}
-            <Panel defaultSize="70%" minSize="20%">
-              <div style={{ ...s.right, height: '100%' }}>
-                {/* Barre du haut */}
-                <div style={s.topbar}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {challenge.languages.map(lang => (
+        <Panel minSize={30}>
+          <Group direction="vertical">
+            <Panel defaultSize={70} minSize={20}>
+              <div className="h-full flex flex-col bg-gray-900">
+                <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {challenge.languages.map((lang) => (
                       <button
                         key={lang}
-                        style={{
-                          ...s.langBtn,
-                          background: selectedLang === lang ? "#4f46e5" : "#3e3e42",
-                          color: selectedLang === lang ? "#fff" : "#ccc",
-                        }}
+                        type="button"
                         onClick={() => handleLangChange(lang)}
-                      >{lang}</button>
+                        className={`px-3 py-1.5 rounded text-sm font-medium ${
+                          selectedLang === lang
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        {lang}
+                      </button>
                     ))}
-                    <div style={{ width: 1, height: 20, background: '#3e3e42', margin: '0 8px' }} />
+                    <div className="w-px h-5 bg-gray-600" />
                     <button
-                      title="Toggle Vim Mode"
-                      style={{ background: 'transparent', border: 'none', color: isVimMode ? '#4f46e5' : '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      type="button"
+                      title="Vim mode"
+                      className={`p-1.5 rounded ${isVimMode ? 'text-indigo-400' : 'text-gray-400 hover:text-gray-300'}`}
                       onClick={() => setIsVimMode(!isVimMode)}
                     >
-                      <Keyboard size={16} />
+                      <Keyboard className="w-4 h-4" />
                     </button>
                     <button
-                      title="Toggle Theme"
-                      style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center', marginLeft: 6 }}
-                      onClick={() => setEditorTheme(editorTheme === "vs-dark" ? "light" : "vs-dark")}
-                    >
-                      {editorTheme === "vs-dark" ? <Sun size={16} /> : <Moon size={16} />}
-                    </button>
-                    <div style={{ width: 1, height: 20, background: '#3e3e42', margin: '0 8px' }} />
-                    <button
-                      title="Format Code"
-                      style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      type="button"
+                      title="Format"
+                      className="p-1.5 rounded text-gray-400 hover:text-gray-300"
                       onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
                     >
-                      <AlignLeft size={16} />
+                      <AlignLeft className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleRun}
+                      disabled={running || !challenge.examples?.length}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Play className="w-4 h-4" /> {running ? 'Running...' : 'Run'}
                     </button>
                     <button
-                      title="Debug Mode (Coming Soon)"
-                      style={{ background: 'transparent', border: 'none', color: '#ccc', cursor: 'not-allowed', display: 'flex', alignItems: 'center', marginLeft: 6, opacity: 0.5 }}
-                      disabled
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={submitting}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Bug size={16} />
+                      <Send className="w-4 h-4" /> {submitting ? 'Submitting...' : 'Submit'}
                     </button>
                   </div>
-
-                  <button
-                    style={{ ...s.submitBtn, opacity: submitting ? 0.7 : 1 }}
-                    onClick={handleSubmit}
-                    disabled={submitting}
-                  >
-                    {submitting ? "⏳ Exécution..." : "▶ Soumettre"}
-                  </button>
                 </div>
-
-                {/* Éditeur Monaco */}
-                <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ flex: 1 }}>
-                    <Editor
-                      height="100%"
-                      onMount={handleEditorDidMount}
-                      language={MONACO_LANG[selectedLang] || "javascript"}
-                      value={code}
-                      onChange={(val) => setCode(val || "")}
-                      theme={editorTheme}
-                      options={{
-                        fontSize: 14,
-                        minimap: { enabled: false },
-                        scrollBeyondLastLine: false,
-                        tabSize: 2,
-                        wordWrap: "on",
-                        automaticLayout: true,
-                        padding: { top: 16 }
-                      }}
-                    />
-                  </div>
-                  {/* Status bar pour VIM */}
-                  <div id="vim-status-node" style={{ height: isVimMode ? 24 : 0, background: '#007acc', color: 'white', fontSize: 12, padding: '0 8px', display: 'flex', alignItems: 'center', fontFamily: 'monospace', overflow: 'hidden' }}></div>
+                <div className="flex-1 min-h-0 relative">
+                  <Editor
+                    height="100%"
+                    onMount={handleEditorDidMount}
+                    language={MONACO_LANG[selectedLang] || 'javascript'}
+                    value={code}
+                    onChange={(val) => setCode(val ?? '')}
+                    theme={editorTheme}
+                    options={{
+                      fontSize: 14,
+                      minimap: { enabled: false },
+                      scrollBeyondLastLine: false,
+                      tabSize: 2,
+                      wordWrap: 'on',
+                      automaticLayout: true,
+                      padding: { top: 16 },
+                    }}
+                  />
+                  <div id="vim-status-node" className={`h-6 bg-blue-600 text-white text-xs px-2 flex items-center font-mono ${isVimMode ? '' : 'hidden'}`} />
                 </div>
               </div>
             </Panel>
 
-            <Separator style={{ height: 6, background: '#252526', borderTop: '1px solid #3e3e42', borderBottom: '1px solid #3e3e42', cursor: 'row-resize' }} />
+            <Separator className="h-1.5 bg-gray-800 cursor-row-resize" />
 
-            {/* Bas droit : Console et Tests */}
-            <Panel defaultSize="30%" minSize="10%">
-              <div style={{ background: '#1e1e1e', height: '100%', color: '#fff', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '8px 16px', background: '#2d2d30', borderBottom: '1px solid #3e3e42', fontSize: 13, fontWeight: 600, color: '#e5e7eb', display: 'flex', gap: 16 }}>
-                  <span style={{ cursor: 'pointer', color: '#fff' }}>Test Cases</span>
-                  <span style={{ cursor: 'pointer', color: '#9ca3af' }}>Console</span>
-                </div>
-                
-                <div style={{ padding: 16, overflowY: 'auto', flex: 1, fontSize: 13 }}>
+            <Panel defaultSize={30} minSize={10}>
+              <div className="h-full flex flex-col bg-gray-900 text-gray-200">
+                <div className="px-4 py-2 border-b border-gray-700 text-sm font-semibold">Test cases</div>
+                <div className="flex-1 overflow-y-auto p-4 text-sm">
                   {challenge.examples?.length > 0 ? (
-                    <div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                    <>
+                      <div className="flex gap-2 flex-wrap mb-4">
                         {challenge.examples.map((_, i) => (
-                          <button 
-                            key={i} 
+                          <button
+                            key={i}
+                            type="button"
                             onClick={() => setSelectedTestCase(i)}
-                            style={{ 
-                              padding: '6px 16px', 
-                              background: selectedTestCase === i ? '#4f46e5' : '#3e3e42', 
-                              border: 'none', 
-                              borderRadius: 6, 
-                              color: selectedTestCase === i ? '#fff' : '#d1d5db', 
-                              cursor: 'pointer', 
-                              fontSize: 13,
-                              fontWeight: selectedTestCase === i ? 600 : 400
-                            }}>
+                            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                              selectedTestCase === i
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                          >
                             Case {i + 1}
                           </button>
                         ))}
                       </div>
-                      
                       {challenge.examples[selectedTestCase] && (
-                        <div style={{ background: '#252526', padding: 16, borderRadius: 8 }}>
-                          <div style={{ marginBottom: 16 }}>
-                            <div style={{ color: '#9ca3af', marginBottom: 6, fontSize: 12, textTransform: 'uppercase', fontWeight: 600 }}>Input</div>
-                            <div style={{ background: '#1e1e1e', padding: '10px 12px', borderRadius: 6, fontFamily: 'monospace', color: '#e5e7eb', whiteSpace: 'pre-wrap' }}>
+                        <div className="space-y-4">
+                          <div>
+                            <div className="text-xs uppercase font-semibold text-gray-400 mb-1">Input</div>
+                            <pre className="p-3 rounded bg-gray-800 text-gray-200 font-mono text-xs whitespace-pre-wrap">
                               {challenge.examples[selectedTestCase].input}
-                            </div>
+                            </pre>
                           </div>
                           <div>
-                            <div style={{ color: '#9ca3af', marginBottom: 6, fontSize: 12, textTransform: 'uppercase', fontWeight: 600 }}>Expected Output</div>
-                            <div style={{ background: '#1e1e1e', padding: '10px 12px', borderRadius: 6, fontFamily: 'monospace', color: '#e5e7eb', whiteSpace: 'pre-wrap' }}>
+                            <div className="text-xs uppercase font-semibold text-gray-400 mb-1">Expected output</div>
+                            <pre className="p-3 rounded bg-gray-800 text-gray-200 font-mono text-xs whitespace-pre-wrap">
                               {challenge.examples[selectedTestCase].output}
-                            </div>
+                            </pre>
                           </div>
                         </div>
                       )}
-                    </div>
+                    </>
                   ) : (
-                    <p style={{ color: '#9ca3af' }}>Select a test case or run your code to view output.</p>
+                    <p className="text-gray-400">No examples. Run or submit to see results.</p>
                   )}
                 </div>
               </div>

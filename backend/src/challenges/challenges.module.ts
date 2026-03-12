@@ -3,7 +3,8 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ChallengeController } from './challenges.controller';
 import { ChallengeService } from './challenges.service';
-import { CodeExecutorService } from './code-executor.service';
+import { CodeExecutionModule } from '../code-execution/code-execution.module';
+import { UsersModule } from '../users/users.module';
 import { Challenge, ChallengeSchema } from './schemas/challenge.schema';
 import { Submission, SubmissionSchema } from './schemas/Submission.schema';
 import { Solution, SolutionSchema } from './schemas/solution.schema';
@@ -15,9 +16,11 @@ import { Solution, SolutionSchema } from './schemas/solution.schema';
       { name: Submission.name, schema: SubmissionSchema },
       { name: Solution.name, schema: SolutionSchema },
     ]),
+    CodeExecutionModule,
+    UsersModule,
   ],
   controllers: [ChallengeController],
-  providers: [ChallengeService, CodeExecutorService],
+  providers: [ChallengeService],
   exports: [ChallengeService],
 })
 export class ChallengeModule {}

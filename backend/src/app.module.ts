@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { validateConfig } from './config/validation';
 import { ChallengeModule } from './challenges/challenges.module';
+import { CodeExecutionModule } from './code-execution/code-execution.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ChallengeModule } from './challenges/challenges.module';
     }),
     AuthModule,
     AdminModule,
+    CodeExecutionModule,
     ChallengeModule,
   ],
 })

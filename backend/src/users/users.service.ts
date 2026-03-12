@@ -117,6 +117,35 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     return { currentTier, nextTier, xpInTier, xpNeededForNext, progressPercent: xpNeededForNext ? Math.min(100, (xpInTier / xpNeededForNext) * 100) : 100 };
   }
 
+  /** Compute rank tier from total XP (for gamification). */
+  getRankTierFromXp(xp: number): string {
+    const thresholds = UsersService.RANK_XP;
+    const order = UsersService.RANK_ORDER;
+    let tier = 'F';
+    for (let i = order.length - 1; i >= 0; i--) {
+      const t = order[i];
+      if (xp >= ((thresholds as any)[t] ?? 0)) {
+        tier = t;
+        break;
+      }
+    }
+    return tier;
+  }
+
+  /** Award XP for solving a challenge and update totalChallengesSolved + rankTier. */
+  async addXpForChallenge(userId: string, xpEarned: number): Promise<void> {
+    if (!userId || xpEarned <= 0) return;
+    const user = await this.userModel.findById(userId).select('xp').lean().exec();
+    if (!user) return;
+    const currentXp = (user as any).xp ?? 0;
+    const newXp = currentXp + xpEarned;
+    const rankTier = this.getRankTierFromXp(newXp);
+    await this.userModel.findByIdAndUpdate(userId, {
+      $inc: { xp: xpEarned, totalChallengesSolved: 1 },
+      $set: { rankTier },
+    }).exec();
+  }
+
   async findPublicByUsername(username: string) {
     const u = await this.userModel.findOne({ username: String(username || '').trim() })
       .select('username displayName bio country avatarUrl coverImage links socialLinks profilePublic rating totalChallengesSolved totalBattlesWon achievements roles createdAt xp rankTier currentStreak longestStreak totalActiveDays lastActiveAt activityHeatmap dailyGoalTarget dailyGoalCompleted problemsByDifficulty acceptanceRate languageStats totalSubmissions totalAccepted battleLosses eloRating guildId codynCoins badgeIds emailVerifiedAt skillTreeProgress recentActivity')

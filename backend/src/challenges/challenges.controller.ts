@@ -35,6 +35,17 @@ export class ChallengeController {
 
   // ─── Routes PROTÉGÉES (JWT requis) ──────────────────────────────────────
 
+  @Post(':id/run')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Exécuter le code contre les exemples uniquement (sans enregistrer)' })
+  async run(
+    @Param('id') id: string,
+    @Body() dto: SubmitChallengeDto,
+  ) {
+    return this.challengeService.run(id, dto);
+  }
+
   @Post(':id/submit')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

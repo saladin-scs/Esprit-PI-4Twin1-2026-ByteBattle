@@ -6,5 +6,6 @@ import { CodeExecutionController } from './code-execution.controller';
 @Module({
   providers: [CodeExecutionService],
   controllers: [CodeExecutionController],
+  exports: [CodeExecutionService],
 })
 export class CodeExecutionModule {}

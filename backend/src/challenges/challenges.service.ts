@@ -3,12 +3,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Challenge, ChallengeDocument } from './schemas/challenge.schema';
+import { Challenge, ChallengeDocument, Language } from './schemas/challenge.schema';
 import { Submission, SubmissionDocument } from './schemas/Submission.schema';
 import { Solution, SolutionDocument } from './schemas/solution.schema';
 import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
-import { CodeExecutorService } from './code-executor.service';
+import { CodeExecutionService } from '../code-execution/code-execution.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class ChallengeService {
@@ -16,8 +17,22 @@ export class ChallengeService {
     @InjectModel(Challenge.name) private challengeModel: Model<ChallengeDocument>,
     @InjectModel(Submission.name) private submissionModel: Model<SubmissionDocument>,
     @InjectModel(Solution.name) private solutionModel: Model<SolutionDocument>,
-    private codeExecutor: CodeExecutorService,
+    private codeExecution: CodeExecutionService,
+    private usersService: UsersService,
   ) {}
+
+  /** Map challenge language to code-execution (Piston uses c++, local uses cpp) */
+  private mapLanguage(lang: string): string {
+    return lang === 'cpp' ? 'c++' : lang;
+  }
+
+  /** Default starter code when challenge has none (works with normalized stdin: space or comma-separated) */
+  private static readonly DEFAULT_STARTER_CODE: Record<Language, string> = {
+    python: 'def sum(a, b):\n    return a + b\n\na, b = map(int, input().split())\nprint(sum(a, b))',
+    javascript: 'function sum(a, b) {\n  return a + b;\n}\n\nconst [a, b] = readline().split(/\\s+/).map(Number);\nconsole.log(sum(a, b));',
+    java: 'public class Solution {\n    public static int sum(int a, int b) {\n        return a + b;\n    }\n    public static void main(String[] args) {\n        String[] parts = new java.util.Scanner(System.in).nextLine().trim().split("\\\\s+");\n        int a = Integer.parseInt(parts[0]);\n        int b = Integer.parseInt(parts[1]);\n        System.out.println(sum(a, b));\n    }\n}',
+    cpp: '#include <iostream>\nusing namespace std;\nint sum(int a, int b) { return a + b; }\nint main() { int a, b; cin >> a >> b; cout << sum(a, b); return 0; }',
+  };
 
   // ─── XP par difficulté ───────────────────────────────────────────────────
   private readonly XP_MAP = { easy: 50, medium: 100, hard: 200, expert: 400 };
@@ -67,9 +82,54 @@ export class ChallengeService {
     const challenge = await this.challengeModel
       .findById(id)
       .select('-testCases') // ← ne jamais exposer les tests
+      .lean()
       .exec();
     if (!challenge) throw new NotFoundException('Challenge non trouvé');
-    return challenge;
+    const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
+    for (const lang of (challenge.languages || []) as Language[]) {
+      if ((challenge as any).starterCode?.[lang]) {
+        starterCode[lang] = (challenge as any).starterCode[lang];
+      }
+    }
+    return { ...challenge, starterCode } as unknown as ChallengeDocument;
+  }
+
+  // ─── Run (examples only) — single code-execution service (Piston + local fallback) ─
+  async run(challengeId: string, dto: SubmitChallengeDto) {
+    const challenge = await this.challengeModel.findById(challengeId).exec();
+    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    if (!challenge.languages.includes(dto.language as any)) {
+      throw new BadRequestException(`Le langage ${dto.language} n'est pas supporté`);
+    }
+    const examples = (challenge as any).examples || [];
+    if (!examples.length) {
+      return { results: [], overall: { passed: 0, total: 0 }, message: 'Aucun exemple pour ce challenge' };
+    }
+    const testCases = examples.map((ex: any) => ({
+      input: ex.input ?? '',
+      expectedOutput: (ex.output ?? ex.expectedOutput ?? '').trim(),
+    }));
+    const language = this.mapLanguage(dto.language);
+    const out = await this.codeExecution.executeCode({
+      code: dto.code,
+      language,
+      testCases,
+    });
+    const totalTimeMs = out.results.reduce((sum: number, r: any) => sum + (r.executionTime || 0), 0);
+    const results = out.results.map((r: any, i: number) => ({
+      testNumber: r.testCase ?? i + 1,
+      passed: r.passed,
+      input: testCases[i]?.input,
+      expectedOutput: testCases[i]?.expectedOutput,
+      actualOutput: r.passed ? undefined : (r.output ?? ''),
+      error: r.error,
+      executionTimeMs: r.executionTime ?? 0,
+    }));
+    return {
+      results,
+      overall: out.overall,
+      executionTimeMs: totalTimeMs,
+    };
   }
 
   // ─── Soumettre une solution ──────────────────────────────────────────────
@@ -78,42 +138,42 @@ export class ChallengeService {
     const challenge = await this.challengeModel
       .findById(challengeId)
       .select('+testCases')
+      .lean()
       .exec();
     if (!challenge) throw new NotFoundException('Challenge non trouvé');
 
-    if (!challenge.languages.includes(dto.language as any)) {
+    const languages = (challenge as any).languages as string[] | undefined;
+    if (!languages?.includes(dto.language)) {
       throw new BadRequestException(`Le langage ${dto.language} n'est pas supporté pour ce challenge`);
     }
 
-    if (!challenge.testCases?.length) {
+    const rawTestCases = (challenge as any).testCases as Array<{ input?: string; expectedOutput?: string }> | undefined;
+    if (!rawTestCases?.length) {
       throw new BadRequestException('Ce challenge n\'a pas de tests configurés');
     }
 
-    // 2. Exécuter le code sur chaque test case
-    const testResults: any[] = [];
-    let passedTests = 0;
-    let totalTimeMs = 0;
+    // 2. Exécuter le code (code-execution module: Piston + fallback local)
+    const testCases = rawTestCases.map((tc: any) => ({
+      input: String(tc?.input ?? '').trim(),
+      expectedOutput: String(tc?.expectedOutput ?? '').trim(),
+    }));
+    const language = this.mapLanguage(dto.language);
+    const out = await this.codeExecution.executeCode({
+      code: dto.code,
+      language,
+      testCases,
+    });
 
-    for (const tc of challenge.testCases) {
-      const result = await this.codeExecutor.execute(dto.code, dto.language, tc.input);
-      totalTimeMs += result.executionTimeMs;
-
-      const actualOutput = result.output?.trim() ?? '';
-      const expectedOutput = tc.expectedOutput?.trim() ?? '';
-      const passed = !result.error && actualOutput === expectedOutput;
-
-      if (passed) passedTests++;
-
-      testResults.push({
-        input: tc.input,
-        expectedOutput,
-        actualOutput,
-        passed,
-        error: result.error,
-      });
-    }
-
-    const totalTests = challenge.testCases.length;
+    const totalTests = rawTestCases.length;
+    const passedTests = out.overall.passed;
+    const totalTimeMs = out.results.reduce((sum: number, r: any) => sum + (r.executionTime || 0), 0);
+    const testResults = out.results.map((r: any, i: number) => ({
+      input: testCases[i]?.input,
+      expectedOutput: testCases[i]?.expectedOutput,
+      actualOutput: r.passed ? undefined : (r.output ?? ''),
+      passed: r.passed,
+      error: r.error,
+    }));
     const allPassed = passedTests === totalTests;
     const status = allPassed ? 'accepted' : testResults.some(r => r.error) ? 'runtime_error' : 'wrong_answer';
 
@@ -126,7 +186,7 @@ export class ChallengeService {
         status: 'accepted',
       });
       if (!alreadyAccepted) {
-        xpEarned = challenge.xpReward ?? this.XP_MAP[challenge.difficulty] ?? 50;
+        xpEarned = (challenge as any).xpReward ?? this.XP_MAP[(challenge as any).difficulty] ?? 50;
       }
     }
 
@@ -152,13 +212,9 @@ export class ChallengeService {
       },
     });
 
-    // 6. Attribuer XP à l'utilisateur si gagné
+    // 6. Gamification: attribuer XP à l'utilisateur si gagné (met à jour xp, totalChallengesSolved, rankTier)
     if (xpEarned > 0) {
-      const { Model: UserModel } = await import('mongoose');
-      // On utilise une mise à jour directe via mongoose pour ne pas créer de dépendance circulaire
-      const mongoose = await import('mongoose');
-      const UserSchema = mongoose.model('User');
-      await UserSchema.findByIdAndUpdate(userId, { $inc: { xp: xpEarned, totalChallengesSolved: 1 } });
+      await this.usersService.addXpForChallenge(userId, xpEarned);
     }
 
     return {

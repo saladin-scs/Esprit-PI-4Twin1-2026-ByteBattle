@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { ThumbsUp, Code as CodeIcon, Clock, HardDrive } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import React, { useEffect, useState } from 'react';
+import { ThumbsUp, Code as CodeIcon, Clock, HardDrive } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { challengesApi } from '../../services/api';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Solution {
   _id: string;
-  user: { _id: string; username: string };
+  user?: { _id: string; username: string };
+  userId?: { _id: string; username: string };
   code: string;
   language: string;
   explanation: string;
@@ -25,23 +25,21 @@ interface CommunitySolutionsProps {
 const CommunitySolutions: React.FC<CommunitySolutionsProps> = ({ challengeId }) => {
   const [solutions, setSolutions] = useState<Solution[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [sortBy, setSortBy] = useState("upvotes");
-
+  const [sortBy, setSortBy] = useState('upvotes');
   const [expandedSolutionId, setExpandedSolutionId] = useState<string | null>(null);
 
   const fetchSolutions = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/challenges/${challengeId}/solutions`, {
-        params: { page, limit: 10, sortBy }
-      });
-      setSolutions(res.data.solutions);
-      setTotalPages(res.data.totalPages);
-    } catch (err: any) {
-      setError("Erreur lors de la récupération des solutions communautaires.");
+      const res = await challengesApi.getSolutions(challengeId, { page, limit: 10, sortBy });
+      const data = res.data as { solutions: Solution[]; totalPages: number };
+      setSolutions(data.solutions ?? []);
+      setTotalPages(data.totalPages ?? 1);
+    } catch {
+      setError('Failed to load community solutions.');
     } finally {
       setLoading(false);
     }
@@ -52,115 +50,130 @@ const CommunitySolutions: React.FC<CommunitySolutionsProps> = ({ challengeId }) 
   }, [challengeId, page, sortBy]);
 
   const handleUpvote = async (solutionId: string) => {
-    const token = localStorage.getItem("access_token");
-    if (!token) return;
-
     try {
-      const res = await axios.post(`${API_URL}/challenges/solutions/${solutionId}/upvote`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Update local state
-      setSolutions(prev => prev.map(s => 
-        s._id === solutionId ? { ...s, upvotes: res.data.upvotes, upvotedBy: res.data.upvotedBy } : s
-      ));
-    } catch (err) {
-      console.error("Upvote failed", err);
+      const res = await challengesApi.upvoteSolution(solutionId);
+      const data = res.data as { upvotes: number; upvotedBy: string[] };
+      setSolutions((prev) =>
+        prev.map((s) => (s._id === solutionId ? { ...s, upvotes: data.upvotes, upvotedBy: data.upvotedBy } : s))
+      );
+    } catch {
+      // ignore
     }
   };
 
-  if (loading && solutions.length === 0) return <div style={{ padding: 20 }}>Chargement des solutions...</div>;
-  if (error) return <div style={{ padding: 20, color: "red" }}>{error}</div>;
+  if (loading && solutions.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-500 border-t-transparent" />
+      </div>
+    );
+  }
+  if (error) {
+    return <div className="py-4 text-red-600 dark:text-red-400 text-sm">{error}</div>;
+  }
 
   return (
-    <div style={{ padding: '20px 24px', height: '100%', overflowY: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h3 style={{ margin: 0, fontSize: 18, color: '#111827' }}>Solutions communautaires</h3>
-        <select 
-          value={sortBy} 
+    <div className="py-2 overflow-y-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white m-0">Community solutions</h3>
+        <select
+          value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
-          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff' }}
+          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="upvotes">Les plus votées</option>
-          <option value="recent">Plus récentes</option>
+          <option value="upvotes">Most upvoted</option>
+          <option value="recent">Most recent</option>
         </select>
       </div>
 
       {solutions.length === 0 ? (
-        <p style={{ color: '#6b7280' }}>Aucune solution n'a encore été publiée. Soyez le premier !</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">No solutions yet. Be the first to share!</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {solutions.map(sol => {
+        <div className="space-y-4">
+          {solutions.map((sol) => {
             const isExpanded = expandedSolutionId === sol._id;
             return (
-              <div key={sol._id} style={{ border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
-                {/* Header */}
-                <div 
-                  style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f9fafb', cursor: 'pointer', borderBottom: isExpanded ? '1px solid #e5e7eb' : 'none' }}
+              <div
+                key={sol._id}
+                className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/50 overflow-hidden"
+              >
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-left bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600 transition-colors"
                   onClick={() => setExpandedSolutionId(isExpanded ? null : sol._id)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 16, background: '#4f46e5', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
-                      {sol.user.username.charAt(0).toUpperCase()}
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-semibold text-sm">
+                      {(sol.user ?? sol.userId)?.username?.charAt(0).toUpperCase() ?? '?'}
                     </div>
                     <div>
-                      <div style={{ fontWeight: 600, color: '#111827' }}>{sol.user.username}</div>
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>{sol.language} • il y a {new Date(sol.createdAt).toLocaleDateString()}</div>
+                      <div className="font-medium text-gray-900 dark:text-white">{(sol.user ?? sol.userId)?.username ?? 'User'}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {sol.language} · {new Date(sol.createdAt).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6b7280', fontSize: 13 }}>
-                      <Clock size={14} /> {sol.timeComplexity}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6b7280', fontSize: 13 }}>
-                      <HardDrive size={14} /> {sol.spaceComplexity}
-                    </div>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleUpvote(sol._id); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'transparent', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer', color: '#4b5563', fontWeight: 500 }}
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                      <Clock className="w-3.5 h-3.5" /> {sol.timeComplexity}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                      <HardDrive className="w-3.5 h-3.5" /> {sol.spaceComplexity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUpvote(sol._id);
+                      }}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-600"
                     >
-                      <ThumbsUp size={14} color="#f59e0b" /> {sol.upvotes}
+                      <ThumbsUp className="w-4 h-4 text-amber-500" /> {sol.upvotes}
                     </button>
                   </div>
-                </div>
-
-                {/* Expanded Content */}
+                </button>
                 {isExpanded && (
-                  <div style={{ padding: 16 }}>
+                  <div className="p-4 space-y-4">
                     {sol.explanation && (
-                      <div style={{ marginBottom: 16, fontSize: 14, color: '#374151', lineHeight: 1.6 }} className="markdown-body">
+                      <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed markdown-body">
                         <ReactMarkdown>{sol.explanation}</ReactMarkdown>
                       </div>
                     )}
-                    <div style={{ background: '#1e1e1e', padding: 16, borderRadius: 6, position: 'relative' }}>
-                      <div style={{ position: 'absolute', top: 8, right: 12, color: '#9ca3af', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <CodeIcon size={14} /> {sol.language}
+                    <div className="relative rounded-lg bg-gray-900 p-4">
+                      <div className="absolute top-2 right-2 flex items-center gap-1 text-xs text-gray-400">
+                        <CodeIcon className="w-3.5 h-3.5" /> {sol.language}
                       </div>
-                      <pre style={{ margin: 0, fontFamily: 'monospace', color: '#d4d4d4', fontSize: 13, overflowX: 'auto', paddingTop: 16 }}>
+                      <pre className="mt-4 overflow-x-auto text-sm text-gray-200 font-mono whitespace-pre">
                         <code>{sol.code}</code>
                       </pre>
                     </div>
                   </div>
                 )}
               </div>
-            )
+            );
           })}
         </div>
       )}
 
       {totalPages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24, gap: 8 }}>
-          <button 
-            disabled={page === 1} 
-            onClick={() => setPage(p => p - 1)}
-            style={{ padding: '6px 12px', border: '1px solid #d1d5db', background: page === 1 ? '#f3f4f6' : '#fff', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-          >Précédent</button>
-          <span style={{ display: 'flex', alignItems: 'center', fontSize: 14 }}>Page {page} / {totalPages}</span>
-          <button 
-            disabled={page === totalPages} 
-            onClick={() => setPage(p => p + 1)}
-            style={{ padding: '6px 12px', border: '1px solid #d1d5db', background: page === totalPages ? '#f3f4f6' : '#fff', borderRadius: 6, cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
-          >Suivant</button>
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <button
+            type="button"
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            <ChevronLeft className="w-4 h-4" /> Previous
+          </button>
+          <span className="px-4 text-sm text-gray-600 dark:text-gray-400">Page {page} of {totalPages}</span>
+          <button
+            type="button"
+            disabled={page === totalPages}
+            onClick={() => setPage((p) => p + 1)}
+            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Next <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

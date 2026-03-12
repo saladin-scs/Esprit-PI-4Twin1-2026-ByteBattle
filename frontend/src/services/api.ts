@@ -8,8 +8,17 @@ import type { ExecuteTestCase } from '../types/challenge';
 export { apiClient, authApi, usersApi, adminApi };
 
 export const challengesApi = {
-  getAll: () => apiClient.get('/challenges'),
+  getAll: (params?: { page?: number; limit?: number; difficulty?: string; language?: string; search?: string; tag?: string }) =>
+    apiClient.get('/challenges', { params }),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
+  run: (id: string, data: { code: string; language: string }) =>
+    apiClient.post(`/challenges/${id}/run`, data),
+  submit: (id: string, data: { code: string; language: string }) =>
+    apiClient.post(`/challenges/${id}/submit`, data),
+  getSolutions: (challengeId: string, params?: { page?: number; limit?: number; sortBy?: string }) =>
+    apiClient.get(`/challenges/${challengeId}/solutions`, { params }),
+  upvoteSolution: (solutionId: string) =>
+    apiClient.post(`/challenges/solutions/${solutionId}/upvote`, {}),
   create: (challenge: any) => apiClient.post('/challenges', challenge),
   generate: (data: { difficulty: string; topic: string }) =>
     apiClient.post('/challenges/generate', data),
