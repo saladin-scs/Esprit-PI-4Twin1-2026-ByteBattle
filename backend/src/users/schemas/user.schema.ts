@@ -20,6 +20,18 @@ export class User {
   @Prop({ trim: true })
   displayName?: string;
 
+  @Prop({ trim: true })
+  firstName?: string;
+
+  @Prop({ trim: true })
+  lastName?: string;
+
+  @Prop({ trim: true })
+  phone?: string;
+
+  @Prop({ default: null })
+  dateOfBirth?: Date | null;
+
   @Prop({ trim: true, maxlength: 500 })
   bio?: string;
 

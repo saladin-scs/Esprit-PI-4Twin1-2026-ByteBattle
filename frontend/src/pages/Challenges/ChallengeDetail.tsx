@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { initVimMode } from 'monaco-vim';
-import { Play, Send, Keyboard, AlignLeft, Lightbulb, ArrowLeft } from 'lucide-react';
+import { Play, Send, Keyboard, AlignLeft, Lightbulb, ArrowLeft, Target } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { challengesApi } from '../../services/api';
 import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
@@ -293,17 +293,18 @@ const ChallengeDetail = () => {
             <DifficultyBadge difficulty={challenge.difficulty} />
             <span className="text-amber-600 dark:text-amber-400 font-semibold">+{challenge.xpReward} XP</span>
           </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm">
+          <p className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
+            <Target className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" aria-hidden />
             Complete this challenge once per language. Select a language to start.
           </p>
         </div>
         <div className="mb-4">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Choose language</h2>
           <LanguagePicker
             languages={challenge.languages}
             completedLanguages={completedLanguages}
             onSelect={handleSelectLanguage}
             disabled={loadingCompletion}
+            title="Choose language"
           />
         </div>
       </div>

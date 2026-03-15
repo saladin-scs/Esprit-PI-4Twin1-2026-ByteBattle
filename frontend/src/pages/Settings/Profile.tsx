@@ -6,6 +6,10 @@ import { fetchMe } from '../../store/slices/authSlice';
 import { Button, Input, Textarea, Card, Alert, PageContainer, Avatar } from '../../shared/components';
 import { Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 function ProfileSettings() {
   const dispatch = useDispatch<AppDispatch>();
@@ -14,12 +18,25 @@ function ProfileSettings() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
   const [bio, setBio] = useState('');
   const [country, setCountry] = useState('');
+  const [newsletter, setNewsletter] = useState(false);
+  const [referralSource, setReferralSource] = useState('');
+  const [preferencesRest, setPreferencesRest] = useState<Record<string, unknown>>({});
   const [avatarUrl, setAvatarUrl] = useState('');
   const [coverImage, setCoverImage] = useState('');
   const [links, setLinks] = useState('');
+  const [github, setGithub] = useState('');
+  const [linkedin, setLinkedin] = useState('');
+  const [twitter, setTwitter] = useState('');
+  const [portfolio, setPortfolio] = useState('');
 
   const [avatarUploadProgress, setAvatarUploadProgress] = useState(0);
   const [coverUploadProgress, setCoverUploadProgress] = useState(0);
@@ -27,21 +44,37 @@ function ProfileSettings() {
   useEffect(() => {
     setDisplayName(user?.displayName || '');
     setAvatarUrl(user?.avatarUrl || '');
-    // Assuming backend may return coverUrl, otherwise it remains empty
     setCoverImage((user as any)?.coverImage || (user as any)?.coverUrl || '');
-  }, [user?.displayName, user?.avatarUrl, (user as any)?.coverImage, (user as any)?.coverUrl]);
+    setEmail((user as any)?.email || '');
+    setUsername((user as any)?.username || '');
+  }, [user?.displayName, user?.avatarUrl, (user as any)?.coverImage, (user as any)?.coverUrl, (user as any)?.email, (user as any)?.username]);
 
   useEffect(() => {
     (async () => {
       try {
         const res = await usersApi.me();
-        const u = res.data;
+        const u = res.data as any;
+        setEmail(u.email || '');
+        setUsername(u.username || '');
         setDisplayName(u.displayName || '');
+        setFirstName(u.firstName || '');
+        setLastName(u.lastName || '');
+        setPhone(u.phone || '');
+        setDateOfBirth(u.dateOfBirth ? new Date(u.dateOfBirth) : null);
         setBio(u.bio || '');
         setCountry(u.country || '');
+        const prefs = u.preferences || {};
+        setNewsletter(!!prefs.newsletter);
+        setReferralSource(prefs.referralSource || '');
+        const { newsletter: _n, referralSource: _r, ...rest } = prefs;
+        setPreferencesRest(rest as Record<string, unknown>);
         setAvatarUrl(u.avatarUrl || '');
         setCoverImage(u.coverImage || u.coverUrl || '');
         setLinks(Array.isArray(u.links) ? u.links.join('\n') : '');
+        setGithub(u.socialLinks?.github || '');
+        setLinkedin(u.socialLinks?.linkedin || '');
+        setTwitter(u.socialLinks?.twitter || '');
+        setPortfolio(u.socialLinks?.portfolio || '');
       } catch {
         // ignore
       }
@@ -114,11 +147,26 @@ function ProfileSettings() {
         .filter(Boolean);
       await usersApi.updateMe({
         displayName: displayName || undefined,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        phone: phone || undefined,
+        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().slice(0, 10) : undefined,
         bio: bio || undefined,
         country: country || undefined,
         avatarUrl: avatarUrl || undefined,
         coverImage: coverImage || undefined,
         links: linkArr.length ? linkArr : undefined,
+        preferences: {
+          ...preferencesRest,
+          newsletter: newsletter,
+          referralSource: referralSource || undefined,
+        },
+        socialLinks: {
+          github: github || undefined,
+          linkedin: linkedin || undefined,
+          twitter: twitter || undefined,
+          portfolio: portfolio || undefined,
+        },
       });
       await dispatch(fetchMe());
       setSuccess('Profile updated.');
@@ -134,22 +182,80 @@ function ProfileSettings() {
       <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Profile settings</h1>
 
       <Card title="">
-        <form onSubmit={onSave} className="space-y-4">
+        <form onSubmit={onSave} className="space-y-6">
           {error && <Alert variant="error">{error}</Alert>}
           {success && <Alert variant="success">{success}</Alert>}
 
-          <Input
-            label="Display name"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-          <Textarea
-            label="Bio"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            rows={4}
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Account</h2>
+            <Input
+              label="Email"
+              value={email}
+              disabled
+              title="Email cannot be changed here"
+            />
+            <Input
+              label="Username"
+              value={username}
+              disabled
+              title="Username cannot be changed here"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Personal</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="First name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="John"
+              />
+              <Input
+                label="Last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Doe"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
+              <PhoneInput
+                country="us"
+                value={phone}
+                onChange={(v) => setPhone(v)}
+                inputClass="!w-full !bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white !border-gray-300 dark:!border-gray-600 !rounded-lg !px-4 !py-2"
+                containerClass="w-full"
+                buttonClass="!bg-gray-100 dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date of birth</label>
+              <DatePicker
+                selected={dateOfBirth}
+                onChange={(d) => setDateOfBirth(d)}
+                maxDate={new Date()}
+                showYearDropdown
+                scrollableYearDropdown
+                placeholderText="Select date"
+                className="w-full px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Profile</h2>
+            <Input
+              label="Display name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
+            <Textarea
+              label="Bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={4}
+            />
             <Input
               label="Country (ISO2)"
               value={country}
@@ -157,7 +263,49 @@ function ProfileSettings() {
               maxLength={2}
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Preferences</h2>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="newsletter"
+                checked={newsletter}
+                onChange={(e) => setNewsletter(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 focus:ring-blue-500"
+              />
+              <label htmlFor="newsletter" className="text-sm text-gray-700 dark:text-gray-300">Subscribe to newsletter</label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">How did you hear about us?</label>
+              <select
+                value={referralSource}
+                onChange={(e) => setReferralSource(e.target.value)}
+                className="w-full px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select an option</option>
+                <option value="social">Social Media</option>
+                <option value="friend">Friend Referral</option>
+                <option value="google">Google Search</option>
+                <option value="ad">Advertisement</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Social links</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input label="GitHub URL" type="url" value={github} onChange={(e) => setGithub(e.target.value)} placeholder="https://github.com/..." />
+              <Input label="LinkedIn URL" type="url" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="https://linkedin.com/..." />
+              <Input label="Twitter / X URL" type="url" value={twitter} onChange={(e) => setTwitter(e.target.value)} placeholder="https://twitter.com/..." />
+              <Input label="Portfolio URL" type="url" value={portfolio} onChange={(e) => setPortfolio(e.target.value)} placeholder="https://..." />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Media</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Avatar Upload */}
             <div className="flex flex-col space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Avatar Image</label>
@@ -204,13 +352,17 @@ function ProfileSettings() {
                 )}
               </div>
             </div>
+            </div>
           </div>
-          <Textarea
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Links</h2>
+            <Textarea
             label="Links (one per line)"
             value={links}
             onChange={(e) => setLinks(e.target.value)}
             rows={4}
           />
+          </div>
           <Button type="submit" loading={loading} disabled={loading}>
             Save
           </Button>
