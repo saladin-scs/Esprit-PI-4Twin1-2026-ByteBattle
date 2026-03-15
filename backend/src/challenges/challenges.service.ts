@@ -8,7 +8,9 @@ import { Submission, SubmissionDocument } from './schemas/Submission.schema';
 import { Solution, SolutionDocument } from './schemas/solution.schema';
 import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
+import { SEED_CHALLENGES } from './seed-challenges.data';
 import { CodeExecutionService } from '../code-execution/code-execution.service';
+import { GamificationService } from '../gamification/gamification.service';
 import { UsersService } from '../users/users.service';
 
 @Injectable()
@@ -19,6 +21,7 @@ export class ChallengeService {
     @InjectModel(Solution.name) private solutionModel: Model<SolutionDocument>,
     private codeExecution: CodeExecutionService,
     private usersService: UsersService,
+    private gamificationService: GamificationService,
   ) {}
 
   /** Map challenge language to code-execution (Piston uses c++, local uses cpp) */
@@ -26,11 +29,23 @@ export class ChallengeService {
     return lang === 'cpp' ? 'c++' : lang;
   }
 
-  /** Default starter code when challenge has none (works with normalized stdin: space or comma-separated) */
+  /** Default starter code when challenge has none (works with normalized stdin). Java uses BufferedReader + StringTokenizer (competitive programming style). */
   private static readonly DEFAULT_STARTER_CODE: Record<Language, string> = {
     python: 'def sum(a, b):\n    return a + b\n\na, b = map(int, input().split())\nprint(sum(a, b))',
     javascript: 'function sum(a, b) {\n  return a + b;\n}\n\nconst [a, b] = readline().split(/\\s+/).map(Number);\nconsole.log(sum(a, b));',
-    java: 'public class Solution {\n    public static int sum(int a, int b) {\n        return a + b;\n    }\n    public static void main(String[] args) {\n        String[] parts = new java.util.Scanner(System.in).nextLine().trim().split("\\\\s+");\n        int a = Integer.parseInt(parts[0]);\n        int b = Integer.parseInt(parts[1]);\n        System.out.println(sum(a, b));\n    }\n}',
+    java: `import java.io.*;
+import java.util.*;
+
+public class Solution {
+    public static int sum(int a, int b) { return a + b; }
+    public static void main(String[] args) throws IOException {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        StringTokenizer st = new StringTokenizer(br.readLine());
+        int a = Integer.parseInt(st.nextToken());
+        int b = Integer.parseInt(st.nextToken());
+        System.out.println(sum(a, b));
+    }
+}`,
     cpp: '#include <iostream>\nusing namespace std;\nint sum(int a, int b) { return a + b; }\nint main() { int a, b; cin >> a >> b; cout << sum(a, b); return 0; }',
   };
 
@@ -43,6 +58,28 @@ export class ChallengeService {
       dto.xpReward = this.XP_MAP[dto.difficulty] ?? 50;
     }
     return new this.challengeModel(dto).save();
+  }
+
+  /** Seed 2 easy + 2 medium + 2 hard challenges (idempotent: skip if title exists). */
+  async seed(): Promise<{ created: number; skipped: number }> {
+    let created = 0;
+    let skipped = 0;
+    for (const data of SEED_CHALLENGES) {
+      const exists = await this.challengeModel.findOne({ title: data.title }).select('_id').lean().exec();
+      if (exists) {
+        skipped++;
+        continue;
+      }
+      const dto: CreateChallengeDto = {
+        ...data,
+        xpReward: this.XP_MAP[data.difficulty] ?? 100,
+        constraints: [],
+        isPublished: true,
+      } as CreateChallengeDto;
+      await this.create(dto);
+      created++;
+    }
+    return { created, skipped };
   }
 
   // ─── Liste des challenges (publique) ────────────────────────────────────
@@ -86,9 +123,11 @@ export class ChallengeService {
       .exec();
     if (!challenge) throw new NotFoundException('Challenge non trouvé');
     const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
+    const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
+    const source = seedMatch?.starterCode ?? (challenge as any).starterCode;
     for (const lang of (challenge.languages || []) as Language[]) {
-      if ((challenge as any).starterCode?.[lang]) {
-        starterCode[lang] = (challenge as any).starterCode[lang];
+      if (source?.[lang]) {
+        starterCode[lang] = source[lang];
       }
     }
     return { ...challenge, starterCode } as unknown as ChallengeDocument;
@@ -177,20 +216,28 @@ export class ChallengeService {
     const allPassed = passedTests === totalTests;
     const status = allPassed ? 'accepted' : testResults.some(r => r.error) ? 'runtime_error' : 'wrong_answer';
 
-    // 3. Calculer XP (seulement si accepted + première fois)
-    let xpEarned = 0;
-    if (allPassed) {
-      const alreadyAccepted = await this.submissionModel.findOne({
-        userId: new Types.ObjectId(userId),
-        challengeId: new Types.ObjectId(challengeId),
-        status: 'accepted',
-      });
-      if (!alreadyAccepted) {
-        xpEarned = (challenge as any).xpReward ?? this.XP_MAP[(challenge as any).difficulty] ?? 50;
-      }
-    }
+    // 3. Première acceptation pour ce user+challenge ? (pour gamification)
+    const alreadyAccepted = allPassed
+      ? await this.submissionModel.findOne({
+          userId: new Types.ObjectId(userId),
+          challengeId: new Types.ObjectId(challengeId),
+          status: 'accepted',
+        })
+      : null;
+    const isFirstAcceptance = allPassed && !alreadyAccepted;
+    const previousSubmissionCount = await this.submissionModel.countDocuments({
+      userId: new Types.ObjectId(userId),
+      challengeId: new Types.ObjectId(challengeId),
+    }).exec();
+    const isFirstTry = allPassed && previousSubmissionCount === 0;
+    const acceptedBeforeCount = await this.submissionModel.countDocuments({
+      challengeId: new Types.ObjectId(challengeId),
+      status: 'accepted',
+    }).exec();
+    const isFirstSolver = allPassed && acceptedBeforeCount === 0;
 
     // 4. Sauvegarder la soumission
+    let xpEarned = 0;
     const submission = await new this.submissionModel({
       userId: new Types.ObjectId(userId),
       challengeId: new Types.ObjectId(challengeId),
@@ -200,7 +247,7 @@ export class ChallengeService {
       testResults,
       passedTests,
       totalTests,
-      xpEarned,
+      xpEarned: 0,
       executionTimeMs: Math.round(totalTimeMs / totalTests),
     }).save();
 
@@ -212,16 +259,28 @@ export class ChallengeService {
       },
     });
 
-    // 6. Gamification: attribuer XP à l'utilisateur si gagné (met à jour xp, totalChallengesSolved, rankTier)
-    if (xpEarned > 0) {
-      await this.usersService.addXpForChallenge(userId, xpEarned);
+    // 6. Gamification: XP, badges, streaks (première acceptation uniquement)
+    let badgesUnlocked: string[] = [];
+    if (isFirstAcceptance) {
+      const difficulty = ((challenge as any).difficulty || 'easy') as 'easy' | 'medium' | 'hard' | 'expert';
+      const result = await this.gamificationService.recordChallengeSolved(userId, {
+        difficulty,
+        language: dto.language,
+        isFirstTry,
+        isFirstSolver,
+        challengeId,
+      });
+      xpEarned = result.xpEarned;
+      badgesUnlocked = result.badgesUnlocked;
     }
+    await this.submissionModel.findByIdAndUpdate(submission._id, { $set: { xpEarned } }).exec();
 
     return {
       status,
       passedTests,
       totalTests,
       xpEarned,
+      badgesUnlocked,
       executionTimeMs: Math.round(totalTimeMs / totalTests),
       testResults: testResults.map((r, i) => ({
         testNumber: i + 1,
@@ -249,6 +308,18 @@ export class ChallengeService {
       .limit(50)
       .lean()
       .exec();
+  }
+
+  /** Langages dans lesquels l'utilisateur a résolu ce challenge (status accepted). */
+  async getMyCompletion(challengeId: string, userId: string): Promise<{ completedLanguages: string[] }> {
+    const list = await this.submissionModel
+      .distinct('language', {
+        userId: new Types.ObjectId(userId),
+        challengeId: new Types.ObjectId(challengeId),
+        status: 'accepted',
+      })
+      .exec();
+    return { completedLanguages: (list || []).map(String) };
   }
 
   // ─── Stats d'un challenge ────────────────────────────────────────────────

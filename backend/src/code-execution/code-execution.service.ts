@@ -19,8 +19,9 @@ export class CodeExecutionService {
   private readonly maxCodeChars = Number(process.env.CODE_EXECUTION_MAX_CODE_CHARS || 20000);
   private readonly maxStdinChars = Number(process.env.CODE_EXECUTION_MAX_STDIN_CHARS || 5000);
   private readonly localTimeoutMs = 5000;
+  private readonly localMaxBuffer = 4 * 1024 * 1024; // 4MB stdout/stderr cap per run
 
-  // Piston runtime versions (also used to validate supported languages)
+  // Piston runtime versions (align with GET /api/v2/runtimes on your Piston instance)
   private languageVersionMap: Record<string, string> = {
     python: '3.10.0',
     javascript: '18.15.0',
@@ -28,6 +29,18 @@ export class CodeExecutionService {
     c: '10.2.0',
     java: '15.0.2',
   };
+
+  /** Piston expects a file name; some runtimes use the extension. */
+  private getPistonFileName(lang: string): string {
+    switch (lang) {
+      case 'python': return 'main.py';
+      case 'javascript': return 'main.js';
+      case 'java': return 'Main.java';
+      case 'c++': return 'main.cpp';
+      case 'c': return 'main.c';
+      default: return 'main';
+    }
+  }
 
   // Local executor uses 'cpp', Piston uses 'c++'
   private toLocalLanguage(lang: string): string {
@@ -42,6 +55,21 @@ export class CodeExecutionService {
       return s.replace(/\s*,\s*/g, ' ').replace(/\s+/g, ' ').trim();
     }
     return s;
+  }
+
+  /**
+   * Normalize output for comparison: line endings to \n, trim each line and whole string.
+   * Avoids false negatives from \r\n, trailing newlines, or trailing spaces per line.
+   */
+  private normalizeOutput(s: string): string {
+    if (s == null || s === '') return '';
+    return String(s)
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .trim();
   }
 
   async executeCode(dto: ExecuteCodeDto) {
@@ -71,6 +99,20 @@ export class CodeExecutionService {
       );
     }
 
+    // Detect obvious mismatch: e.g. JavaScript code sent with language=python
+    const looksLikeJs = /^\s*(function\s+\w+|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|\w+\s*=>)/m.test(code) || (code.includes('readline()') && code.includes('console.log'));
+    const looksLikePython = /^\s*(def\s+\w+|import\s+|from\s+\w+\s+import|class\s+\w+)/m.test(code) || (code.includes('input()') && code.includes('print('));
+    if (lang === 'python' && looksLikeJs && !looksLikePython) {
+      throw new BadRequestException(
+        'The code looks like JavaScript but Python is selected. Please select "JavaScript" in the language selector above the editor.',
+      );
+    }
+    if (lang === 'javascript' && looksLikePython && !looksLikeJs) {
+      throw new BadRequestException(
+        'The code looks like Python but JavaScript is selected. Please select "Python" in the language selector above the editor.',
+      );
+    }
+
     const results: { testCase: number; passed: boolean; output: string; error: string; executionTime: number }[] = [];
 
     for (const [index, testCase] of testCases.entries()) {
@@ -85,16 +127,17 @@ export class CodeExecutionService {
         const payload = {
           language: lang,
           version,
-          files: [{ name: 'main', content: code }],
+          files: [{ name: this.getPistonFileName(lang), content: code }],
           stdin,
+          run_timeout: Math.min(this.requestTimeoutMs, 15000),
         };
 
-        const apiKey = process.env.PISTON_API_KEY;
+        const apiKey = process.env.PISTON_API_KEY?.trim();
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
         const response = await axios.post(this.pistonEndpoint, payload, {
-          timeout: Number.isFinite(this.requestTimeoutMs) ? this.requestTimeoutMs : 15000,
+          timeout: Math.min(Number(this.requestTimeoutMs) || 15000, 20000),
           headers,
           maxBodyLength: 1_000_000,
           maxContentLength: 1_000_000,
@@ -106,21 +149,30 @@ export class CodeExecutionService {
           throw new Error(msg);
         }
 
-        const output = response.data?.run?.stdout?.trim() || '';
-        const error = response.data?.run?.stderr?.trim() || '';
-        const passed = output === (testCase.expectedOutput?.trim() || '');
+        const runPayload = response.data?.run ?? {};
+        const rawOutput = typeof runPayload.stdout === 'string' ? runPayload.stdout : '';
+        const output = this.normalizeOutput(rawOutput);
+        const stderrStr = typeof runPayload.stderr === 'string' ? runPayload.stderr : '';
+        const error = stderrStr.trim();
+        const expected = this.normalizeOutput(String(testCase.expectedOutput ?? ''));
+        const passed = output === expected;
         results.push({
           testCase: index + 1,
           passed,
           output,
           error,
-          executionTime: response.data?.run?.time || 0,
+          executionTime: Number(runPayload.time) || 0,
         });
       } catch (err: any) {
         const msg = err?.message || '';
-        const isPistonUnavailable = msg === 'PISTON_401' || msg.includes('Piston API error') || err?.response?.status === 401;
+        const isPistonUnavailable =
+          msg === 'PISTON_401' ||
+          msg.includes('Piston API error') ||
+          err?.response?.status === 401 ||
+          err?.code === 'ECONNREFUSED' ||
+          err?.code === 'ETIMEDOUT' ||
+          err?.code === 'ENOTFOUND';
         if (isPistonUnavailable) {
-          this.logger.warn('Piston unavailable, falling back to local execution.');
           return this.runAllTestCasesLocally(code, lang, testCases);
         }
         this.logger.error(`Execution error for test case ${index + 1}`, msg);
@@ -151,8 +203,8 @@ export class CodeExecutionService {
       const tc = testCases[i];
       const input = this.normalizeStdin(tc.input);
       const res = await this.runLocalSingle(code, localLang, input);
-      const expected = (tc.expectedOutput ?? '').trim();
-      const actual = (res.output ?? '').trim();
+      const expected = this.normalizeOutput(tc.expectedOutput ?? '');
+      const actual = this.normalizeOutput(res.output ?? '');
       results.push({
         testCase: i + 1,
         passed: actual === expected,
@@ -207,18 +259,30 @@ export class CodeExecutionService {
   private runLocalJavaScript(code: string, input: string, tmpDir: string, start: number): { output: string; error?: string; executionTimeMs: number } {
     const fullCode = `
 const INPUT = ${JSON.stringify(input)};
-const lines = INPUT.split('\\n').filter(Boolean);
+const lines = INPUT.split('\\n');
 let lineIndex = 0;
-const readline = () => lines[lineIndex++] || '';
+const readline = () => lines[lineIndex++] ?? '';
 ${code}
 `;
     const file = path.join(tmpDir, 'solution.js');
-    fs.writeFileSync(file, fullCode);
+    fs.writeFileSync(file, fullCode, 'utf8');
     try {
-      const output = execSync(`node "${file}"`, { timeout: this.localTimeoutMs, encoding: 'utf8' });
-      return { output: output.trim(), executionTimeMs: Date.now() - start };
+      const result = spawnSync('node', [file], {
+        encoding: 'utf8',
+        timeout: this.localTimeoutMs,
+        maxBuffer: this.localMaxBuffer,
+        cwd: tmpDir,
+        windowsHide: true,
+      });
+      const stdout = (result.stdout ?? '').trim();
+      const stderr = (result.stderr ?? '').trim();
+      if (result.status !== 0) {
+        return { output: '', error: stderr || `Process exited with code ${result.status}`, executionTimeMs: Date.now() - start };
+      }
+      return { output: stdout, executionTimeMs: Date.now() - start };
     } catch (err: any) {
-      return { output: '', error: err.stderr?.toString()?.trim() || err.message, executionTimeMs: Date.now() - start };
+      const msg = err.stderr?.toString?.()?.trim() || err.stdout?.toString?.()?.trim() || err.message;
+      return { output: '', error: msg || 'Node execution failed', executionTimeMs: Date.now() - start };
     }
   }
 
@@ -234,43 +298,93 @@ ${code}
         input,
         encoding: 'utf8',
         timeout: this.localTimeoutMs,
+        maxBuffer: this.localMaxBuffer,
         cwd: tmpDir,
         windowsHide: true,
       });
       const stdout = (result.stdout || '').trim();
       const stderr = (result.stderr || '').trim();
-      if (result.status !== 0 && !stdout && stderr) {
-        return { output: '', error: stderr, executionTimeMs: Date.now() - start };
+      if (result.status !== 0) {
+        return { output: '', error: stderr || `Process exited with code ${result.status}`, executionTimeMs: Date.now() - start };
       }
       return { output: stdout, executionTimeMs: Date.now() - start };
     } catch (err: any) {
       const msg = err.stderr?.toString?.()?.trim?.() || err.stdout?.toString?.()?.trim?.() || err.message;
-      return { output: '', error: msg, executionTimeMs: Date.now() - start };
+      return { output: '', error: msg || 'Python execution failed', executionTimeMs: Date.now() - start };
     }
   }
 
   private runLocalJava(code: string, input: string, tmpDir: string, start: number): { output: string; error?: string; executionTimeMs: number } {
-    const file = path.join(tmpDir, 'Solution.java');
-    fs.writeFileSync(file, code);
+    const isMain = /\bpublic\s+class\s+Main\b/.test(code);
+    const className = isMain ? 'Main' : 'Solution';
+    const file = path.join(tmpDir, `${className}.java`);
+    fs.writeFileSync(file, code, 'utf8');
     try {
-      execSync(`javac "${file}"`, { timeout: this.localTimeoutMs, encoding: 'utf8', cwd: tmpDir });
-      const output = execSync(`echo ${JSON.stringify(input)} | java -cp "${tmpDir}" Solution`, { timeout: this.localTimeoutMs, encoding: 'utf8' });
-      return { output: output.trim(), executionTimeMs: Date.now() - start };
+      const compile = spawnSync('javac', [file], {
+        encoding: 'utf8',
+        timeout: this.localTimeoutMs,
+        maxBuffer: this.localMaxBuffer,
+        cwd: tmpDir,
+        windowsHide: true,
+      });
+      if (compile.status !== 0) {
+        const err = (compile.stderr ?? compile.stdout ?? '').trim() || 'Compilation failed';
+        return { output: '', error: err, executionTimeMs: Date.now() - start };
+      }
+      const run = spawnSync('java', ['-cp', tmpDir, className], {
+        input,
+        encoding: 'utf8',
+        timeout: this.localTimeoutMs,
+        maxBuffer: this.localMaxBuffer,
+        cwd: tmpDir,
+        windowsHide: true,
+      });
+      const stdout = (run.stdout ?? '').trim();
+      const stderr = (run.stderr ?? '').trim();
+      if (run.status !== 0) {
+        return { output: '', error: stderr || `Process exited with code ${run.status}`, executionTimeMs: Date.now() - start };
+      }
+      return { output: stdout, executionTimeMs: Date.now() - start };
     } catch (err: any) {
-      return { output: '', error: err.stderr?.toString()?.trim() || err.message, executionTimeMs: Date.now() - start };
+      const msg = err.stderr?.toString?.()?.trim() || err.stdout?.toString?.()?.trim() || err.message;
+      return { output: '', error: msg || 'Java execution failed', executionTimeMs: Date.now() - start };
     }
   }
 
   private runLocalCpp(code: string, input: string, tmpDir: string, start: number): { output: string; error?: string; executionTimeMs: number } {
     const srcFile = path.join(tmpDir, 'solution.cpp');
-    const binFile = path.join(tmpDir, 'solution');
-    fs.writeFileSync(srcFile, code);
+    const binName = os.platform() === 'win32' ? 'solution.exe' : 'solution';
+    const binFile = path.join(tmpDir, binName);
+    fs.writeFileSync(srcFile, code, 'utf8');
     try {
-      execSync(`g++ -o "${binFile}" "${srcFile}"`, { timeout: this.localTimeoutMs, encoding: 'utf8' });
-      const output = execSync(`echo ${JSON.stringify(input)} | "${binFile}"`, { timeout: this.localTimeoutMs, encoding: 'utf8' });
-      return { output: output.trim(), executionTimeMs: Date.now() - start };
+      const compile = spawnSync('g++', ['-o', binFile, srcFile], {
+        encoding: 'utf8',
+        timeout: this.localTimeoutMs,
+        maxBuffer: this.localMaxBuffer,
+        cwd: tmpDir,
+        windowsHide: true,
+      });
+      if (compile.status !== 0) {
+        const err = (compile.stderr ?? compile.stdout ?? '').trim() || 'Compilation failed';
+        return { output: '', error: err, executionTimeMs: Date.now() - start };
+      }
+      const run = spawnSync(binFile, [], {
+        input,
+        encoding: 'utf8',
+        timeout: this.localTimeoutMs,
+        maxBuffer: this.localMaxBuffer,
+        cwd: tmpDir,
+        windowsHide: true,
+      });
+      const stdout = (run.stdout ?? '').trim();
+      const stderr = (run.stderr ?? '').trim();
+      if (run.status !== 0) {
+        return { output: '', error: stderr || `Process exited with code ${run.status}`, executionTimeMs: Date.now() - start };
+      }
+      return { output: stdout, executionTimeMs: Date.now() - start };
     } catch (err: any) {
-      return { output: '', error: err.stderr?.toString()?.trim() || err.message, executionTimeMs: Date.now() - start };
+      const msg = err.stderr?.toString?.()?.trim() || err.stdout?.toString?.()?.trim() || err.message;
+      return { output: '', error: msg || 'C++ execution failed', executionTimeMs: Date.now() - start };
     }
   }
 

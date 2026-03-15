@@ -354,7 +354,6 @@ function Register() {
     trigger,
     setError: setFormError,
     getValues,
-    setValue,
   } = useForm<RegisterFormData>({
     resolver: yupResolver(registerSchema) as any,
     mode: 'onChange',

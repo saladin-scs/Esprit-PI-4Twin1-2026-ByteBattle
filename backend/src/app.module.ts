@@ -8,6 +8,7 @@ import { AdminModule } from './admin/admin.module';
 import { validateConfig } from './config/validation';
 import { ChallengeModule } from './challenges/challenges.module';
 import { CodeExecutionModule } from './code-execution/code-execution.module';
+import { GamificationModule } from './gamification/gamification.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { CodeExecutionModule } from './code-execution/code-execution.module';
     AdminModule,
     CodeExecutionModule,
     ChallengeModule,
+    GamificationModule,
   ],
 })
 export class AppModule {}

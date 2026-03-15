@@ -16,6 +16,7 @@ import ProfileSettings from '../../pages/Settings/Profile';
 import SecuritySettings from '../../pages/Settings/Security';
 import PublicProfile from '../../pages/User/PublicProfile';
 import AdminUsers from '../../pages/Admin/Users';
+import AdminGamificationStats from '../../pages/Admin/GamificationStats';
 import { AdminRoute } from '../../components/guards/AdminRoute';
 import VerifyEmail from '../../pages/Auth/VerifyEmail';
 import ForgotPassword from '../../pages/Auth/ForgotPassword';
@@ -44,6 +45,7 @@ export function AppRoutes() {
         <Route path="/settings/security" element={<SecuritySettings />} />
         <Route path="/u/:username" element={<PublicProfile />} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+        <Route path="/admin/gamification" element={<AdminRoute><AdminGamificationStats /></AdminRoute>} />
       </Routes>
     </Layout>
   );

@@ -13,7 +13,7 @@ import { SecurityEventsModule } from '../security-events/security-events.module'
   ],
   controllers: [UsersController, UsersPublicController],
   providers: [UsersService],
-  exports: [UsersService],
+  exports: [UsersService, MongooseModule.forFeature([{ name: User.name, schema: UserSchema }])],
 })
 export class UsersModule {}
 

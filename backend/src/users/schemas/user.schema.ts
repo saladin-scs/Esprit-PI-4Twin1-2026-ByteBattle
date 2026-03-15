@@ -50,8 +50,15 @@ export class User {
 
   @Prop({ default: 0 }) currentStreak?: number;
   @Prop({ default: 0 }) longestStreak?: number;
+  @Prop({ default: 0 }) streakFreezes?: number;
   @Prop({ default: 0 }) totalActiveDays?: number;
   @Prop({ default: null }) lastActiveAt?: Date | null;
+  /** Last calendar day (UTC) when daily login XP was awarded (YYYY-MM-DD) */
+  @Prop({ default: null }) lastDailyLoginDate?: string | null;
+  /** Last calendar day when first-solve-of-day bonus was awarded */
+  @Prop({ default: null }) lastFirstSolveOfDayDate?: string | null;
+  /** Track if user ever lost a streak (for Phoenix badge) */
+  @Prop({ default: false }) hasRecoveredStreak?: boolean;
 
   @Prop({ type: [Object], default: [] })
   activityHeatmap?: Array<{ date: string; count: number }>;
@@ -59,8 +66,8 @@ export class User {
   @Prop({ default: 0 }) dailyGoalTarget?: number;
   @Prop({ default: 0 }) dailyGoalCompleted?: number;
 
-  @Prop({ type: { easy: Number, medium: Number, hard: Number }, default: () => ({ easy: 0, medium: 0, hard: 0 }) })
-  problemsByDifficulty?: { easy: number; medium: number; hard: number };
+  @Prop({ type: { easy: Number, medium: Number, hard: Number, expert: Number }, default: () => ({ easy: 0, medium: 0, hard: 0, expert: 0 }) })
+  problemsByDifficulty?: { easy: number; medium: number; hard: number; expert: number };
 
   @Prop({ default: 0 }) acceptanceRate?: number;
   @Prop({ type: Object, default: () => ({}) }) languageStats?: Record<string, number>;

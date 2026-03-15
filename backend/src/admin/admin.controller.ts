@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard, Roles } from '../core';
 import { AdminService } from './admin.service';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { SetRoleDto } from './dto/set-role.dto';
 
 @ApiTags('Admin')
 @Controller('admin')
@@ -42,6 +43,22 @@ export class AdminController {
     @Request() req: { user: { userId: string } },
   ) {
     return this.adminService.updateUser(id, dto as any, req.user.userId);
+  }
+
+  @Patch('users/:id/role')
+  @ApiOperation({ summary: 'Changer le rôle d\'un utilisateur (ex: promouvoir en admin)' })
+  async setUserRole(
+    @Param('id') id: string,
+    @Body() dto: SetRoleDto,
+    @Request() req: { user: { userId: string } },
+  ) {
+    return this.adminService.setUserRole(id, dto.role, req.user.userId);
+  }
+
+  @Get('gamification/stats')
+  @ApiOperation({ summary: 'Statistiques gamification (admin)' })
+  getGamificationStats() {
+    return this.adminService.getGamificationStats();
   }
 }
 

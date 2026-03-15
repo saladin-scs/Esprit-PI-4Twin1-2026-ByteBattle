@@ -11,6 +11,7 @@ export const challengesApi = {
   getAll: (params?: { page?: number; limit?: number; difficulty?: string; language?: string; search?: string; tag?: string }) =>
     apiClient.get('/challenges', { params }),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
+  getMyCompletion: (id: string) => apiClient.get<{ completedLanguages: string[] }>(`/challenges/${id}/my-completion`),
   run: (id: string, data: { code: string; language: string }) =>
     apiClient.post(`/challenges/${id}/run`, data),
   submit: (id: string, data: { code: string; language: string }) =>
@@ -56,7 +57,15 @@ export const leaderboardApi = {
     apiClient.get(`/leaderboard/competition/${id}`),
 };
 
-
+/** Gamification (XP, streaks, badges, leaderboard) */
+export const gamificationApi = {
+  getCatalog: () => apiClient.get('/gamification/catalog'),
+  getMe: () => apiClient.get('/gamification/me'),
+  dailyLogin: () => apiClient.post('/gamification/daily-login'),
+  streakFreeze: () => apiClient.post('/gamification/streak-freeze'),
+  getLeaderboard: (params?: { page?: number; limit?: number; country?: string }) =>
+    apiClient.get('/gamification/leaderboard', { params }),
+};
 
 export default apiClient;
 

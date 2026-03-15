@@ -1,59 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { challengesApi } from '../../services/api';
 import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
+import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-interface Challenge {
-  _id: string;
-  title: string;
-  difficulty: string;
-  languages: string[];
-  tags: string[];
-  xpReward: number;
-  totalSubmissions: number;
-  totalAccepted: number;
-}
 
 const PAGE_SIZE = 15;
 
 const Challenges = () => {
   const navigate = useNavigate();
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const [search, setSearch] = useState('');
-  const [difficulty, setDifficulty] = useState('All');
-  const [language, setLanguage] = useState('All');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-
-  const fetchChallenges = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const params: Record<string, string | number> = { page, limit: PAGE_SIZE };
-      if (difficulty !== 'All') params.difficulty = difficulty;
-      if (language !== 'All') params.language = language;
-      if (search.trim()) params.search = search.trim();
-
-      const res = await challengesApi.getAll(params);
-      const data = res.data as { challenges: Challenge[]; total: number; totalPages: number };
-      setChallenges(data.challenges ?? []);
-      setTotal(data.total ?? 0);
-      setTotalPages(data.totalPages ?? 1);
-    } catch {
-      setError('Failed to load challenges.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    challenges,
+    total,
+    totalPages,
+    page,
+    loading,
+    error,
+    filters,
+    setFilters,
+    setPage,
+    fetchChallenges,
+  } = useChallengesStore();
 
   useEffect(() => {
     fetchChallenges();
-  }, [difficulty, language, page]);
+  }, [filters.difficulty, filters.language, filters.search, page, fetchChallenges]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +31,7 @@ const Challenges = () => {
     fetchChallenges();
   };
 
-  const acceptanceRate = (c: Challenge) =>
+  const acceptanceRate = (c: ChallengeListItem) =>
     c.totalSubmissions > 0 ? Math.round((c.totalAccepted / c.totalSubmissions) * 100) : 0;
 
   return (
@@ -77,12 +47,12 @@ const Challenges = () => {
 
       <div className="mb-6">
         <ChallengeFilters
-          search={search}
-          onSearchChange={setSearch}
-          difficulty={difficulty}
-          onDifficultyChange={(v) => { setDifficulty(v); setPage(1); }}
-          language={language}
-          onLanguageChange={(v) => { setLanguage(v); setPage(1); }}
+          search={filters.search}
+          onSearchChange={(v) => setFilters({ search: v })}
+          difficulty={filters.difficulty}
+          onDifficultyChange={(v) => { setFilters({ difficulty: v }); setPage(1); }}
+          language={filters.language}
+          onLanguageChange={(v) => { setFilters({ language: v }); setPage(1); }}
           onSearch={handleSearch}
           placeholder="Search challenges..."
         />

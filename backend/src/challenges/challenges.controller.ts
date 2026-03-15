@@ -21,16 +21,24 @@ export class ChallengeController {
     return this.challengeService.findAll(query);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Détail d\'un challenge' })
-  async findOne(@Param('id') id: string) {
-    return this.challengeService.findOne(id);
-  }
-
   @Get(':id/stats')
   @ApiOperation({ summary: 'Stats d\'un challenge (taux d\'acceptation, etc.)' })
   async getStats(@Param('id') id: string) {
     return this.challengeService.getStats(id);
+  }
+
+  @Get(':id/my-completion')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Langages dans lesquels l\'utilisateur a résolu ce challenge' })
+  async getMyCompletion(@Param('id') id: string, @Req() req: any) {
+    return this.challengeService.getMyCompletion(id, req.user.userId);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Détail d\'un challenge' })
+  async findOne(@Param('id') id: string) {
+    return this.challengeService.findOne(id);
   }
 
   // ─── Routes PROTÉGÉES (JWT requis) ──────────────────────────────────────
@@ -99,6 +107,15 @@ export class ChallengeController {
   }
 
   // ─── Route ADMIN (créer un challenge) ───────────────────────────────────
+
+  @Post('seed')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Seed 2 easy + 2 medium + 2 hard challenges (idempotent)' })
+  async seed() {
+    return this.challengeService.seed();
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)          // <-- added RolesGuard

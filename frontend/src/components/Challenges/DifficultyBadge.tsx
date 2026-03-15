@@ -1,4 +1,3 @@
-import React from 'react';
 
 export const DIFFICULTY_CONFIG: Record<string, { bg: string; text: string; border: string; label: string }> = {
   easy: {

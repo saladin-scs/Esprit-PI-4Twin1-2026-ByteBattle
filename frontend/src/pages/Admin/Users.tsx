@@ -4,6 +4,7 @@
  * Self-demotion and self-deactivation are blocked (backend + UI).
  */
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { adminApi } from '../../services/api';
 import { Button, Input, Card, Alert, PageContainer, Spinner } from '../../shared/components';
@@ -126,7 +127,7 @@ function AdminUsers() {
     setError('');
     setSuccess('');
     try {
-      await adminApi.updateUser(user._id, { roles: [role] });
+      await adminApi.setUserRole(user._id, role);
       setSuccess(`Role set to ${role}.`);
       await load();
     } catch (err: unknown) {
@@ -146,11 +147,19 @@ function AdminUsers() {
 
   return (
     <PageContainer maxWidth="7xl" className="py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">User Management</h1>
-        <p className="text-gray-500 dark:text-gray-400">
-          Manage user roles and account status. Only administrators can access this page.
-        </p>
+      <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">User Management</h1>
+          <p className="text-gray-500 dark:text-gray-400">
+            Manage user roles and account status. Only administrators can access this page.
+          </p>
+        </div>
+        <Link
+          to="/admin/gamification"
+          className="text-indigo-500 dark:text-indigo-400 hover:underline text-sm font-medium"
+        >
+          Gamification stats →
+        </Link>
       </div>
 
       <form onSubmit={handleSearch} className="flex flex-wrap gap-3 mb-6">

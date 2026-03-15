@@ -10,12 +10,14 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GithubStrategy } from './strategies/github.strategy';
 import { UsersModule } from '../users/users.module';
+import { GamificationModule } from '../gamification/gamification.module';
 import { MailService } from './mail.service';
 import { SecurityEventsModule } from '../security-events/security-events.module';
 
 @Module({
   imports: [
     UsersModule,
+    GamificationModule,
     SecurityEventsModule,
     PassportModule,
     JwtModule.registerAsync({

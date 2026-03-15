@@ -8,6 +8,7 @@ import { MailService } from './mail.service';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { SecurityEventsService } from '../security-events/security-events.service';
+import { GamificationService } from '../gamification/gamification.service';
 import { GoogleProfilePayload } from './strategies/google.strategy';
 import { GithubProfilePayload } from './strategies/github.strategy';
 import { authenticator } from 'otplib';
@@ -20,6 +21,7 @@ export class AuthService {
     private jwtService: JwtService,
     private mailService: MailService,
     private securityEvents: SecurityEventsService,
+    private gamificationService: GamificationService,
   ) {}
 
   private resolveRoles(user: any): string[] {
@@ -183,6 +185,11 @@ export class AuthService {
   ) {
     const user = await this.usersService.findByIdWithSensitive(userId);
     if (!user || (user as any).isActive === false) throw new UnauthorizedException();
+    try {
+      await this.gamificationService.recordDailyLogin(userId);
+    } catch {
+      // Ne pas faire échouer la connexion si la gamification échoue
+    }
     const accessToken = this.signAccessToken(user);
     const refreshToken = await this.issueRefreshToken(user, meta);
     return {

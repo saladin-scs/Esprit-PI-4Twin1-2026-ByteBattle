@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import ReactMarkdown from 'react-markdown';
@@ -7,10 +7,13 @@ import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { initVimMode } from 'monaco-vim';
-import { Play, Send, Keyboard, AlignLeft, Lightbulb } from 'lucide-react';
+import { Play, Send, Keyboard, AlignLeft, Lightbulb, ArrowLeft } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { challengesApi } from '../../services/api';
-import { DifficultyBadge } from '../../components/Challenges';
+import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
+import { SubmissionSuccessModal } from '../../components/Gamification/SubmissionSuccessModal';
+import { useChallengeDetailStore } from '../../stores/challengeDetailStore';
+import { useGamificationStore, type RankProgress } from '../../stores/gamificationStore';
 import CommunitySolutions from './CommunitySolutions';
 
 const MONACO_LANG: Record<string, string> = {
@@ -54,6 +57,7 @@ interface SubmissionResult {
   totalTests: number;
   xpEarned: number;
   executionTimeMs: number;
+  badgesUnlocked?: string[];
   testResults: Array<{
     testNumber: number;
     passed: boolean;
@@ -67,14 +71,28 @@ interface SubmissionResult {
 const ChallengeDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { theme } = useTheme();
+  const langFromUrl = searchParams.get('lang');
 
-  const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const {
+    challenge,
+    selectedLang,
+    code,
+    completedLanguages,
+    loadingChallenge,
+    loadingCompletion,
+    error: storeError,
+    setChallenge,
+    setSelectedLang,
+    setCode,
+    setCompletedLanguages,
+    setLoadingChallenge,
+    setLoadingCompletion,
+    setError: setStoreError,
+    reset: resetStore,
+  } = useChallengeDetailStore();
 
-  const [selectedLang, setSelectedLang] = useState('javascript');
-  const [code, setCode] = useState('');
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
@@ -83,11 +101,24 @@ const ChallengeDetail = () => {
   const [isVimMode, setIsVimMode] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState(0);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successModalPayload, setSuccessModalPayload] = useState<{
+    xpEarned: number;
+    badgesUnlocked: string[];
+    rankProgress: RankProgress | null;
+    totalXp: number;
+    rankTier: string;
+  } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
 
   const editorRef = useRef<any>(null);
   const vimModeRef = useRef<any>(null);
 
   const editorTheme = theme === 'dark' ? 'vs-dark' : 'light';
+  const loading = loadingChallenge;
+  const error = storeError;
 
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
@@ -110,24 +141,57 @@ const ChallengeDetail = () => {
   }, [isVimMode]);
 
   useEffect(() => {
-    const fetchChallenge = async () => {
-      if (!id) return;
+    if (!id) return;
+    resetStore();
+    const run = async () => {
+      setLoadingChallenge(true);
+      setStoreError(null);
       try {
         const res = await challengesApi.getOne(id);
-        setChallenge(res.data as Challenge);
-        const firstLang = (res.data as Challenge).languages?.[0] || 'javascript';
-        setSelectedLang(firstLang);
-        setCode((res.data as Challenge).starterCode?.[firstLang] || '');
+        const data = res.data as Challenge;
+        setChallenge(data as import('../../stores/challengeDetailStore').ChallengeDetailChallenge);
+        const langs = data.languages ?? [];
+        const preferred = langFromUrl && langs.includes(langFromUrl) ? langFromUrl : langs[0] || 'javascript';
+        setSelectedLang(preferred);
+        setCode(data.starterCode?.[preferred] || '');
       } catch {
-        setError('Challenge not found.');
+        setStoreError('Challenge not found.');
       } finally {
-        setLoading(false);
+        setLoadingChallenge(false);
       }
     };
-    fetchChallenge();
-  }, [id]);
+    run();
+  }, [id, langFromUrl, resetStore, setChallenge, setSelectedLang, setCode, setLoadingChallenge, setStoreError]);
+
+  useEffect(() => {
+    if (!id) return;
+    setLoadingCompletion(true);
+    challengesApi
+      .getMyCompletion(id)
+      .then((res) => {
+        const list = (res.data as { completedLanguages: string[] }).completedLanguages ?? [];
+        setCompletedLanguages(list);
+      })
+      .catch(() => setCompletedLanguages([]))
+      .finally(() => setLoadingCompletion(false));
+  }, [id, setCompletedLanguages, setLoadingCompletion]);
+
+  // Sync URL lang → store (and code) when challenge is loaded so code always matches selected language
+  useEffect(() => {
+    if (!challenge || !langFromUrl || !challenge.languages?.includes(langFromUrl)) return;
+    setSelectedLang(langFromUrl);
+    const starter = challenge.starterCode?.[langFromUrl];
+    if (starter != null) setCode(starter);
+  }, [langFromUrl, challenge, setSelectedLang, setCode]);
 
   const handleLangChange = (lang: string) => {
+    setSearchParams({ lang });
+    setSelectedLang(lang);
+    setCode(challenge?.starterCode?.[lang] || '');
+  };
+
+  const handleSelectLanguage = (lang: string) => {
+    setSearchParams({ lang });
     setSelectedLang(lang);
     setCode(challenge?.starterCode?.[lang] || '');
   };
@@ -135,14 +199,16 @@ const ChallengeDetail = () => {
   const handleRun = async () => {
     if (!id) return;
     setRunning(true);
+    setSubmitError(null);
     setRunResult(null);
     try {
       const res = await challengesApi.run(id, { code, language: selectedLang });
       setRunResult(res.data as RunResult);
       setActiveTab('result');
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Run failed.';
-      setError(Array.isArray(msg) ? msg.join(', ') : msg);
+      const raw = err?.response?.data?.message;
+      const msg = Array.isArray(raw) ? raw.join(', ') : typeof raw === 'string' ? raw : err?.message || 'Run failed.';
+      setSubmitError(msg);
     } finally {
       setRunning(false);
     }
@@ -156,15 +222,40 @@ const ChallengeDetail = () => {
     }
     if (!id) return;
     setSubmitting(true);
+    setSubmitError(null);
     setResult(null);
     setRunResult(null);
     try {
       const res = await challengesApi.submit(id, { code, language: selectedLang });
-      setResult(res.data as SubmissionResult);
+      const data = res.data as SubmissionResult;
+      setResult(data);
       setActiveTab('result');
+      if (data.status === 'accepted') {
+        try {
+          const [comp, summary] = await Promise.all([
+            challengesApi.getMyCompletion(id),
+            fetchGamificationSummary(),
+          ]);
+          setCompletedLanguages((comp.data as { completedLanguages: string[] }).completedLanguages ?? []);
+          if (summary) {
+            setSuccessModalPayload({
+              xpEarned: data.xpEarned ?? 0,
+              badgesUnlocked: data.badgesUnlocked ?? [],
+              rankProgress: summary.rankProgress ?? null,
+              totalXp: summary.xp,
+              rankTier: summary.rankTier,
+            });
+            setSuccessModalOpen(true);
+          }
+        } catch {
+          // Modal/summary fetch failed; result is still shown
+        }
+      }
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Submission failed.';
-      setError(Array.isArray(msg) ? msg.join(', ') : msg);
+      const raw = err?.response?.data?.message;
+      const msg = Array.isArray(raw) ? raw.join(', ') : typeof raw === 'string' ? raw : err?.message || 'Submission failed.';
+      setSubmitError(msg);
+      setActiveTab('result');
     } finally {
       setSubmitting(false);
     }
@@ -181,6 +272,40 @@ const ChallengeDetail = () => {
     return (
       <div className="p-8 text-red-600 dark:text-red-400">
         {error || 'Challenge not found'}
+      </div>
+    );
+  }
+
+  // Page "Choix du langage": no lang in URL → show grid with Unsolved/Solved per language
+  if (!langFromUrl) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+        <button
+          type="button"
+          onClick={() => navigate('/challenges')}
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to challenges
+        </button>
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{challenge.title}</h1>
+            <DifficultyBadge difficulty={challenge.difficulty} />
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">+{challenge.xpReward} XP</span>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Complete this challenge once per language. Select a language to start.
+          </p>
+        </div>
+        <div className="mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Choose language</h2>
+          <LanguagePicker
+            languages={challenge.languages}
+            completedLanguages={completedLanguages}
+            onSelect={handleSelectLanguage}
+            disabled={loadingCompletion}
+          />
+        </div>
       </div>
     );
   }
@@ -202,26 +327,37 @@ const ChallengeDetail = () => {
   } as SubmissionResult : null);
 
   return (
+    <>
     <div className="flex h-[calc(100vh-4rem)] font-sans overflow-hidden bg-gray-50 dark:bg-gray-900">
-      <Group direction="horizontal">
+      <Group {...({ direction: 'horizontal' } as any)}>
         <Panel defaultSize={45} minSize={30}>
           <div className="h-full flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="flex border-b border-gray-200 dark:border-gray-700 shrink-0">
-              {['description', 'solutions'].map((tab) => (
+              <button
+                type="button"
+                onClick={() => setActiveTab('description')}
+                className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'description'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                Description
+              </button>
+              {(displayResult?.status === 'accepted' || (completedLanguages?.length ?? 0) > 0) && (
                 <button
-                  key={tab}
                   type="button"
-                  onClick={() => setActiveTab(tab as any)}
-                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors capitalize ${
-                    activeTab === tab
+                  onClick={() => setActiveTab('solutions')}
+                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'solutions'
                       ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                       : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
                 >
-                  {tab}
+                  Solutions
                 </button>
-              ))}
-              {displayResult && (
+              )}
+              {(displayResult || submitError) && (
                 <button
                   type="button"
                   onClick={() => setActiveTab('result')}
@@ -231,7 +367,7 @@ const ChallengeDetail = () => {
                       : 'border-transparent text-gray-500 dark:text-gray-400'
                   }`}
                 >
-                  Result {displayResult.status === 'accepted' ? '✅' : '❌'}
+                  Result {displayResult?.status === 'accepted' ? '✅' : displayResult ? '❌' : '⚠️'}
                 </button>
               )}
             </div>
@@ -319,45 +455,64 @@ const ChallengeDetail = () => {
                 </>
               )}
 
-              {activeTab === 'result' && displayResult && (
+              {activeTab === 'result' && (
                 <div className="space-y-4">
-                  <div
-                    className={`p-4 rounded-lg ${
-                      displayResult.status === 'accepted'
-                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'
-                        : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
-                    }`}
-                  >
-                    <div className="font-semibold">
-                      {displayResult.status === 'accepted' ? '✅ Accepted!' : displayResult.status === 'wrong_answer' ? '❌ Wrong Answer' : '❌ Runtime Error'}
+                  {submitError && (
+                    <div className="p-4 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800">
+                      <div className="font-semibold">❌ Error</div>
+                      <p className="mt-1 text-sm">{submitError}</p>
                     </div>
-                    <div className="mt-1 text-sm">
-                      Tests: <strong>{displayResult.passedTests}/{displayResult.totalTests}</strong> passed · {displayResult.executionTimeMs}ms
-                      {displayResult.xpEarned > 0 && <span className="ml-2 font-semibold text-amber-600 dark:text-amber-400">+{displayResult.xpEarned} XP 🎉</span>}
-                    </div>
-                  </div>
-                  {displayResult.testResults.map((t) => (
-                    <div
-                      key={t.testNumber}
-                      className={`p-3 rounded-lg border text-sm ${
-                        t.passed
-                          ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
-                          : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                      }`}
-                    >
-                      <div className={`font-medium ${t.passed ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
-                        {t.passed ? '✅' : '❌'} Test #{t.testNumber}
-                      </div>
-                      {!t.passed && (
-                        <div className="mt-2 space-y-1 text-xs">
-                          {t.input != null && <div><strong>Input:</strong> <code className="ml-1">{t.input}</code></div>}
-                          {t.expectedOutput != null && <div><strong>Expected:</strong> <code className="ml-1">{t.expectedOutput}</code></div>}
-                          {t.actualOutput != null && <div><strong>Got:</strong> <code className="ml-1">{t.actualOutput}</code></div>}
-                          {t.error && <div className="text-red-600 dark:text-red-400"><strong>Error:</strong> {t.error}</div>}
+                  )}
+                  {displayResult && (
+                    <>
+                      <div
+                        className={`p-4 rounded-lg ${
+                          displayResult.status === 'accepted'
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                        }`}
+                      >
+                        <div className="font-semibold">
+                          {displayResult.status === 'accepted' ? '✅ Accepted!' : displayResult.status === 'wrong_answer' ? '❌ Wrong Answer' : '❌ Runtime Error'}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div className="mt-1 text-sm">
+                          Tests: <strong>{displayResult.passedTests}/{displayResult.totalTests}</strong> passed · {displayResult.executionTimeMs}ms
+                          {displayResult.xpEarned > 0 && <span className="ml-2 font-semibold text-amber-600 dark:text-amber-400">+{displayResult.xpEarned} XP 🎉</span>}
+                        </div>
+                        {displayResult.badgesUnlocked && displayResult.badgesUnlocked.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {displayResult.badgesUnlocked.map((name, i) => (
+                              <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                🏅 {name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {displayResult.testResults.map((t) => (
+                        <div
+                          key={t.testNumber}
+                          className={`p-3 rounded-lg border text-sm ${
+                            t.passed
+                              ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
+                              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                          }`}
+                        >
+                          <div className={`font-medium ${t.passed ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                            {t.passed ? '✅' : '❌'} Test #{t.testNumber}
+                          </div>
+                          {!t.passed && (
+                            <div className="mt-2 space-y-1 text-xs">
+                              {t.input != null && <div><strong>Input:</strong> <code className="ml-1">{t.input}</code></div>}
+                              {t.expectedOutput != null && <div><strong>Expected:</strong> <code className="ml-1">{t.expectedOutput}</code></div>}
+                              {t.actualOutput != null && <div><strong>Got:</strong> <code className="ml-1">{t.actualOutput}</code></div>}
+                              {t.error && <div className="text-red-600 dark:text-red-400"><strong>Error:</strong> {t.error}</div>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
 
@@ -373,7 +528,7 @@ const ChallengeDetail = () => {
         <Separator className="w-2 bg-gray-200 dark:bg-gray-700 hover:bg-indigo-500/30 transition-colors cursor-col-resize" />
 
         <Panel minSize={30}>
-          <Group direction="vertical">
+          <Group {...({ direction: 'vertical' } as any)}>
             <Panel defaultSize={70} minSize={20}>
               <div className="h-full flex flex-col bg-gray-900">
                 <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 shrink-0">
@@ -390,8 +545,17 @@ const ChallengeDetail = () => {
                         }`}
                       >
                         {lang}
+                        {completedLanguages.includes(lang) && ' ✓'}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => setSearchParams({})}
+                      className="px-3 py-1.5 rounded text-xs text-gray-400 hover:text-gray-200"
+                      title="Change language"
+                    >
+                      Change language
+                    </button>
                     <div className="w-px h-5 bg-gray-600" />
                     <button
                       type="button"
@@ -431,6 +595,7 @@ const ChallengeDetail = () => {
                 </div>
                 <div className="flex-1 min-h-0 relative">
                   <Editor
+                    key={selectedLang}
                     height="100%"
                     onMount={handleEditorDidMount}
                     language={MONACO_LANG[selectedLang] || 'javascript'}
@@ -503,6 +668,19 @@ const ChallengeDetail = () => {
         </Panel>
       </Group>
     </div>
+
+    {successModalOpen && successModalPayload && (
+      <SubmissionSuccessModal
+        open={successModalOpen}
+        onClose={() => { setSuccessModalOpen(false); setSuccessModalPayload(null); }}
+        xpEarned={successModalPayload.xpEarned}
+        badgesUnlocked={successModalPayload.badgesUnlocked}
+        rankProgress={successModalPayload.rankProgress}
+        totalXp={successModalPayload.totalXp}
+        rankTier={successModalPayload.rankTier}
+      />
+    )}
+    </>
   );
 };
 

@@ -1,378 +1,236 @@
-import { useState, useRef, KeyboardEvent, useEffect } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
-import { PageContainer, Card } from '../../shared/components';
-
-type LeaderboardTimeframe = 'daily' | 'weekly' | 'monthly' | 'allTime';
-type UserRank = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
+import { useState, useEffect, useCallback } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store/store';
+import { PageContainer, Card, Spinner } from '../../shared/components';
+import { gamificationApi } from '../../services/api';
+import { useGamificationStore } from '../../stores/gamificationStore';
 
 interface LeaderboardUser {
-  id: number;
   username: string;
-  rank: number;
-  score: number;
-  previousRank: number;
-  problemsSolved: number;
-  successRate: number;
-  streak: number;
-  userRank: string;
-  joinDate: string;
+  displayName?: string;
+  avatarUrl?: string;
+  xp: number;
+  rankTier: string;
+  totalChallengesSolved: number;
+  currentStreak: number;
+  badgeIds?: string[];
 }
 
+interface LeaderboardResponse {
+  items: LeaderboardUser[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+const RANK_TIER_COLORS: Record<string, string> = {
+  F: 'text-gray-400 bg-gray-500/20',
+  E: 'text-gray-300 bg-gray-400/20',
+  D: 'text-amber-600 dark:text-amber-400 bg-amber-500/20',
+  C: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/20',
+  B: 'text-blue-600 dark:text-blue-400 bg-blue-500/20',
+  A: 'text-purple-600 dark:text-purple-400 bg-purple-500/20',
+  S: 'text-yellow-500 bg-yellow-500/20',
+};
+
 function Leaderboard() {
-  const [timeframe, setTimeframe] = useState<LeaderboardTimeframe>('weekly');
+  const { user } = useSelector((state: RootState) => state.auth);
+  const { summary, fetchSummary } = useGamificationStore();
+  const [data, setData] = useState<LeaderboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const tabListRef = useRef<HTMLDivElement>(null);
+  const limit = 20;
 
-  const timeframes: LeaderboardTimeframe[] = ['daily', 'weekly', 'monthly', 'allTime'];
+  useEffect(() => {
+    if (user?.id) fetchSummary();
+  }, [user?.id, fetchSummary]);
 
-  const users: LeaderboardUser[] = [
-    {
-      id: 1,
-      username: "CodeMaster42",
-      rank: 1,
-      score: 12500,
-      previousRank: 1,
-      problemsSolved: 450,
-      successRate: 92,
-      streak: 28,
-      userRank: "Diamond",
-      joinDate: "2023-01-15"
-    },
-    {
-      id: 2,
-      username: "AlgoWizard",
-      rank: 2,
-      score: 11800,
-      previousRank: 3,
-      problemsSolved: 420,
-      successRate: 89,
-      streak: 21,
-      userRank: "Diamond",
-      joinDate: "2023-03-20"
-    },
-    {
-      id: 3,
-      username: "ByteQueen",
-      rank: 3,
-      score: 11200,
-      previousRank: 2,
-      problemsSolved: 410,
-      successRate: 94,
-      streak: 35,
-      userRank: "Diamond",
-      joinDate: "2022-11-05"
-    },
-    {
-      id: 4,
-      username: "SyntaxSamurai",
-      rank: 4,
-      score: 9800,
-      previousRank: 5,
-      problemsSolved: 380,
-      successRate: 87,
-      streak: 14,
-      userRank: "Platinum",
-      joinDate: "2023-05-10"
-    },
-    {
-      id: 5,
-      username: "ReactNinja",
-      rank: 5,
-      score: 9200,
-      previousRank: 4,
-      problemsSolved: 350,
-      successRate: 85,
-      streak: 7,
-      userRank: "Platinum",
-      joinDate: "2023-07-22"
-    },
-    {
-      id: 6,
-      username: "PythonProdigy",
-      rank: 6,
-      score: 8500,
-      previousRank: 8,
-      problemsSolved: 320,
-      successRate: 88,
-      streak: 42,
-      userRank: "Gold",
-      joinDate: "2023-02-14"
-    },
-    {
-      id: 7,
-      username: "DataDuke",
-      rank: 7,
-      score: 7800,
-      previousRank: 6,
-      problemsSolved: 300,
-      successRate: 82,
-      streak: 3,
-      userRank: "Gold",
-      joinDate: "2023-04-30"
-    },
-    {
-      id: 8,
-      username: "JavaKnight",
-      rank: 8,
-      score: 7200,
-      previousRank: 10,
-      problemsSolved: 280,
-      successRate: 79,
-      streak: 19,
-      userRank: "Silver",
-      joinDate: "2023-08-15"
-    },
-    {
-      id: 9,
-      username: "SwiftSage",
-      rank: 9,
-      score: 6800,
-      previousRank: 7,
-      problemsSolved: 260,
-      successRate: 84,
-      streak: 5,
-      userRank: "Silver",
-      joinDate: "2023-06-18"
-    },
-    {
-      id: 10,
-      username: "RustRider",
-      rank: 10,
-      score: 6200,
-      previousRank: 9,
-      problemsSolved: 240,
-      successRate: 76,
-      streak: 12,
-      userRank: "Bronze",
-      joinDate: "2023-09-01"
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await gamificationApi.getLeaderboard({ page, limit });
+      setData(res.data as LeaderboardResponse);
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+        : null;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed to load leaderboard');
+    } finally {
+      setLoading(false);
     }
-  ];
+  }, [page]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const getRankColor = (rank: number): string => {
     if (rank === 1) return 'bg-gradient-to-r from-yellow-500 to-yellow-600';
     if (rank === 2) return 'bg-gradient-to-r from-gray-300 to-gray-400';
     if (rank === 3) return 'bg-gradient-to-r from-orange-500 to-orange-600';
-    return 'bg-gray-700';
+    return 'bg-gray-600 dark:bg-gray-700';
   };
 
-  const getUserRankColor = (userRank: UserRank): string => {
-    switch (userRank) {
-      case 'Bronze': return 'text-orange-700';
-      case 'Silver': return 'text-gray-300';
-      case 'Gold': return 'text-yellow-500';
-      case 'Platinum': return 'text-cyan-400';
-      case 'Diamond': return 'text-purple-400';
-      default: return 'text-gray-400';
-    }
-  };
+  const items = data?.items ?? [];
+  const totalPages = data ? Math.ceil(data.total / data.limit) : 0;
+  const filteredItems = searchQuery.trim()
+    ? items.filter(
+        (u) =>
+          u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          u.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : items;
+  const startRank = (data?.page ?? 1) * limit - limit + 1;
 
-  const getUserRankBg = (userRank: UserRank): string => {
-    switch (userRank) {
-      case 'Bronze': return 'bg-orange-700/20';
-      case 'Silver': return 'bg-gray-300/20';
-      case 'Gold': return 'bg-yellow-500/20';
-      case 'Platinum': return 'bg-cyan-400/20';
-      case 'Diamond': return 'bg-purple-400/20';
-      default: return 'bg-gray-400/20';
-    }
-  };
+  const myRank = summary?.myRank ?? 0;
+  const totalRanked = summary?.totalRanked ?? 0;
+  const isCurrentUser = (u: LeaderboardUser) => user && (u.username === user.username || u.username === (user as { username?: string }).username);
 
-  const getRankChangeIcon = (currentRank: number, previousRank: number) => {
-    if (currentRank < previousRank) {
-      return <TrendingUp className="w-4 h-4 text-green-500" aria-hidden="true" />;
-    } else if (currentRank > previousRank) {
-      return <TrendingDown className="w-4 h-4 text-red-500" aria-hidden="true" />;
-    }
-    return null;
-  };
+  return (
+    <PageContainer maxWidth="7xl" className="py-12">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Leaderboard</h1>
 
-  const getRankChangeText = (currentRank: number, previousRank: number) => {
-    const change = previousRank - currentRank;
-    if (change > 0) return `+${change}`;
-    if (change < 0) return `${change}`;
-    return "—";
-  };
-
-  const filteredUsers = users.filter(user =>
-    user.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Keyboard navigation for tabs
-  const handleTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>, _tab: LeaderboardTimeframe) => {
-    const tabs = timeframes;
-    const currentIndex = tabs.indexOf(timeframe);
-    let newIndex = currentIndex;
-
-    if (e.key === 'ArrowRight') {
-      newIndex = (currentIndex + 1) % tabs.length;
-    } else if (e.key === 'ArrowLeft') {
-      newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-    } else if (e.key === 'Home') {
-      newIndex = 0;
-    } else if (e.key === 'End') {
-      newIndex = tabs.length - 1;
-    } else {
-      return;
-    }
-
-    e.preventDefault();
-    setTimeframe(tabs[newIndex]);
-
-    // Focus the newly selected tab button
-    const tabButtons = tabListRef.current?.querySelectorAll('[role="tab"]');
-    if (tabButtons) {
-      (tabButtons[newIndex] as HTMLButtonElement).focus();
-    }
-  };
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
-
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Simulate loading when timeframe changes
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [timeframe]);
-
-return (
-  <PageContainer maxWidth="7xl" className="py-12">
-    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Leaderboard</h1>
-
-    {/* Tabs and Search */}
-    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-      {/* Tabs */}
-      <div ref={tabListRef} role="tablist" className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-full md:w-auto overflow-x-auto">
-        {timeframes.map(t => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={timeframe === t}
-            onKeyDown={(e) => handleTabKeyDown(e, t)}
-            onClick={() => { setTimeframe(t); setCurrentPage(1); }}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${timeframe === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
-              }`}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1).replace(/([A-Z])/g, ' $1')}
-          </button>
-        ))}
-      </div>
-      {/* Search */}
-      <div className="w-full md:w-64">
-        <input
-          type="text"
-          placeholder="Search user..."
-          value={searchQuery}
-          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-        />
-      </div>
-    </div>
-
-    <Card className="overflow-hidden p-0 border-0 shadow-lg">
-      <div className="overflow-x-auto">
-        {isLoading ? (
-          <div className="p-4 space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="animate-pulse flex flex-col md:flex-row items-center gap-4 h-auto md:h-16 p-4 md:p-0 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <table className="w-full text-left border-collapse min-w-[700px]">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">Rank</th>
-                <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">User</th>
-                <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">Tier</th>
-                <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">Score</th>
-                <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">Success Rate</th>
-                <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">Streak</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-gray-500">No users found</td>
-                </tr>
-              ) : (
-                currentUsers.map(u => (
-                  <tr key={u.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-8 h-8 flex items-center justify-center rounded-full text-white text-sm font-bold ${getRankColor(u.rank)}`}>
-                          {u.rank}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {getRankChangeIcon(u.rank, u.previousRank)}
-                          <span className="text-xs text-gray-400">{getRankChangeText(u.rank, u.previousRank)}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 font-medium text-gray-900 dark:text-white flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs uppercase">
-                        {u.username.substring(0, 2)}
-                      </div>
-                      {u.username}
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${getUserRankBg(u.userRank as any)} ${getUserRankColor(u.userRank as any)}`}>
-                        {u.userRank}
-                      </span>
-                    </td>
-                    <td className="p-4 font-semibold text-blue-600 dark:text-blue-400">{u.score.toLocaleString()}</td>
-                    <td className="p-4 text-gray-600 dark:text-gray-400">{u.successRate}%</td>
-                    <td className="p-4 text-gray-600 dark:text-gray-400">{u.streak} 🔥</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Pagination */}
-      {!isLoading && totalPages > 1 && (
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-          <span className="text-sm text-gray-500">
-            Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredUsers.length)} of {filteredUsers.length}
-          </span>
-          <div className="flex gap-2">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => p - 1)}
-              className="px-3 py-1 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              aria-label="Previous page"
-            >
-              Previous
-            </button>
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => p + 1)}
-              className="px-3 py-1 bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-              aria-label="Next page"
-            >
-              Next
-            </button>
-          </div>
+      {user && myRank > 0 && totalRanked > 0 && (
+        <div className="mb-6 p-4 rounded-lg bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-500/30">
+          <span className="font-semibold text-indigo-700 dark:text-indigo-300">Your position: </span>
+          <span className="text-indigo-600 dark:text-indigo-400">#{myRank} of {totalRanked}</span>
         </div>
       )}
-    </Card>
-  </PageContainer>
-);
+
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          Ranked by XP. Solve challenges and stay active to climb!
+        </p>
+        <div className="w-full md:w-64">
+          <input
+            type="text"
+            placeholder="Search user..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-4 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+          {error}
+        </div>
+      )}
+
+      <Card className="overflow-hidden p-0 border-0 shadow-lg">
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="p-8 flex justify-center">
+              <Spinner size="lg" />
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                  <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">Rank</th>
+                  <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">User</th>
+                  <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">Tier</th>
+                  <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">XP</th>
+                  <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">Solved</th>
+                  <th className="p-4 font-semibold text-gray-600 dark:text-gray-300">Streak</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                      {items.length === 0 ? 'No users yet. Be the first!' : 'No matching users.'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredItems.map((u, i) => {
+                    const rank = startRank + i;
+                    const isYou = isCurrentUser(u);
+                    return (
+                      <tr
+                        key={u.username + rank}
+                        className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${isYou ? 'bg-indigo-500/10 dark:bg-indigo-500/20' : ''}`}
+                      >
+                        <td className="p-4">
+                          <span
+                            className={`inline-flex w-8 h-8 items-center justify-center rounded-full text-white text-sm font-bold ${getRankColor(rank)}`}
+                          >
+                            {rank}
+                          </span>
+                        </td>
+                        <td className="p-4 font-medium text-gray-900 dark:text-white flex items-center gap-3">
+                          {u.avatarUrl ? (
+                            <img
+                              src={u.avatarUrl}
+                              alt=""
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs uppercase">
+                              {(u.displayName || u.username || '?').slice(0, 2)}
+                            </div>
+                          )}
+                          <span>{u.displayName || u.username || '—'}</span>
+                          <span className="text-gray-500 dark:text-gray-400 text-sm">@{u.username}</span>
+                          {isYou && <span className="ml-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-500/30 text-indigo-700 dark:text-indigo-300">You</span>}
+                        </td>
+                        <td className="p-4">
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-semibold ${
+                              RANK_TIER_COLORS[u.rankTier as keyof typeof RANK_TIER_COLORS] ?? 'bg-gray-500/20 text-gray-300'
+                            }`}
+                          >
+                            {u.rankTier}
+                          </span>
+                        </td>
+                        <td className="p-4 font-semibold text-amber-600 dark:text-amber-400">
+                          {u.xp?.toLocaleString() ?? 0}
+                        </td>
+                        <td className="p-4 text-gray-600 dark:text-gray-400">
+                          {u.totalChallengesSolved ?? 0}
+                        </td>
+                        <td className="p-4 text-gray-600 dark:text-gray-400">
+                          {u.currentStreak ?? 0} 🔥
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {!loading && data && totalPages > 1 && (
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 flex-wrap gap-4">
+            <span className="text-sm text-gray-500">
+              Page {data.page} of {totalPages} · {data.total} total
+            </span>
+            <div className="flex gap-2">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </Card>
+    </PageContainer>
+  );
 }
 
 export default Leaderboard;
