@@ -11,6 +11,7 @@ const ChallengeDetail = lazy(() => import('../../pages/Challenges/ChallengeDetai
 const Dashboard = lazy(() => import('../../pages/Dashboard/Dashboard').then((m) => ({ default: m.default })));
 const Leaderboard = lazy(() => import('../../pages/Leaderboard/Leaderboard').then((m) => ({ default: m.default })));
 const Competitions = lazy(() => import('../../pages/Competitions/Competitions').then((m) => ({ default: m.default })));
+const CompetitionDetail = lazy(() => import('../../pages/Competitions/CompetitionDetail').then((m) => ({ default: m.default })));
 const ProfileSettings = lazy(() => import('../../pages/Settings/Profile').then((m) => ({ default: m.default })));
 const SecuritySettings = lazy(() => import('../../pages/Settings/Security').then((m) => ({ default: m.default })));
 const PublicProfile = lazy(() => import('../../pages/User/PublicProfile').then((m) => ({ default: m.default })));
@@ -31,6 +32,7 @@ export const LazyRoutes = {
   Dashboard,
   Leaderboard,
   Competitions,
+  CompetitionDetail,
   ProfileSettings,
   SecuritySettings,
   PublicProfile,

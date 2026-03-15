@@ -8,9 +8,9 @@ import { ThemeToggle } from '../../shared/components/ThemeToggle';
 import { UserMenu } from './UserMenu';
 
 const navLinks = [
-  { to: '/challenges', label: 'Challenges' },
-  { to: '/competitions', label: 'Competitions' },
-  { to: '/leaderboard', label: 'Leaderboard' },
+  { to: '/challenges', label: 'Challenges', authOnly: true },
+  { to: '/competitions', label: 'Competitions', authOnly: true },
+  { to: '/leaderboard', label: 'Leaderboard', authOnly: true },
 ] as const;
 
 export function HeaderMobileMenu() {
@@ -58,7 +58,7 @@ export function HeaderMobileMenu() {
               className="absolute right-0 left-0 top-full z-40 mt-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-3 shadow-dropdown"
             >
               <nav className="flex flex-col gap-1 px-4">
-                {navLinks.map(({ to, label }) => (
+                {navLinks.filter((l) => !l.authOnly || isAuthenticated).map(({ to, label }) => (
                   <Link
                     key={to}
                     to={to}

@@ -32,17 +32,19 @@ function Navbar() {
                 style={{ transform: 'rotate(-10deg)' }}
               />
             </Link>
-            <div className="ml-10 flex items-baseline space-x-4">
-              <Link to="/challenges" className={linkClass}>
-                Challenges
-              </Link>
-              <Link to="/competitions" className={linkClass}>
-                Competitions
-              </Link>
-              <Link to="/leaderboard" className={linkClass}>
-                Leaderboard
-              </Link>
-            </div>
+            {isAuthenticated && (
+              <div className="ml-10 flex items-baseline space-x-4">
+                <Link to="/challenges" className={linkClass}>
+                  Challenges
+                </Link>
+                <Link to="/competitions" className={linkClass}>
+                  Competitions
+                </Link>
+                <Link to="/leaderboard" className={linkClass}>
+                  Leaderboard
+                </Link>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />

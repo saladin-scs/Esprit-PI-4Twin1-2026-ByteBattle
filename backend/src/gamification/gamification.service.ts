@@ -17,6 +17,7 @@ import {
   BADGES_DIFFICULTY,
   BADGES_QUALITY,
   BADGES_LANGUAGE,
+  BADGES_CONTEST,
 } from './badges.config';
 
 type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
@@ -210,7 +211,7 @@ export class GamificationService {
    */
   async checkAndAwardBadges(userId: string, category: 'streak' | 'solver' | 'difficulty' | 'quality' | 'language' | 'all' = 'all'): Promise<string[]> {
     const user = await this.userModel.findById(userId).select(
-      'badgeIds xp currentStreak longestStreak totalChallengesSolved problemsByDifficulty languageStats hasRecoveredStreak',
+      'badgeIds xp currentStreak longestStreak totalChallengesSolved problemsByDifficulty languageStats hasRecoveredStreak competitionsParticipated',
     ).lean().exec();
     if (!user) return [];
 
@@ -236,6 +237,7 @@ export class GamificationService {
     if (category === 'difficulty' || category === 'all') await check(BADGES_DIFFICULTY.map((b) => b.id));
     if (category === 'quality' || category === 'all') await check(BADGES_QUALITY.map((b) => b.id));
     if (category === 'language' || category === 'all') await check(BADGES_LANGUAGE.map((b) => b.id));
+    if (category === 'all') await check(BADGES_CONTEST.map((b) => b.id));
 
     return newlyUnlocked;
   }
@@ -247,6 +249,7 @@ export class GamificationService {
     const langStats = u.languageStats || {};
     const langCount = Object.keys(langStats).length;
     const hasRecovered = u.hasRecoveredStreak === true;
+    const competitionsParticipated = u.competitionsParticipated ?? 0;
 
     switch (badgeId) {
       case 'streak_7': return streak >= 7;
@@ -272,8 +275,68 @@ export class GamificationService {
       case 'java_master': return (langStats.java ?? 0) >= 50;
       case 'cpp_master': return (langStats.cpp ?? 0) >= 50;
       case 'polyglot': return langCount >= 5;
+      case 'contest_veteran': return competitionsParticipated >= 10;
       default: return false;
     }
+  }
+
+  /** Award participation XP and increment competitionsParticipated. Call when user first submits to a competition. */
+  async recordCompetitionParticipated(userId: string): Promise<{ xpAwarded: number }> {
+    const user = await this.userModel.findById(userId).select('xp competitionsParticipated').lean().exec();
+    if (!user) throw new NotFoundException('User not found');
+    const u = user as any;
+    const current = u.competitionsParticipated ?? 0;
+    const xpAwarded = XP_BY_ACTION.contestParticipate;
+    await this.userModel.findByIdAndUpdate(userId, {
+      $inc: { xp: xpAwarded, competitionsParticipated: 1 },
+      $set: { rankTier: this.getRankTierFromXp((u.xp ?? 0) + xpAwarded) },
+    }).exec();
+    await this.checkAndAwardBadges(userId, 'all');
+    return { xpAwarded };
+  }
+
+  /** Award placement XP and contest badges. Call when a competition is finalized (e.g. status → closed). */
+  async recordCompetitionResult(
+    userId: string,
+    opts: { competitionId: string; rank: number; totalParticipants: number },
+  ): Promise<{ xpAwarded: number; badgesUnlocked: string[] }> {
+    const user = await this.userModel.findById(userId).select('xp badgeIds').lean().exec();
+    if (!user) throw new NotFoundException('User not found');
+    const u = user as any;
+    const unlocked = u.badgeIds || [];
+    let xpAwarded = 0;
+    const badgesUnlocked: string[] = [];
+
+    if (opts.rank === 1) {
+      xpAwarded += XP_BY_ACTION.contestWin;
+      const badge = BADGE_MAP.get('contest_first');
+      if (badge && !unlocked.includes('contest_first')) {
+        await this.awardBadge(userId, badge);
+        badgesUnlocked.push(badge.name);
+      }
+    }
+    if (opts.rank <= 10) {
+      const badge = BADGE_MAP.get('contest_top10');
+      if (badge && !unlocked.includes('contest_top10')) {
+        await this.awardBadge(userId, badge);
+        badgesUnlocked.push(badge.name);
+      }
+    }
+    if (opts.rank <= 50) {
+      const badge = BADGE_MAP.get('contest_top50');
+      if (badge && !unlocked.includes('contest_top50')) {
+        await this.awardBadge(userId, badge);
+        badgesUnlocked.push(badge.name);
+      }
+    }
+
+    if (xpAwarded > 0) {
+      await this.userModel.findByIdAndUpdate(userId, {
+        $inc: { xp: xpAwarded },
+        $set: { rankTier: this.getRankTierFromXp((u.xp ?? 0) + xpAwarded) },
+      }).exec();
+    }
+    return { xpAwarded, badgesUnlocked };
   }
 
   private async awardBadge(userId: string, badge: { id: string; name: string; xpReward: number; coinsReward?: number; streakFreezes?: number }): Promise<void> {

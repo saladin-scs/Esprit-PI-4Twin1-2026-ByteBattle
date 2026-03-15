@@ -44,10 +44,19 @@ export const feedbackApi = {
 };
 
 export const competitionsApi = {
-  getAll: () => apiClient.get('/competitions'),
+  getAll: (params?: { status?: string; page?: number; limit?: number }) =>
+    apiClient.get('/competitions', { params }),
+  getHistory: (params?: { page?: number; limit?: number }) =>
+    apiClient.get('/competitions/history', { params }),
   getOne: (id: string) => apiClient.get(`/competitions/${id}`),
+  getLeaderboard: (id: string, params?: { language?: string; limit?: number }) =>
+    apiClient.get(`/competitions/${id}/leaderboard`, { params }),
   create: (competition: any) => apiClient.post('/competitions', competition),
   join: (id: string) => apiClient.post(`/competitions/${id}/join`),
+  submit: (id: string, data: { code: string; language: string; challengeId?: string }) =>
+    apiClient.post(`/competitions/${id}/submit`, data),
+  updateStatus: (id: string, status: 'scheduled' | 'active' | 'closed' | 'archived') =>
+    apiClient.put(`/competitions/${id}/status`, { status }),
 };
 
 export const leaderboardApi = {

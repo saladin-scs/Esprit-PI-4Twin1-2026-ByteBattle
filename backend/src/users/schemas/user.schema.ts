@@ -111,6 +111,7 @@ export class User {
   @Prop({ default: 0 }) rating: number;
   @Prop({ default: 0 }) totalChallengesSolved: number;
   @Prop({ default: 0 }) totalBattlesWon: number;
+  @Prop({ default: 0 }) competitionsParticipated: number;
   @Prop({ type: [String], default: [] }) achievements: string[];
   @Prop({ default: true }) isActive: boolean;
   @Prop({ default: false }) isAdmin: boolean;

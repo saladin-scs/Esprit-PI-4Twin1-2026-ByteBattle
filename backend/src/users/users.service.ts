@@ -1,8 +1,9 @@
 /* eslint-disable prettier/prettier */
 import { Injectable, ConflictException, ForbiddenException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
+import { UpdateMeDto } from './dto/update-me.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { SecurityEventsService } from '../security-events/security-events.service';
@@ -74,16 +75,30 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
       .select('-password -emailVerificationTokenHash -passwordResetTokenHash -refreshTokens').exec();
   }
 
+  /** Fetch multiple users by id (e.g. for leaderboards). Returns lean docs with username. */
+  async findByIds(userIds: string[]): Promise<Array<{ _id: Types.ObjectId; username: string }>> {
+    if (!userIds?.length) return [];
+    const list = await this.userModel
+      .find({ _id: { $in: userIds.map((id) => new Types.ObjectId(id)) } })
+      .select('username')
+      .lean()
+      .exec();
+    return list as Array<{ _id: Types.ObjectId; username: string }>;
+  }
+
   async update(userId: string, updateData: Partial<User>): Promise<UserDocument | null> {
     return this.userModel.findByIdAndUpdate(userId, updateData, { new: true }).exec();
   }
 
-  async updateMe(userId: string, updateData: Partial<User>): Promise<UserDocument | null> {
+  async updateMe(userId: string, updateData: UpdateMeDto): Promise<UserDocument | null> {
     const forbiddenKeys = new Set(['password', 'email', 'roles', 'isAdmin', 'isActive', 'rating', 'totalChallengesSolved', 'totalBattlesWon', 'achievements', 'emailVerifiedAt', 'emailVerificationTokenHash', 'passwordResetTokenHash', 'passwordResetExpiresAt', 'refreshTokens']);
     for (const k of Object.keys(updateData || {})) {
       if (forbiddenKeys.has(k)) throw new ForbiddenException(`Field "${k}" cannot be updated here`);
     }
-    return this.userModel.findByIdAndUpdate(userId, updateData, { new: true })
+    const { dateOfBirth, ...rest } = updateData;
+    const payload: Partial<User> = { ...rest } as Partial<User>;
+    if (dateOfBirth) payload.dateOfBirth = new Date(dateOfBirth);
+    return this.userModel.findByIdAndUpdate(userId, payload, { new: true })
       .select('-password -emailVerificationTokenHash -passwordResetTokenHash -refreshTokens').exec();
   }
 

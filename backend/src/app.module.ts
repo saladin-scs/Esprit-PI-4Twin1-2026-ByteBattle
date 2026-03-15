@@ -9,6 +9,7 @@ import { validateConfig } from './config/validation';
 import { ChallengeModule } from './challenges/challenges.module';
 import { CodeExecutionModule } from './code-execution/code-execution.module';
 import { GamificationModule } from './gamification/gamification.module';
+import { CompetitionsModule } from './competitions/competitions.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { GamificationModule } from './gamification/gamification.module';
     CodeExecutionModule,
     ChallengeModule,
     GamificationModule,
+    CompetitionsModule,
   ],
 })
 export class AppModule {}

@@ -114,6 +114,17 @@ public class Solution {
     };
   }
 
+  /** Internal: load challenge with testCases for execution (e.g. competition submit). Do not expose to client. */
+  async getChallengeWithTestCases(id: string) {
+    const challenge = await this.challengeModel
+      .findById(id)
+      .select('+testCases')
+      .lean()
+      .exec();
+    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    return challenge;
+  }
+
   // ─── Détail d'un challenge ───────────────────────────────────────────────
   async findOne(id: string): Promise<ChallengeDocument> {
     const challenge = await this.challengeModel

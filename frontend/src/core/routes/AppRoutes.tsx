@@ -6,6 +6,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Suspense } from 'react';
 import Layout from '../../components/Layout/Layout';
 import { AdminRoute } from '../../components/guards/AdminRoute';
+import { ProtectedRoute } from '../../shared/components';
 import { LazyRoutes, SuspensePageFallback } from './lazyRoutes';
 
 const {
@@ -17,6 +18,7 @@ const {
   Dashboard,
   Leaderboard,
   Competitions,
+  CompetitionDetail,
   ProfileSettings,
   SecuritySettings,
   PublicProfile,
@@ -42,11 +44,12 @@ export function AppRoutes() {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/setup-2fa" element={<Setup2FA />} />
           <Route path="/auth/social/callback" element={<SocialCallback />} />
-          <Route path="/challenges" element={<Challenges />} />
-          <Route path="/challenges/:id" element={<ChallengeDetail />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/competitions" element={<Competitions />} />
+          <Route path="/challenges" element={<ProtectedRoute><Challenges /></ProtectedRoute>} />
+          <Route path="/challenges/:id" element={<ProtectedRoute><ChallengeDetail /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+          <Route path="/competitions" element={<ProtectedRoute><Competitions /></ProtectedRoute>} />
+          <Route path="/competitions/:id" element={<ProtectedRoute><CompetitionDetail /></ProtectedRoute>} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/security" element={<SecuritySettings />} />
           <Route path="/u/:username" element={<PublicProfile />} />
