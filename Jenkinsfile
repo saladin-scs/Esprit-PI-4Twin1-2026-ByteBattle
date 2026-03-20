@@ -10,8 +10,8 @@ pipeline {
     parameters {
         choice(name: 'DEPLOY_ENV', choices: ['staging', 'production'], description: 'Deploy environment')
         string(name: 'IMAGE_TAG', defaultValue: '', description: 'Optional image tag override')
-        booleanParam(name: 'RUN_SONAR', defaultValue: true, description: 'Run SonarQube analysis')
-        booleanParam(name: 'PUBLISH_IMAGES', defaultValue: true, description: 'Push to Docker Hub (disable for local VM cycle without registry)')
+        booleanParam(name: 'RUN_SONAR', defaultValue: false, description: 'Run SonarQube analysis (needs SonarQube configured in Jenkins)')
+        booleanParam(name: 'PUBLISH_IMAGES', defaultValue: false, description: 'Push to Docker Hub (enable for registry; off = local images only)')
         booleanParam(name: 'ROLLBACK', defaultValue: false, description: 'Rollback to PREVIOUS_TAG')
         string(name: 'PREVIOUS_TAG', defaultValue: 'latest', description: 'Rollback tag when ROLLBACK=true')
     }
