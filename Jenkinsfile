@@ -153,7 +153,7 @@ pipeline {
         stage('Smoke tests') {
             steps {
                 sh '''
-                  curl -fsS http://localhost:3000/health || curl -fsS http://localhost:3000 || exit 1
+                  curl -fsS http://localhost:3001/api || curl -fsS http://localhost:3001/competitions || exit 1
                   curl -fsS http://localhost:5173 || exit 1
                 '''
             }
