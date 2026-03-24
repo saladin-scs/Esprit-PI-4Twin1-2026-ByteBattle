@@ -10,17 +10,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: light dark;
-}
-
-:root:not(.dark) {
-  color: #171717;
-  background-color: #fafafa;
-}
-
-.dark {
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #111827;
 }
 
 body {
@@ -33,5 +22,29 @@ body {
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/* Light-mode compatibility for legacy dark-first utility classes */
+:root:not(.dark) .bg-gray-900,
+:root:not(.dark) .bg-gray-900\/60,
+:root:not(.dark) .bg-gray-900\/50,
+:root:not(.dark) .bg-gray-800,
+:root:not(.dark) .bg-gray-800\/80,
+:root:not(.dark) .bg-gray-800\/50 {
+  background-color: rgb(255 255 255 / 0.96) !important;
+}
+
+:root:not(.dark) .border-gray-700,
+:root:not(.dark) .border-gray-700\/50,
+:root:not(.dark) .border-gray-700\/40 {
+  border-color: rgb(229 231 235) !important;
+}
+
+:root:not(.dark) .text-gray-100,
+:root:not(.dark) .text-gray-200,
+:root:not(.dark) .text-gray-300,
+:root:not(.dark) .text-gray-400,
+:root:not(.dark) .text-white {
+  color: rgb(31 41 55) !important;
 }
 

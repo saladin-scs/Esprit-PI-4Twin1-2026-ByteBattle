@@ -31,7 +31,7 @@ function CompetitionOverviewComponent({ competition, className = '' }: Competiti
       <h2 id="overview-heading" className="text-lg font-semibold text-emerald-400 mb-3">
         Overview
       </h2>
-      <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400">
+      <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-400">
         {overviewItems.map((item, i) => (
           <li key={i} className="pl-1">
             {item}

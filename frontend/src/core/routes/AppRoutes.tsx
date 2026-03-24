@@ -24,6 +24,8 @@ const {
   PublicProfile,
   AdminUsers,
   AdminGamificationStats,
+  AdminCompetitions,
+  AdminChallenges,
   VerifyEmail,
   ForgotPassword,
   ResetPassword,
@@ -55,6 +57,8 @@ export function AppRoutes() {
           <Route path="/u/:username" element={<PublicProfile />} />
           <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
           <Route path="/admin/gamification" element={<AdminRoute><AdminGamificationStats /></AdminRoute>} />
+          <Route path="/admin/competitions" element={<AdminRoute><AdminCompetitions /></AdminRoute>} />
+          <Route path="/admin/challenges" element={<AdminRoute><AdminChallenges /></AdminRoute>} />
         </Routes>
       </Suspense>
     </Layout>

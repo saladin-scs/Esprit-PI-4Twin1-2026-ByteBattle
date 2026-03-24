@@ -16,7 +16,7 @@ interface CompetitionTabsProps {
 function CompetitionTabsComponent({ activeTab, onTabChange, disabled }: CompetitionTabsProps) {
   return (
     <div
-      className="flex gap-1 p-1 rounded-lg bg-gray-800/80 border border-gray-700"
+      className="flex gap-1 p-1 rounded-lg bg-gray-100 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700"
       role="tablist"
       aria-label="Contest filters"
     >
@@ -32,11 +32,11 @@ function CompetitionTabsComponent({ activeTab, onTabChange, disabled }: Competit
           onClick={() => onTabChange(value)}
           className={`
             px-5 py-2.5 text-sm font-medium rounded-md transition-colors
-            focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900
+            focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900
             disabled:opacity-50 disabled:cursor-not-allowed
             ${activeTab === value
               ? 'bg-emerald-500 text-white shadow-sm'
-              : 'text-gray-400 hover:text-gray-200'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
             }
           `}
         >

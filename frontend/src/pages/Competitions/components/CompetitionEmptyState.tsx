@@ -26,14 +26,14 @@ function CompetitionEmptyStateComponent({ tab, className = '' }: CompetitionEmpt
   const { title, description } = MESSAGES[tab];
   return (
     <div
-      className={`flex flex-col items-center justify-center py-16 px-6 rounded-xl border border-dashed border-gray-600 bg-gray-800/30 ${className}`}
+      className={`flex flex-col items-center justify-center py-16 px-6 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/30 ${className}`}
       role="status"
     >
-      <div className="rounded-full bg-gray-700/50 p-4 mb-4" aria-hidden>
-        <Trophy className="w-12 h-12 text-gray-500" />
+      <div className="rounded-full bg-gray-200 dark:bg-gray-700/50 p-4 mb-4" aria-hidden>
+        <Trophy className="w-12 h-12 text-gray-500 dark:text-gray-400" />
       </div>
-      <h3 className="text-lg font-semibold text-gray-300 mb-2">{title}</h3>
-      <p className="text-sm text-gray-500 text-center max-w-sm">{description}</p>
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-2">{title}</h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm">{description}</p>
     </div>
   );
 }

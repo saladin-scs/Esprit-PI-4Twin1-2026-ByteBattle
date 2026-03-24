@@ -233,7 +233,7 @@ function ProfileSettings() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date of birth</label>
               <DatePicker
                 selected={dateOfBirth}
-                onChange={(d) => setDateOfBirth(d)}
+                onChange={(d: Date | null) => setDateOfBirth(d)}
                 maxDate={new Date()}
                 showYearDropdown
                 scrollableYearDropdown

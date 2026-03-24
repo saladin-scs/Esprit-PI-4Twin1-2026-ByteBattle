@@ -37,6 +37,10 @@ export class CompetitionsService {
     return lang === 'cpp' ? 'c++' : lang;
   }
 
+  private escapeRegex(raw: string): string {
+    return raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   async create(dto: CreateCompetitionDto): Promise<CompetitionDocument> {
     const doc = new this.competitionModel({
       ...dto,
@@ -49,49 +53,174 @@ export class CompetitionsService {
     return doc.save();
   }
 
-  /** Create one sample competition using the first available challenge. Call after seeding challenges. */
-  async seedOne(): Promise<CompetitionDocument> {
+  /** Create sample competitions using the first available challenge. Call after seeding challenges. */
+  async seedOne() {
     const result = await this.challengeService.findAll({ page: 1, limit: 1 } as any);
     const challenges = (result as any).challenges;
     if (!challenges?.length) {
       throw new BadRequestException('No challenges found. Seed challenges first (POST /challenges/seed).');
     }
     const challengeId = (challenges[0] as any)._id?.toString?.() ?? (challenges[0] as any)._id;
-    const start = new Date();
-    const end = new Date();
-    end.setDate(end.getDate() + 7);
-    const dto: CreateCompetitionDto = {
-      name: 'Weekly Speed Challenge',
-      description: 'Solve the Reverse a String challenge as fast as you can. Lowest execution time wins. Tie-breaker: earliest submission.',
+
+    const comps = [];
+
+    // Active Competition
+    const start1 = new Date();
+    start1.setHours(start1.getHours() - 1);
+    const end1 = new Date();
+    end1.setDate(end1.getDate() + 3);
+
+    const dto1: CreateCompetitionDto = {
+      name: 'Global CodeSprint 2026',
+      description: 'The ultimate battle of algorithms. Prove your speed and efficiency against developers worldwide.',
       type: 'speed',
       challengeIds: [challengeId],
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
+      startTime: start1.toISOString(),
+      endTime: end1.toISOString(),
       supportedLanguages: ['javascript', 'python', 'java', 'cpp'],
       rules: 'Submit a correct solution. Ranking: by execution time (ms), then by submission time.',
+      prizes: ['$1000 First Place', 'Exclusive ByteBattle Hoodie', 'Special Profile Badge'],
+      difficulty: 'hard',
     };
-    const doc = new this.competitionModel({
-      ...dto,
-      challengeIds: dto.challengeIds.map((id) => new Types.ObjectId(id)),
-      startTime: new Date(dto.startTime),
-      endTime: new Date(dto.endTime),
-      supportedLanguages: dto.supportedLanguages ?? ['javascript', 'python', 'java', 'cpp'],
+    comps.push(new this.competitionModel({
+      ...dto1,
+      challengeIds: dto1.challengeIds.map((id) => new Types.ObjectId(id)),
+      startTime: new Date(dto1.startTime),
+      endTime: new Date(dto1.endTime),
+      supportedLanguages: dto1.supportedLanguages,
       status: 'active',
-    });
-    return doc.save();
+      participants: ['user-1', 'user-2', 'user-3'],
+    }).save());
+
+    // Scheduled Competition
+    const start2 = new Date();
+    start2.setDate(start2.getDate() + 2);
+    const end2 = new Date();
+    end2.setDate(end2.getDate() + 5);
+
+    const dto2: CreateCompetitionDto = {
+      name: 'Weekend Algorithmic Challenge',
+      description: 'Top-tier problem solving challenge. Focus on code golf and algorithmic complexity.',
+      type: 'algorithmic',
+      challengeIds: [challengeId],
+      startTime: start2.toISOString(),
+      endTime: end2.toISOString(),
+      supportedLanguages: ['python', 'javascript'],
+      rules: 'Points are awarded based on tests passed and code execution time.',
+      prizes: ['$500 Prize Pool', 'Premium Membership'],
+      difficulty: 'expert',
+    };
+    comps.push(new this.competitionModel({
+      ...dto2,
+      challengeIds: dto2.challengeIds.map((id) => new Types.ObjectId(id)),
+      startTime: new Date(dto2.startTime),
+      endTime: new Date(dto2.endTime),
+      supportedLanguages: dto2.supportedLanguages,
+      status: 'scheduled',
+      participants: [],
+    }).save());
+
+    // Scheduled short
+    const start3 = new Date();
+    start3.setMinutes(start3.getMinutes() + 5);
+    const end3 = new Date();
+    end3.setDate(end3.getDate() + 1);
+
+    const dto3: CreateCompetitionDto = {
+      name: 'Lightning Round Sprint',
+      description: 'Quick challenge for fast coders. Solved in under 15 minutes recommended.',
+      type: 'code_golf',
+      challengeIds: [challengeId],
+      startTime: start3.toISOString(),
+      endTime: end3.toISOString(),
+      supportedLanguages: ['javascript'],
+      rules: 'Shortest code size wins.',
+      prizes: ['200 XP', 'Quick Solver Badge'],
+      difficulty: 'medium',
+    };
+    comps.push(new this.competitionModel({
+      ...dto3,
+      challengeIds: dto3.challengeIds.map((id) => new Types.ObjectId(id)),
+      startTime: new Date(dto3.startTime),
+      endTime: new Date(dto3.endTime),
+      supportedLanguages: dto3.supportedLanguages,
+      status: 'scheduled',
+      participants: [],
+    }).save());
+
+    return Promise.all(comps);
   }
 
   async findAll(query: GetCompetitionsDto) {
-    const { status, page = 1, limit = 20 } = query;
+    const {
+      status,
+      type,
+      difficulty,
+      language,
+      search,
+      sortBy = 'startTime',
+      sortOrder = 'desc',
+      page = 1,
+      limit = 20,
+    } = query;
     const filter: any = {};
     if (status) filter.status = status;
-    const skip = (Number(page) - 1) * Number(limit);
+    if (type) filter.type = type;
+    if (difficulty) filter.difficulty = difficulty;
+    if (language) filter.supportedLanguages = language;
+    if (search?.trim()) {
+      const pattern = new RegExp(this.escapeRegex(search.trim()), 'i');
+      filter.$or = [{ name: pattern }, { description: pattern }];
+    }
+
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.max(1, Math.min(100, Number(limit) || 20));
+    const skip = (safePage - 1) * safeLimit;
+
+    const sortField = sortBy === 'endTime' ? 'endTime' : 'startTime';
+
+    if (sortBy === 'submissions') {
+      const [competitions, total] = await Promise.all([
+        this.competitionModel
+          .aggregate([
+            { $match: filter },
+            {
+              $lookup: {
+                from: 'competitionsubmissions',
+                localField: '_id',
+                foreignField: 'competitionId',
+                as: 'submissionRows',
+              },
+            },
+            {
+              $addFields: {
+                totalSubmissions: { $size: '$submissionRows' },
+              },
+            },
+            { $project: { submissionRows: 0 } },
+            { $sort: { totalSubmissions: sortDirection, startTime: -1 } },
+            { $skip: skip },
+            { $limit: safeLimit },
+          ])
+          .exec(),
+        this.competitionModel.countDocuments(filter),
+      ]);
+
+      return {
+        competitions,
+        total,
+        page: safePage,
+        totalPages: Math.ceil(total / safeLimit),
+      };
+    }
+
     const [competitions, total, counts] = await Promise.all([
       this.competitionModel
         .find(filter)
-        .sort({ startTime: -1 })
+        .sort({ [sortField]: sortDirection })
         .skip(skip)
-        .limit(Number(limit))
+        .limit(safeLimit)
         .lean()
         .exec(),
       this.competitionModel.countDocuments(filter),
@@ -107,8 +236,8 @@ export class CompetitionsService {
     return {
       competitions: competitionsWithCount,
       total,
-      page: Number(page),
-      totalPages: Math.ceil(total / Number(limit)),
+      page: safePage,
+      totalPages: Math.ceil(total / safeLimit),
     };
   }
 
@@ -381,5 +510,43 @@ export class CompetitionsService {
       ...params,
       status: params.status ?? 'archived',
     });
+  }
+
+  async update(competitionId: string, dto: any): Promise<CompetitionDocument> {
+    const competition = await this.competitionModel.findById(competitionId).exec();
+    if (!competition) throw new NotFoundException('Competition not found');
+
+    // Update fields if provided
+    if (dto.name !== undefined) competition.name = dto.name;
+    if (dto.description !== undefined) competition.description = dto.description;
+    if (dto.type !== undefined) competition.type = dto.type;
+    if (dto.rules !== undefined) competition.rules = dto.rules;
+    if (dto.prizes !== undefined) competition.prizes = dto.prizes;
+    if (dto.difficulty !== undefined) competition.difficulty = dto.difficulty;
+    
+    // Handle dates and arrays - only update if not started
+    if (competition.status === 'scheduled') {
+      if (dto.startTime !== undefined) competition.startTime = new Date(dto.startTime);
+      if (dto.endTime !== undefined) competition.endTime = new Date(dto.endTime);
+      if (dto.challengeIds !== undefined) {
+        competition.challengeIds = dto.challengeIds.map((id: string) => new Types.ObjectId(id));
+      }
+      if (dto.supportedLanguages !== undefined) competition.supportedLanguages = dto.supportedLanguages;
+    }
+
+    return competition.save();
+  }
+
+  async delete(competitionId: string): Promise<{ success: boolean; message: string }> {
+    const competition = await this.competitionModel.findById(competitionId).exec();
+    if (!competition) throw new NotFoundException('Competition not found');
+
+    // Prevent deletion of active or closed competitions
+    if (competition.status === 'active' || competition.status === 'closed') {
+      throw new BadRequestException('Cannot delete active or closed competitions');
+    }
+
+    await this.competitionModel.findByIdAndDelete(competitionId).exec();
+    return { success: true, message: 'Competition deleted successfully' };
   }
 }

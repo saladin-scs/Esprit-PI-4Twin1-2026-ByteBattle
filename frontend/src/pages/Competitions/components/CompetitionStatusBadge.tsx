@@ -10,8 +10,8 @@ const STATUS_CONFIG: Record<
     ariaLabel: 'Contest is scheduled',
   },
   active: {
-    label: 'Active',
-    className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
+    label: 'LIVE',
+    className: 'bg-red-500/20 text-red-400 border-red-500/60 animate-pulse',
     ariaLabel: 'Contest is active',
   },
   closed: {

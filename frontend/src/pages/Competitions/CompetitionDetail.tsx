@@ -24,6 +24,7 @@ export default function CompetitionDetail() {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [leaderboardLang, setLeaderboardLang] = useState('');
+  const [leaderboardLimit, setLeaderboardLimit] = useState(50);
 
   const {
     competition,
@@ -43,7 +44,8 @@ export default function CompetitionDetail() {
   const { entries: leaderboardEntries, loading: leaderboardLoading } = useLeaderboard(
     id,
     competition?.status,
-    leaderboardLang
+    leaderboardLang,
+    leaderboardLimit,
   );
 
   useEffect(() => {
@@ -85,7 +87,7 @@ export default function CompetitionDetail() {
       <Button
         variant="ghost"
         onClick={handleBack}
-        className="mb-6 text-gray-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-2"
+        className="mb-6 text-gray-600 dark:text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors inline-flex items-center gap-2"
         aria-label="Back to contests list"
       >
         <ArrowLeft className="w-4 h-4" /> Back to Contests
@@ -97,17 +99,17 @@ export default function CompetitionDetail() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="bg-gray-800/50 border border-gray-700 rounded-xl p-6"
+            className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-6"
           >
             <CompetitionHero competition={competition} />
-            <div className="prose prose-sm dark:prose-invert max-w-none text-gray-300 mt-4 mb-6">
+            <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 mt-4 mb-6">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{competition.description}</ReactMarkdown>
             </div>
             <CompetitionOverview competition={competition} />
-            <div className="mt-6 pt-6 border-t border-gray-700">
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
               <CompetitionRules additionalRules={competition.rules} />
             </div>
-            <p className="text-xs text-gray-500 mt-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
               Supported languages: {competition.supportedLanguages?.join(', ') || 'All'}
             </p>
           </motion.div>
@@ -121,20 +123,20 @@ export default function CompetitionDetail() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <Card className="bg-gray-800/50 border-gray-700 [&_h2]:text-emerald-400" title={challenge.title}>
+                <Card className="bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 [&_h2]:text-emerald-500 dark:[&_h2]:text-emerald-400" title={challenge.title}>
                   <div className="flex items-center gap-2 mb-3">
                     <DifficultyBadge difficulty={challenge.difficulty} />
                   </div>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-300">
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{challenge.description}</ReactMarkdown>
                   </div>
                   {challenge.examples?.length > 0 && (
                     <div className="mt-4">
-                      <h4 className="text-sm font-semibold text-emerald-400 mb-2">Examples</h4>
+                      <h4 className="text-sm font-semibold text-emerald-500 dark:text-emerald-400 mb-2">Examples</h4>
                       {challenge.examples.map((ex, i) => (
-                        <div key={i} className="mb-2 p-2 rounded bg-gray-700/50 text-sm text-gray-300">
-                          <div>Input: <code className="text-emerald-300">{ex.input}</code></div>
-                          <div>Output: <code className="text-emerald-300">{ex.output}</code></div>
+                        <div key={i} className="mb-2 p-2 rounded bg-gray-100 dark:bg-gray-700/50 text-sm text-gray-700 dark:text-gray-300">
+                          <div>Input: <code className="text-emerald-600 dark:text-emerald-300">{ex.input}</code></div>
+                          <div>Output: <code className="text-emerald-600 dark:text-emerald-300">{ex.output}</code></div>
                         </div>
                       ))}
                     </div>
@@ -179,6 +181,8 @@ export default function CompetitionDetail() {
             loading={leaderboardLoading}
             languageFilter={leaderboardLang}
             onLanguageFilterChange={setLeaderboardLang}
+            limit={leaderboardLimit}
+            onLimitChange={setLeaderboardLimit}
             supportedLanguages={competition.supportedLanguages ?? []}
           />
         </motion.aside>

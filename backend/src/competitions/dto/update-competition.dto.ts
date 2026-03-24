@@ -1,35 +1,41 @@
 /* eslint-disable prettier/prettier */
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsEnum, IsArray, IsDateString, IsOptional, MinLength, MaxLength } from 'class-validator';
 
-export class CreateCompetitionDto {
-  @ApiProperty()
+export class UpdateCompetitionDto {
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  name: string;
+  name?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  description: string;
+  description?: string;
 
-  @ApiProperty({ enum: ['code_golf', 'speed', 'algorithmic'] })
+  @ApiPropertyOptional({ enum: ['code_golf', 'speed', 'algorithmic'] })
+  @IsOptional()
   @IsEnum(['code_golf', 'speed', 'algorithmic'])
-  type: 'code_golf' | 'speed' | 'algorithmic';
+  type?: 'code_golf' | 'speed' | 'algorithmic';
 
-  @ApiProperty({ type: [String], description: 'Challenge IDs' })
+  @ApiPropertyOptional({ type: [String], description: 'Challenge IDs' })
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  challengeIds: string[];
+  challengeIds?: string[];
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsDateString()
-  startTime: string;
+  startTime?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsDateString()
-  endTime: string;
+  endTime?: string;
 
   @ApiPropertyOptional({ type: [String], enum: ['javascript', 'python', 'java', 'cpp'] })
   @IsOptional()

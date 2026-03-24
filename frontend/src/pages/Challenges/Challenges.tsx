@@ -3,11 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
 import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store/store';
+import { Button } from '../../shared/components';
 
 const PAGE_SIZE = 15;
 
 const Challenges = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isAdmin = !!user?.roles?.includes('admin');
   const {
     challenges,
     total,
@@ -37,12 +42,19 @@ const Challenges = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-          Challenges
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {total} challenge{total !== 1 ? 's' : ''} available
-        </p>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            Challenges
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {total} challenge{total !== 1 ? 's' : ''} available
+          </p>
+        </div>
+        {isAdmin && (
+          <Button onClick={() => navigate('/admin/challenges')}>
+            + Manage Challenges
+          </Button>
+        )}
       </div>
 
       <div className="mb-6">
@@ -155,7 +167,7 @@ const Challenges = () => {
           <button
             type="button"
             disabled={page === 1}
-            onClick={() => setPage((p) => p - 1)}
+            onClick={() => setPage(page - 1)}
             className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             <ChevronLeft className="w-4 h-4" /> Previous
@@ -166,7 +178,7 @@ const Challenges = () => {
           <button
             type="button"
             disabled={page === totalPages}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage(page + 1)}
             className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             Next <ChevronRight className="w-4 h-4" />

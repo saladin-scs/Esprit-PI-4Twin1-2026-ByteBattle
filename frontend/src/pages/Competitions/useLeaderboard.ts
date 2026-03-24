@@ -7,7 +7,8 @@ const POLL_INTERVAL_MS = 5000;
 export function useLeaderboard(
   competitionId: string | undefined,
   status: string | undefined,
-  languageFilter: string
+  languageFilter: string,
+  limit: number,
 ) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,13 +17,13 @@ export function useLeaderboard(
     if (!competitionId) return;
     setLoading(true);
     competitionsApi
-      .getLeaderboard(competitionId, { limit: 50, language: languageFilter || undefined })
+      .getLeaderboard(competitionId, { limit, language: languageFilter || undefined })
       .then((res: { data: { entries?: LeaderboardEntry[] } }) => {
         setEntries(res.data?.entries ?? []);
       })
       .catch(() => setEntries([]))
       .finally(() => setLoading(false));
-  }, [competitionId, languageFilter]);
+  }, [competitionId, languageFilter, limit]);
 
   useEffect(() => {
     if (!competitionId) {

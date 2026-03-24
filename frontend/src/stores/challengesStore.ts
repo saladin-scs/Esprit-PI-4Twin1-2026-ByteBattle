@@ -15,6 +15,7 @@ export interface ChallengeListItem {
   xpReward: number;
   totalSubmissions: number;
   totalAccepted: number;
+  createdAt: string;
 }
 
 interface ChallengesState {

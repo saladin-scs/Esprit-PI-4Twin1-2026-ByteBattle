@@ -275,13 +275,13 @@ function PublicProfile() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 shadow-xl"
+          className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-gray-700/50 p-6 shadow-xl"
         >
           <div className="flex flex-col sm:flex-row items-start gap-6">
             {/* Avatar */}
             <div className="relative -mt-16 sm:-mt-20">
               <div
-                className={`w-24 h-24 sm:w-32 sm:h-32 rounded-2xl border-4 border-gray-800 bg-gray-800 overflow-hidden flex-shrink-0 relative group ${isOwner ? 'cursor-pointer' : ''}`}
+                className={`w-24 h-24 sm:w-32 sm:h-32 rounded-2xl border-4 border-white dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden flex-shrink-0 relative group ${isOwner ? 'cursor-pointer' : ''}`}
                 onClick={handleAvatarClick}
               >
                 {(avatarPreview || profile.avatarUrl) ? (

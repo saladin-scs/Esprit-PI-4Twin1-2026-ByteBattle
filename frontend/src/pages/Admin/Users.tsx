@@ -9,6 +9,7 @@ import { useSelector } from 'react-redux';
 import { adminApi } from '../../services/api';
 import { Button, Input, Card, Alert, PageContainer, Spinner } from '../../shared/components';
 import type { RootState } from '../../store/store';
+import { usePopup } from '../../contexts/PopupContext';
 
 type Role = 'user' | 'moderator' | 'admin';
 
@@ -36,6 +37,7 @@ const PAGE_SIZE = 20;
 
 function AdminUsers() {
   const currentUserId = useSelector((s: RootState) => s.auth.user?.id);
+  const { confirm } = usePopup();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -95,7 +97,14 @@ function AdminUsers() {
       setError('You cannot deactivate your own account.');
       return;
     }
-    if (!window.confirm(`Are you sure you want to ${user.isActive ? 'deactivate' : 'activate'} ${user.email}?`)) {
+    const accepted = await confirm({
+      title: 'Confirm user status change',
+      message: `Are you sure you want to ${user.isActive ? 'deactivate' : 'activate'} ${user.email}?`,
+      confirmText: user.isActive ? 'Deactivate' : 'Activate',
+      cancelText: 'Cancel',
+      variant: user.isActive ? 'danger' : 'default',
+    });
+    if (!accepted) {
       return;
     }
     setUpdatingId(user._id);
@@ -122,7 +131,13 @@ function AdminUsers() {
     }
     const currentRoles = user.roles?.length ? user.roles : (user.isAdmin ? ['admin'] : ['user']);
     if (currentRoles.includes(role) && currentRoles.length === 1) return;
-    if (!window.confirm(`Set role of ${user.email} to "${role}"?`)) return;
+    const accepted = await confirm({
+      title: 'Confirm role change',
+      message: `Set role of ${user.email} to "${role}"?`,
+      confirmText: 'Confirm',
+      cancelText: 'Cancel',
+    });
+    if (!accepted) return;
     setUpdatingId(user._id);
     setError('');
     setSuccess('');
@@ -172,7 +187,7 @@ function AdminUsers() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500 min-w-[120px]"
+          className="px-3 py-2 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 min-w-[120px]"
         >
           <option value="">All roles</option>
           {ROLES.map((r) => (
@@ -182,7 +197,7 @@ function AdminUsers() {
         <select
           value={activeFilter}
           onChange={(e) => setActiveFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500 min-w-[120px]"
+          className="px-3 py-2 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 min-w-[120px]"
         >
           <option value="">Any status</option>
           <option value="true">Active</option>
@@ -191,7 +206,7 @@ function AdminUsers() {
         <select
           value={verifiedFilter}
           onChange={(e) => setVerifiedFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500 min-w-[140px]"
+          className="px-3 py-2 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 min-w-[140px]"
         >
           <option value="">Email verified</option>
           <option value="true">Verified</option>
@@ -209,15 +224,15 @@ function AdminUsers() {
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-900/60">
+            <thead className="bg-gray-100 dark:bg-gray-900/60">
               <tr className="text-left">
-                <th className="p-3 text-gray-300 font-medium">Email</th>
-                <th className="p-3 text-gray-300 font-medium">Username</th>
-                <th className="p-3 text-gray-300 font-medium">Role</th>
-                <th className="p-3 text-gray-300 font-medium">Status</th>
-                <th className="p-3 text-gray-300 font-medium">Verified</th>
-                <th className="p-3 text-gray-300 font-medium">Joined</th>
-                <th className="p-3 text-gray-300 font-medium">Actions</th>
+                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Email</th>
+                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Username</th>
+                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Role</th>
+                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Status</th>
+                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Verified</th>
+                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Joined</th>
+                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -232,16 +247,16 @@ function AdminUsers() {
                 </tr>
               ) : (
                 (data?.items ?? []).map((u) => (
-                  <tr key={u._id} className="border-t border-gray-700 hover:bg-gray-800/50">
-                    <td className="p-3 text-gray-200">{u.email}</td>
-                    <td className="p-3 text-gray-200">@{u.username}</td>
-                    <td className="p-3 text-gray-200">{displayRoles(u)}</td>
+                  <tr key={u._id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800/50">
+                    <td className="p-3 text-gray-800 dark:text-gray-200">{u.email}</td>
+                    <td className="p-3 text-gray-800 dark:text-gray-200">@{u.username}</td>
+                    <td className="p-3 text-gray-800 dark:text-gray-200">{displayRoles(u)}</td>
                     <td className="p-3">
                       <span
                         className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                           u.isActive !== false
-                            ? 'bg-green-900/40 text-green-300'
-                            : 'bg-red-900/40 text-red-300'
+                            ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                            : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                         }`}
                       >
                         {u.isActive !== false ? 'Active' : 'Inactive'}
@@ -249,12 +264,12 @@ function AdminUsers() {
                     </td>
                     <td className="p-3 text-gray-200">
                       {u.emailVerifiedAt ? (
-                        <span className="text-green-400">Yes</span>
+                        <span className="text-green-600 dark:text-green-400">Yes</span>
                       ) : (
-                        <span className="text-gray-500">No</span>
+                        <span className="text-gray-500 dark:text-gray-500">No</span>
                       )}
                     </td>
-                    <td className="p-3 text-gray-400">
+                    <td className="p-3 text-gray-500 dark:text-gray-400">
                       {u.createdAt
                         ? new Date(u.createdAt).toLocaleDateString(undefined, {
                             year: 'numeric',
@@ -288,7 +303,7 @@ function AdminUsers() {
                               className={`!py-1 !px-3 text-xs rounded font-medium transition ${
                                 isCurrentRole
                                   ? 'bg-blue-600 text-white cursor-default'
-                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed'
+                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed'
                               }`}
                             >
                               {role}
@@ -305,8 +320,8 @@ function AdminUsers() {
         </div>
 
         {data && !loading && (
-          <div className="flex items-center justify-between p-4 border-t border-gray-700 flex-wrap gap-4">
-            <div className="text-gray-400 text-sm">
+          <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700 flex-wrap gap-4">
+            <div className="text-gray-500 dark:text-gray-400 text-sm">
               {data.total} user{data.total !== 1 ? 's' : ''} — Page {data.page} of {Math.ceil(data.total / data.limit) || 1}
             </div>
             <div className="flex gap-2">

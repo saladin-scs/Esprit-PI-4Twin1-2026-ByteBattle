@@ -21,8 +21,10 @@ export const challengesApi = {
   upvoteSolution: (solutionId: string) =>
     apiClient.post(`/challenges/solutions/${solutionId}/upvote`, {}),
   create: (challenge: any) => apiClient.post('/challenges', challenge),
+  update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
+  delete: (id: string) => apiClient.delete(`/challenges/${id}`),
   generate: (data: { difficulty: string; topic: string }) =>
-    apiClient.post('/challenges/generate', data),
+    apiClient.post('/ai/generate-challenge', data),
 };
 
 
@@ -44,7 +46,17 @@ export const feedbackApi = {
 };
 
 export const competitionsApi = {
-  getAll: (params?: { status?: string; page?: number; limit?: number }) =>
+  getAll: (params?: {
+    status?: 'scheduled' | 'active' | 'closed' | 'archived';
+    page?: number;
+    limit?: number;
+    type?: 'code_golf' | 'speed' | 'algorithmic';
+    difficulty?: 'easy' | 'medium' | 'hard' | 'expert';
+    language?: 'javascript' | 'python' | 'java' | 'cpp';
+    search?: string;
+    sortBy?: 'startTime' | 'endTime' | 'submissions';
+    sortOrder?: 'asc' | 'desc';
+  }) =>
     apiClient.get('/competitions', { params }),
   getHistory: (params?: { page?: number; limit?: number }) =>
     apiClient.get('/competitions/history', { params }),
@@ -62,8 +74,8 @@ export const competitionsApi = {
 export const leaderboardApi = {
   getGlobal: (limit?: number) =>
     apiClient.get('/leaderboard', { params: { limit } }),
-  getCompetition: (id: string) =>
-    apiClient.get(`/leaderboard/competition/${id}`),
+  getCompetition: (id: string, params?: { language?: string; limit?: number }) =>
+    apiClient.get(`/leaderboard/competition/${id}`, { params }),
 };
 
 /** Gamification (XP, streaks, badges, leaderboard) */

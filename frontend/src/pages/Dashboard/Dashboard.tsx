@@ -7,13 +7,13 @@ import { gamificationApi } from '../../services/api';
 import { useGamificationStore } from '../../stores/gamificationStore';
 
 const RANK_TIER_COLORS: Record<string, string> = {
-  F: 'bg-gray-500/20 text-gray-300',
-  E: 'bg-gray-400/20 text-gray-200',
-  D: 'bg-amber-500/20 text-amber-400',
-  C: 'bg-emerald-500/20 text-emerald-400',
-  B: 'bg-blue-500/20 text-blue-400',
-  A: 'bg-purple-500/20 text-purple-400',
-  S: 'bg-yellow-500/20 text-yellow-400',
+  F: 'bg-gray-500/20 text-gray-700 dark:text-gray-300',
+  E: 'bg-gray-400/20 text-gray-700 dark:text-gray-200',
+  D: 'bg-amber-500/20 text-amber-700 dark:text-amber-400',
+  C: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400',
+  B: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
+  A: 'bg-purple-500/20 text-purple-700 dark:text-purple-400',
+  S: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400',
 };
 
 function Dashboard() {
@@ -82,7 +82,7 @@ function Dashboard() {
             <div className="mt-2">
               <span
                 className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${
-                  RANK_TIER_COLORS[summary.rankTier] ?? 'bg-gray-500/20 text-gray-300'
+                  RANK_TIER_COLORS[summary.rankTier] ?? 'bg-gray-500/20 text-gray-700 dark:text-gray-300'
                 }`}
               >
                 Tier {summary.rankTier}

@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -13,9 +14,13 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CompetitionsService } from './competitions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateCompetitionDto } from './dto/create-competition.dto';
+import { UpdateCompetitionDto } from './dto/update-competition.dto';
 import { SubmitCompetitionDto } from './dto/submit-competition.dto';
 import { GetCompetitionsDto } from './dto/get-competitions.dto';
+import { GetCompetitionLeaderboardDto } from './dto/get-competition-leaderboard.dto';
 
 @ApiTags('Competitions')
 @Controller('competitions')
@@ -50,18 +55,36 @@ export class CompetitionsController {
   @ApiOperation({ summary: 'Get competition leaderboard' })
   async getLeaderboard(
     @Param('id') id: string,
-    @Query('language') language?: string,
-    @Query('limit') limit?: number,
+    @Query() query: GetCompetitionLeaderboardDto,
   ) {
-    return this.competitionsService.getLeaderboard(id, { language, limit });
+    return this.competitionsService.getLeaderboard(id, query);
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create competition (admin)' })
+  @ApiOperation({ summary: 'Create competition (admin only)' })
   async create(@Body() dto: CreateCompetitionDto) {
     return this.competitionsService.create(dto);
+  }
+
+  @Put(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update competition (admin only)' })
+  async update(@Param('id') id: string, @Body() dto: UpdateCompetitionDto) {
+    return this.competitionsService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete competition (admin only)' })
+  async delete(@Param('id') id: string) {
+    return this.competitionsService.delete(id);
   }
 
   @Post(':id/join')
@@ -85,9 +108,10 @@ export class CompetitionsController {
   }
 
   @Put(':id/status')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update competition status (e.g. active → closed)' })
+  @ApiOperation({ summary: 'Update competition status (admin only, e.g. active → closed)' })
   async updateStatus(
     @Param('id') id: string,
     @Body() body: { status: 'scheduled' | 'active' | 'closed' | 'archived' },

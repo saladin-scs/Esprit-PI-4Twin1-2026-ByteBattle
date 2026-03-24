@@ -57,19 +57,19 @@ function SubmissionPanelComponent({
     : challenge.languages || ['python', 'javascript'];
 
   return (
-    <section className={`bg-gray-800/50 border border-gray-700 rounded-xl p-5 ${className}`} aria-labelledby="submission-heading">
+    <section className={`bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5 ${className}`} aria-labelledby="submission-heading">
       <h2 id="submission-heading" className="text-lg font-semibold text-emerald-400 mb-4">
         Submission
       </h2>
       <div className="mb-3">
-        <label htmlFor="submission-lang" className="block text-sm font-medium text-gray-300 mb-1">
+        <label htmlFor="submission-lang" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Language
         </label>
         <select
           id="submission-lang"
           value={selectedLang}
           onChange={(e) => onLanguageChange(e.target.value)}
-          className="w-full max-w-xs rounded-lg border border-gray-600 bg-gray-800 text-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+          className="w-full max-w-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
           aria-label="Select programming language"
         >
           {languages.map((l) => (
@@ -79,7 +79,7 @@ function SubmissionPanelComponent({
           ))}
         </select>
       </div>
-      <div className="rounded-lg border border-gray-700 overflow-hidden mb-3 focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 transition-shadow">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden mb-3 focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 transition-shadow">
         <Editor
           height="320px"
           language={MONACO_LANG[selectedLang] ?? selectedLang}

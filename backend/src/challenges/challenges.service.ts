@@ -60,6 +60,35 @@ public class Solution {
     return new this.challengeModel(dto).save();
   }
 
+  async update(challengeId: string, dto: Partial<CreateChallengeDto>) {
+    if (dto.difficulty && (dto.xpReward === undefined || dto.xpReward === null)) {
+      dto.xpReward = this.XP_MAP[dto.difficulty] ?? 50;
+    }
+
+    const updated = await this.challengeModel
+      .findByIdAndUpdate(challengeId, { $set: dto }, { new: true })
+      .lean()
+      .exec();
+
+    if (!updated) throw new NotFoundException('Challenge non trouvé');
+    return updated;
+  }
+
+  // ─── Supprimer un challenge (admin) ─────────────────────────────────────
+  async delete(challengeId: string): Promise<{ deleted: boolean; challengeId: string }> {
+    const id = new Types.ObjectId(challengeId);
+
+    // Clean up related docs to avoid orphan data.
+    await Promise.all([
+      this.submissionModel.deleteMany({ challengeId: id }).exec(),
+      this.solutionModel.deleteMany({ challengeId: id }).exec(),
+    ]);
+
+    const res = await this.challengeModel.deleteOne({ _id: id }).exec();
+    if (!res.deletedCount) throw new NotFoundException('Challenge non trouvé');
+    return { deleted: true, challengeId };
+  }
+
   /** Seed 2 easy + 2 medium + 2 hard challenges (idempotent: skip if title exists). */
   async seed(): Promise<{ created: number; skipped: number }> {
     let created = 0;
@@ -98,7 +127,7 @@ public class Solution {
       this.challengeModel
         .find(filter)
         .select('-testCases') // ← ne jamais envoyer les tests au frontend
-        .sort({ difficulty: 1, createdAt: -1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
         .lean()

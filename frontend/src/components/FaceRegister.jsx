@@ -2,10 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import * as faceapi from "face-api.js";
+import { usePopup } from "../contexts/PopupContext";
 
 export default function FaceRegister({ userId }) {
 
   const videoRef = useRef();
+  const { alert } = usePopup();
 
   useEffect(() => {
     loadModels();
@@ -46,7 +48,12 @@ export default function FaceRegister({ userId }) {
       })
     });
 
-    alert("Face Registered !");
+    await alert({
+      title: "Face registration",
+      message: "Face Registered !",
+      confirmText: "OK",
+      variant: "success",
+    });
   };
 
   return (

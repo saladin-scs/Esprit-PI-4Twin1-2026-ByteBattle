@@ -10,6 +10,8 @@ import { ChallengeModule } from './challenges/challenges.module';
 import { CodeExecutionModule } from './code-execution/code-execution.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { CompetitionsModule } from './competitions/competitions.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { CompetitionsModule } from './competitions/competitions.module';
     ChallengeModule,
     GamificationModule,
     CompetitionsModule,
+    LeaderboardModule,
+    AiModule,
   ],
 })
 export class AppModule {}

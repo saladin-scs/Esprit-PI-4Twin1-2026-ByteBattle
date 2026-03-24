@@ -86,6 +86,51 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     return list as Array<{ _id: Types.ObjectId; username: string }>;
   }
 
+  async getXpLeaderboard(page = 1, limit = 100): Promise<{
+    items: Array<{
+      username: string;
+      displayName?: string;
+      avatarUrl?: string;
+      xp: number;
+      rankTier?: string;
+      totalChallengesSolved: number;
+      currentStreak: number;
+      badgeIds?: string[];
+    }>;
+    page: number;
+    limit: number;
+    total: number;
+  }> {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.max(1, Math.min(200, Number(limit) || 100));
+    const skip = (safePage - 1) * safeLimit;
+
+    const [rows, total] = await Promise.all([
+      this.userModel
+        .find({ isActive: true })
+        .select('username displayName avatarUrl xp rankTier totalChallengesSolved currentStreak badgeIds')
+        .sort({ xp: -1, totalChallengesSolved: -1, currentStreak: -1, createdAt: 1 })
+        .skip(skip)
+        .limit(safeLimit)
+        .lean()
+        .exec(),
+      this.userModel.countDocuments({ isActive: true }).exec(),
+    ]);
+
+    const items = (rows as any[]).map((u) => ({
+      username: u.username,
+      displayName: u.displayName,
+      avatarUrl: u.avatarUrl,
+      xp: u.xp ?? 0,
+      rankTier: u.rankTier,
+      totalChallengesSolved: u.totalChallengesSolved ?? 0,
+      currentStreak: u.currentStreak ?? 0,
+      badgeIds: u.badgeIds ?? [],
+    }));
+
+    return { items, page: safePage, limit: safeLimit, total };
+  }
+
   async update(userId: string, updateData: Partial<User>): Promise<UserDocument | null> {
     return this.userModel.findByIdAndUpdate(userId, updateData, { new: true }).exec();
   }

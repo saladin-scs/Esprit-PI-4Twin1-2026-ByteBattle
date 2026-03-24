@@ -14,14 +14,16 @@ const Competitions = lazy(() => import('../../pages/Competitions/Competitions').
 const CompetitionDetail = lazy(() => import('../../pages/Competitions/CompetitionDetail').then((m) => ({ default: m.default })));
 const ProfileSettings = lazy(() => import('../../pages/Settings/Profile').then((m) => ({ default: m.default })));
 const SecuritySettings = lazy(() => import('../../pages/Settings/Security').then((m) => ({ default: m.default })));
-const PublicProfile = lazy(() => import('../../pages/User/PublicProfile').then((m) => ({ default: m.default })));
 const AdminUsers = lazy(() => import('../../pages/Admin/Users').then((m) => ({ default: m.default })));
 const AdminGamificationStats = lazy(() => import('../../pages/Admin/GamificationStats').then((m) => ({ default: m.default })));
+const AdminCompetitions = lazy(() => import('../../pages/Admin/Competitions').then((m) => ({ default: m.default })));
+const AdminChallenges = lazy(() => import('../../pages/Admin/Challenges').then((m) => ({ default: m.default })));
 const VerifyEmail = lazy(() => import('../../pages/Auth/VerifyEmail').then((m) => ({ default: m.default })));
 const ForgotPassword = lazy(() => import('../../pages/Auth/ForgotPassword').then((m) => ({ default: m.default })));
 const ResetPassword = lazy(() => import('../../pages/Auth/ResetPassword').then((m) => ({ default: m.default })));
 const SocialCallback = lazy(() => import('../../pages/Auth/SocialCallback').then((m) => ({ default: m.default })));
 const Setup2FA = lazy(() => import('../../pages/Auth/Setup2FA').then((m) => ({ default: m.default })));
+const PublicProfile = lazy(() => import('../../pages/User/PublicProfile').then((m) => ({ default: m.default })));
 
 export const LazyRoutes = {
   Home,
@@ -38,6 +40,8 @@ export const LazyRoutes = {
   PublicProfile,
   AdminUsers,
   AdminGamificationStats,
+  AdminCompetitions,
+  AdminChallenges,
   VerifyEmail,
   ForgotPassword,
   ResetPassword,

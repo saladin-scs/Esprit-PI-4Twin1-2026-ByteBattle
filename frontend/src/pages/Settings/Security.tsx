@@ -4,9 +4,11 @@ import { authApi, usersApi } from '../../services/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchMe, logout } from '../../store/slices/authSlice';
 import { Button, Input, Card, Alert, PageContainer } from '../../shared/components';
+import { usePopup } from '../../contexts/PopupContext';
 
 function SecuritySettings() {
   const dispatch = useDispatch<AppDispatch>();
+  const { confirm } = usePopup();
   const { user, refreshToken } = useSelector((s: RootState) => s.auth);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -51,7 +53,14 @@ function SecuritySettings() {
   };
 
   const onLogout = async () => {
-    if (!window.confirm('Are you sure you want to disconnect?')) return;
+    const accepted = await confirm({
+      title: 'Log out',
+      message: 'Are you sure you want to disconnect?',
+      confirmText: 'Log out',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    if (!accepted) return;
     try {
       await authApi.logout(refreshToken || undefined);
     } catch {
@@ -188,7 +197,7 @@ function SecuritySettings() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                   Save these codes in a safe place. Each code can only be used once.
                 </p>
-                <div className="grid grid-cols-2 gap-2 text-sm font-mono bg-gray-900 p-3 rounded text-gray-300">
+                <div className="grid grid-cols-2 gap-2 text-sm font-mono bg-gray-100 dark:bg-gray-900 p-3 rounded text-gray-800 dark:text-gray-300">
                   {twofaSetup.backupCodes.map((c) => (
                     <div key={c}>{c}</div>
                   ))}

@@ -43,6 +43,12 @@ export class Competition {
 
   @Prop({ type: [String], default: [] })
   participants: string[];
+
+  @Prop({ type: [String], default: [] })
+  prizes: string[];
+
+  @Prop({ enum: ['easy', 'medium', 'hard', 'expert'], default: 'medium' })
+  difficulty: string;
 }
 
 export const CompetitionSchema = SchemaFactory.createForClass(Competition);
