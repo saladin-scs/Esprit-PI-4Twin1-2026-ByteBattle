@@ -1,13 +1,34 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { authApi, usersApi } from '../../services/api';
 
-interface User {
+// Expanded User interface to match backend schema
+export interface User {
   id: string;
   email: string;
   username: string;
   roles?: string[];
   displayName?: string;
+  bio?: string;
+  country?: string;
+  phone?: string;
   avatarUrl?: string;
+  coverImage?: string;
+  links?: string[];
+  socialLinks?: {
+    github?: string;
+    linkedin?: string;
+    twitter?: string;
+    portfolio?: string;
+  };
+  profilePublic?: boolean;
+  preferences?: {
+    preferredLanguage?: string;
+    theme?: 'light' | 'dark';
+    notifications?: {
+      email?: boolean;
+      product?: boolean;
+    };
+  };
   emailVerifiedAt?: string | null;
   twoFactorEnabled?: boolean;
 }
@@ -191,7 +212,6 @@ const authSlice = createSlice({
       .addCase(fetchMe.fulfilled, (state, action) => {
         state.loading = false;
         if (action.payload) {
-          // Backend returns _id for mongoose docs; normalize
           const u = action.payload;
           state.user = {
             id: u._id || u.id,
@@ -199,7 +219,15 @@ const authSlice = createSlice({
             username: u.username,
             roles: u.roles || (u.isAdmin ? ['admin'] : ['user']),
             displayName: u.displayName,
+            bio: u.bio,
+            country: u.country,
+            phone: u.phone,
             avatarUrl: u.avatarUrl,
+            coverImage: u.coverImage,
+            links: u.links,
+            socialLinks: u.socialLinks,
+            profilePublic: u.profilePublic,
+            preferences: u.preferences,
             emailVerifiedAt: u.emailVerifiedAt || null,
             twoFactorEnabled: u.twoFactorEnabled || false,
           };
@@ -215,4 +243,3 @@ const authSlice = createSlice({
 
 export const { logout, setUser, complete2faSetup } = authSlice.actions;
 export default authSlice.reducer;
-
