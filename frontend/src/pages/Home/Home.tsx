@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import { PageContainer, Card, Button } from '../../shared/components';
-import { Trophy, Zap, BarChart3 } from 'lucide-react';
+import { Trophy, Zap, BarChart3, MessageCircle } from 'lucide-react';
 
 function Home() {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -54,7 +54,7 @@ function Home() {
         </div>
       </div>
 
-      <div className="relative mt-16 grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-8">
+      <div className="relative mt-16 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 md:gap-8">
         <Card className="bb-card border-0 p-6 shadow-lg">
           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500/15 text-primary-600 dark:text-primary-400">
             <Trophy className="h-5 w-5" aria-hidden />
@@ -80,6 +80,17 @@ function Home() {
           <h2 className="bb-section-title mb-2 text-base">Progress</h2>
           <p className="bb-body-text text-sm">
             Tiers, streaks, badges, and global leaderboard — track growth in one place.
+          </p>
+        </Card>
+        <Card className="bb-card border-0 p-6 shadow-lg ring-2 ring-emerald-500/20">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+            <MessageCircle className="h-5 w-5" aria-hidden />
+          </div>
+          <h2 className="bb-section-title mb-2 text-base">Live chat</h2>
+          <p className="bb-body-text text-sm">
+            {isAuthenticated
+              ? 'Discuss with others on each challenge (Chat tab) and in every contest (sidebar under the leaderboard).'
+              : 'Sign in to join challenge and contest chat rooms in real time.'}
           </p>
         </Card>
       </div>

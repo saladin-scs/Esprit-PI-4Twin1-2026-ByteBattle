@@ -4,6 +4,7 @@ import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
 import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
 import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
+import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilityCallout';
 
 const PAGE_SIZE = 15;
 
@@ -52,6 +53,10 @@ const Challenges = () => {
           {total} challenge{total !== 1 ? 's' : ''} available — solve in your language, earn XP, climb the leaderboard.
         </p>
       </header>
+
+      <div className="relative mb-6">
+        <ChatAvailabilityCallout variant="compact" />
+      </div>
 
       <div className="relative mb-6 bb-card p-4 sm:p-5">
         <ChallengeFilters

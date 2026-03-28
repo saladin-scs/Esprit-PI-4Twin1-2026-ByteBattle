@@ -6,6 +6,7 @@ import { RootState } from '../../store/store';
 import { Button } from '../../shared/components';
 import { ThemeToggle } from '../../shared/components/ThemeToggle';
 import { UserMenu } from './UserMenu';
+import { ChatNavHint } from './ChatNavHint';
 
 const navLinks = [
   { to: '/challenges', label: 'Challenges', authOnly: true },
@@ -68,6 +69,11 @@ export function HeaderMobileMenu() {
                     {label}
                   </Link>
                 ))}
+                {isAuthenticated && (
+                  <div className="px-3 py-2">
+                    <ChatNavHint />
+                  </div>
+                )}
                 <div className="flex items-center gap-2 pt-2 mt-2 border-t border-gray-100 dark:border-gray-700">
                   <ThemeToggle />
                   {isAuthenticated ? (

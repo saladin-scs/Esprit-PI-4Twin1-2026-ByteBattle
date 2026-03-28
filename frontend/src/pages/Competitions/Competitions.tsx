@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { PageContainer } from '../../shared/components';
 import { Alert } from '../../shared/components';
+import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilityCallout';
 import { Trophy, Sparkles } from 'lucide-react';
 import { useCompetitionsStore } from './useCompetitionsStore';
 import {
@@ -34,6 +35,10 @@ export default function Competitions() {
           Time-limited programming contests. Submit solutions, climb live leaderboards, earn XP and badges.
         </p>
       </header>
+
+      <div className="relative mb-8">
+        <ChatAvailabilityCallout variant="banner" />
+      </div>
 
       <CompetitionTabs activeTab={tab} onTabChange={setTab} disabled={loading} />
 

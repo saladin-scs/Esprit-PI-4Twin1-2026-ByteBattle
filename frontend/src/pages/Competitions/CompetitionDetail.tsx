@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Button, Card } from '../../shared/components';
@@ -244,6 +244,10 @@ export default function CompetitionDetail() {
           />
           {isAuthed && (
             <div className="mt-6">
+              <p className="mb-2 flex items-center gap-2 text-xs font-medium text-emerald-800 dark:text-emerald-200">
+                <MessageCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                Salon de discussion — même colonne que le classement (défilez si besoin).
+              </p>
               <CollaborationChat
                 room={`competition:${id}`}
                 title="Chat de la compétition"

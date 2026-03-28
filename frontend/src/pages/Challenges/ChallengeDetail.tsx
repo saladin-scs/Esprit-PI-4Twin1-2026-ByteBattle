@@ -413,6 +413,21 @@ const ChallengeDetail = () => {
               )}
             </div>
 
+            {isAuthed && activeTab !== 'chat' && (
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-emerald-500/20 bg-emerald-500/5 px-4 py-2 text-xs text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+                <span>
+                  <span className="font-semibold">Chat en direct</span> — discutez avec les autres sur ce défi.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('chat')}
+                  className="shrink-0 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
+                >
+                  Ouvrir le chat
+                </button>
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto p-5">
               {activeTab === 'description' && (
                 <>

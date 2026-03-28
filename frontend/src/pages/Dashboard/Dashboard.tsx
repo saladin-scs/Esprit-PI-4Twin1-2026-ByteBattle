@@ -7,6 +7,7 @@ import { PageContainer, Card, Button, Spinner, SimpleTooltip, ProgressBar } from
 import { gamificationApi } from '../../services/api';
 import { useGamificationStore } from '../../stores/gamificationStore';
 import { LayoutDashboard, Flame, Target, Trophy, Sparkles, Info } from 'lucide-react';
+import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilityCallout';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as ChartTooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const RANK_TIER_COLORS: Record<string, string> = {
@@ -110,6 +111,7 @@ function Dashboard() {
       )}
 
       {summary && (
+        <>
         <div className="relative mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <motion.div {...cardMotion} transition={{ duration: 0.25, delay: 0 }}>
             <Card className="bb-card group h-full p-6 transition-shadow hover:shadow-xl">
@@ -208,6 +210,14 @@ function Dashboard() {
             </Card>
           </motion.div>
         </div>
+        <motion.div
+          {...cardMotion}
+          transition={{ duration: 0.25, delay: 0.18 }}
+          className="relative -mt-4 mb-8"
+        >
+          <ChatAvailabilityCallout variant="compact" />
+        </motion.div>
+        </>
       )}
 
       {summary && (
