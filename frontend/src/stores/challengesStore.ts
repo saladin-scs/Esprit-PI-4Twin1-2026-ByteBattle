@@ -15,6 +15,10 @@ export interface ChallengeListItem {
   xpReward: number;
   totalSubmissions: number;
   totalAccepted: number;
+  /** ISO date — fallback pour badge « nouveau » si l’API n’envoie pas isNew */
+  createdAt?: string;
+  /** Défini par l’API (créé il y a moins de CHALLENGE_NEW_DAYS jours) */
+  isNew?: boolean;
 }
 
 interface ChallengesState {

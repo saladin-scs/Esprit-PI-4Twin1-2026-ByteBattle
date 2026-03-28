@@ -8,6 +8,16 @@ import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilit
 
 const PAGE_SIZE = 15;
 
+/** Jours : aligné avec CHALLENGE_NEW_DAYS côté backend par défaut (14). */
+const NEW_CHALLENGE_DAYS = 14;
+
+function isNewFromCreatedAt(createdAt?: string): boolean {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < NEW_CHALLENGE_DAYS * 86400000;
+}
+
 const Challenges = () => {
   const navigate = useNavigate();
   const {
@@ -50,7 +60,8 @@ const Challenges = () => {
           <span className="bb-title-gradient text-3xl md:text-4xl">Challenges</span>
         </h1>
         <p className="bb-body-text max-w-2xl">
-          {total} challenge{total !== 1 ? 's' : ''} available — solve in your language, earn XP, climb the leaderboard.
+          {total} challenge{total !== 1 ? 's' : ''} available — <strong>newest first</strong>. Challenges from the last{' '}
+          {NEW_CHALLENGE_DAYS} days are marked <span className="font-medium text-emerald-600 dark:text-emerald-400">Nouveau</span>.
         </p>
       </header>
 
@@ -132,7 +143,17 @@ const Challenges = () => {
                         {(page - 1) * PAGE_SIZE + i + 1}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-900 dark:text-slate-100">{c.title}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-slate-900 dark:text-slate-100">{c.title}</span>
+                          {(c.isNew || isNewFromCreatedAt(c.createdAt)) && (
+                            <span
+                              className="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-400/35 dark:bg-emerald-500/20 dark:text-emerald-200"
+                              title={`Nouveau — créé il y a moins de ${NEW_CHALLENGE_DAYS} jours`}
+                            >
+                              Nouveau
+                            </span>
+                          )}
+                        </div>
                         <div className="mt-1 flex flex-wrap gap-1.5">
                           {(c.tags || []).slice(0, 3).map((t) => (
                             <span

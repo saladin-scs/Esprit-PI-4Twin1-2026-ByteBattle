@@ -1,6 +1,6 @@
 /**
- * Seed data: 2 easy + 2 medium + 2 hard challenges (stdin → stdout).
- * Used by POST /admin/seed-challenges or on first run.
+ * Seed data: défis stdin → stdout (easy / medium / hard).
+ * Used by npm run seed:challenges — idempotent sur le titre.
  */
 export const SEED_CHALLENGES = [
   // ─── Easy ───────────────────────────────────────────────────────────────
@@ -272,5 +272,252 @@ public class Solution {
 }`,
       cpp: '#include <iostream>\n#include <sstream>\n#include <vector>\n#include <string>\nusing namespace std;\nint main() { string line; getline(cin, line); stringstream ss(line); vector<string> words; string w; while (ss >> w) words.push_back(w); /* TODO: translate each Pig Latin word to English */ cout << endl; return 0; }',
     },
+  },
+  // ─── More easy ───────────────────────────────────────────────────────────
+  {
+    title: 'Maximum of Three',
+    description: `Read three integers and print the largest.
+
+**Input:** One line with three space-separated integers.  
+**Output:** The maximum value.
+
+**Example:**  
+Input: \`1 5 3\` → Output: \`5\`  
+Input: \`-2 -8 -1\` → Output: \`-1\``,
+    difficulty: 'easy' as const,
+    languages: ['javascript', 'python', 'java', 'cpp'],
+    tags: ['math', 'easy'],
+    examples: [
+      { input: '1 5 3', output: '5' },
+      { input: '-2 -8 -1', output: '-1' },
+    ],
+    testCases: [
+      { input: '1 5 3', expectedOutput: '5' },
+      { input: '-2 -8 -1', expectedOutput: '-1' },
+      { input: '10 10 9', expectedOutput: '10' },
+      { input: '0 0 0', expectedOutput: '0' },
+    ],
+    starterCode: {
+      javascript:
+        'const [a, b, c] = readline().split(/\\s+/).map(Number);\n// TODO: print max of a, b, c\nconsole.log(0);',
+      python: 'a, b, c = map(int, input().split())\n# TODO: print max of a, b, c\nprint(0)',
+      java: `import java.io.*;
+import java.util.*;
+
+public class Solution {
+  public static void main(String[] args) throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    StringTokenizer st = new StringTokenizer(br.readLine());
+    int a = Integer.parseInt(st.nextToken()), b = Integer.parseInt(st.nextToken()), c = Integer.parseInt(st.nextToken());
+    // TODO: print max of a, b, c
+    System.out.println(0);
+  }
+}`,
+      cpp: '#include <iostream>\nusing namespace std;\nint main() { int a, b, c; cin >> a >> b >> c; /* TODO: print max */ cout << 0 << endl; return 0; }',
+    },
+    hints: [
+      {
+        text: 'Compare deux à deux, ou utilise une fonction **max** fournie par le langage.',
+        tier: 'basic' as const,
+        cost: 0,
+      },
+    ],
+  },
+  {
+    title: 'Vowel Counter',
+    description: `Count how many vowels appear in a line of text (case-insensitive).  
+Vowels: **a, e, i, o, u**.
+
+**Input:** One line (non-empty string, letters and spaces allowed).  
+**Output:** A single integer — the number of vowels.
+
+**Example:**  
+Input: \`ByteBattle\` → Output: \`4\`  
+Input: \`rhythm\` → Output: \`0\``,
+    difficulty: 'easy' as const,
+    languages: ['javascript', 'python', 'java', 'cpp'],
+    tags: ['string', 'easy'],
+    examples: [
+      { input: 'ByteBattle', output: '4' },
+      { input: 'rhythm', output: '0' },
+    ],
+    testCases: [
+      { input: 'ByteBattle', expectedOutput: '4' },
+      { input: 'rhythm', expectedOutput: '0' },
+      { input: 'AEIOU', expectedOutput: '5' },
+      { input: 'a', expectedOutput: '1' },
+    ],
+    starterCode: {
+      javascript:
+        "const s = readline();\n// TODO: count vowels a,e,i,o,u (ignore case)\nconsole.log(0);",
+      python: 's = input()\n# TODO: count vowels a,e,i,o,u (ignore case)\nprint(0)',
+      java: `import java.io.*;
+
+public class Solution {
+  public static void main(String[] args) throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    String s = br.readLine();
+    // TODO: count vowels a,e,i,o,u (ignore case)
+    System.out.println(0);
+  }
+}`,
+      cpp: '#include <iostream>\n#include <string>\nusing namespace std;\nint main() { string s; getline(cin, s); /* TODO: count vowels */ cout << 0 << endl; return 0; }',
+    },
+  },
+  // ─── More medium ─────────────────────────────────────────────────────────
+  {
+    title: 'Anagram Check',
+    description: `Two words are **anagrams** if they use the same letters the same number of times (ignoring order).
+
+**Input:** Two lines — first word, second word (lowercase letters only, non-empty).  
+**Output:** \`YES\` if they are anagrams, otherwise \`NO\`.
+
+**Example:**  
+Input: \`listen\\nsilent\` → Output: \`YES\`  
+Input: \`hello\\nworld\` → Output: \`NO\``,
+    difficulty: 'medium' as const,
+    languages: ['javascript', 'python', 'java', 'cpp'],
+    tags: ['string', 'sorting'],
+    examples: [
+      { input: 'listen\nsilent', output: 'YES' },
+      { input: 'hello\nworld', output: 'NO' },
+    ],
+    testCases: [
+      { input: 'listen\nsilent', expectedOutput: 'YES' },
+      { input: 'hello\nworld', expectedOutput: 'NO' },
+      { input: 'a\na', expectedOutput: 'YES' },
+      { input: 'abc\ncba', expectedOutput: 'YES' },
+      { input: 'abc\nabz', expectedOutput: 'NO' },
+    ],
+    starterCode: {
+      javascript:
+        'const a = readline().trim();\nconst b = readline().trim();\n// TODO: print YES if anagrams else NO\nconsole.log("NO");',
+      python: 'a = input().strip()\nb = input().strip()\n# TODO: print YES if anagrams else NO\nprint("NO")',
+      java: `import java.io.*;
+
+public class Solution {
+  public static void main(String[] args) throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    String a = br.readLine().trim();
+    String b = br.readLine().trim();
+    // TODO: print YES if anagrams else NO
+    System.out.println("NO");
+  }
+}`,
+      cpp: '#include <iostream>\n#include <string>\nusing namespace std;\nint main() { string a, b; getline(cin, a); getline(cin, b); /* TODO: YES/NO anagram */ cout << "NO" << endl; return 0; }',
+    },
+    hints: [
+      {
+        text: 'Trie les caractères des deux mots (ou compte chaque lettre avec une table) puis compare.',
+        tier: 'basic' as const,
+        cost: 0,
+      },
+    ],
+  },
+  {
+    title: 'Cyclic Rotation Check',
+    description: `String \`B\` is a **cyclic rotation** of \`A\` if you can split \`A\` into \`XY\` such that \`B = YX\` (same length, same characters in order around the circle).
+
+**Input:** Two lines — string \`A\`, then string \`B\` (same length, lowercase letters).  
+**Output:** \`YES\` or \`NO\`.
+
+**Example:**  
+Input: \`abcde\\ncdeab\` → Output: \`YES\`  
+Input: \`abcde\\nabced\` → Output: \`NO\``,
+    difficulty: 'medium' as const,
+    languages: ['javascript', 'python', 'java', 'cpp'],
+    tags: ['string'],
+    examples: [
+      { input: 'abcde\ncdeab', output: 'YES' },
+      { input: 'abcde\nabced', output: 'NO' },
+    ],
+    testCases: [
+      { input: 'abcde\ncdeab', expectedOutput: 'YES' },
+      { input: 'abcde\nabced', expectedOutput: 'NO' },
+      { input: 'a\na', expectedOutput: 'YES' },
+      { input: 'ab\nba', expectedOutput: 'YES' },
+      { input: 'ab\nca', expectedOutput: 'NO' },
+    ],
+    starterCode: {
+      javascript:
+        'const A = readline().trim();\nconst B = readline().trim();\n// TODO: YES if B is a rotation of A\nconsole.log("NO");',
+      python: 'A = input().strip()\nB = input().strip()\n# TODO: YES if B is a rotation of A\nprint("NO")',
+      java: `import java.io.*;
+
+public class Solution {
+  public static void main(String[] args) throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    String A = br.readLine().trim();
+    String B = br.readLine().trim();
+    // TODO: YES if B is a rotation of A
+    System.out.println("NO");
+  }
+}`,
+      cpp: '#include <iostream>\n#include <string>\nusing namespace std;\nint main() { string A, B; getline(cin, A); getline(cin, B); /* TODO */ cout << "NO" << endl; return 0; }',
+    },
+    hints: [
+      {
+        text: 'Si **A** et **B** ont la même longueur, vérifie si **B** est une sous-chaîne de **A+A**.',
+        tier: 'detailed' as const,
+        cost: 0,
+      },
+    ],
+  },
+  // ─── More hard ───────────────────────────────────────────────────────────
+  {
+    title: 'Power of Two',
+    description: `Given a positive integer \`n\`, decide if it is a **power of two** (i.e. \`n = 2^k\` for some integer \`k ≥ 0\`).
+
+**Input:** One line, integer \`n\` (\`1 ≤ n ≤ 10^9\`).  
+**Output:** \`YES\` or \`NO\`.
+
+**Example:**  
+Input: \`8\` → Output: \`YES\`  
+Input: \`10\` → Output: \`NO\`  
+Input: \`1\` → Output: \`YES\``,
+    difficulty: 'hard' as const,
+    languages: ['javascript', 'python', 'java', 'cpp'],
+    tags: ['math', 'bit-manipulation'],
+    examples: [
+      { input: '8', output: 'YES' },
+      { input: '10', output: 'NO' },
+      { input: '1', output: 'YES' },
+    ],
+    testCases: [
+      { input: '8', expectedOutput: 'YES' },
+      { input: '10', expectedOutput: 'NO' },
+      { input: '1', expectedOutput: 'YES' },
+      { input: '1024', expectedOutput: 'YES' },
+      { input: '1023', expectedOutput: 'NO' },
+      { input: '536870912', expectedOutput: 'YES' },
+    ],
+    starterCode: {
+      javascript:
+        'const n = parseInt(readline().trim(), 10);\n// TODO: YES if n is a power of two\nconsole.log("NO");',
+      python: 'n = int(input().strip())\n# TODO: YES if n is a power of two\nprint("NO")',
+      java: `import java.io.*;
+
+public class Solution {
+  public static void main(String[] args) throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    long n = Long.parseLong(br.readLine().trim());
+    // TODO: YES if n is a power of two
+    System.out.println("NO");
+  }
+}`,
+      cpp: '#include <iostream>\nusing namespace std;\nint main() { long long n; cin >> n; /* TODO */ cout << "NO" << endl; return 0; }',
+    },
+    hints: [
+      {
+        text: 'Les puissances de 2 en binaire n\'ont qu\'**un seul bit** à 1 (ex. 8 = 1000).',
+        tier: 'basic' as const,
+        cost: 0,
+      },
+      {
+        text: 'Tu peux aussi diviser **n** par 2 tant que c\'est pair et voir si tu arrives à 1.',
+        tier: 'detailed' as const,
+        cost: 0,
+      },
+    ],
   },
 ];

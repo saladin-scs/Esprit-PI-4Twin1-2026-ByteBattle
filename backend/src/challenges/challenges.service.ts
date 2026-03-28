@@ -137,17 +137,26 @@ public class Solution {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const [challenges, total] = await Promise.all([
+    const [rawList, total] = await Promise.all([
       this.challengeModel
         .find(filter)
         .select('-testCases') // ← ne jamais envoyer les tests au frontend
-        .sort({ difficulty: 1, createdAt: -1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
         .lean()
         .exec(),
       this.challengeModel.countDocuments(filter),
     ]);
+
+    const newDays = Number(process.env.CHALLENGE_NEW_DAYS || 14);
+    const newThresholdMs = Math.max(1, newDays) * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const challenges = rawList.map((c: any) => {
+      const created = c.createdAt ? new Date(c.createdAt).getTime() : 0;
+      const isNew = created > 0 && now - created < newThresholdMs;
+      return { ...c, isNew };
+    });
 
     return {
       challenges,
