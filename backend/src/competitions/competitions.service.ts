@@ -20,6 +20,13 @@ import { CodeExecutionService } from '../code-execution/code-execution.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { UsersService } from '../users/users.service';
 
+function devCompetitionSeedAllowed(): boolean {
+  return (
+    process.env.ENABLE_DEV_CHALLENGE_SEED === 'true' ||
+    process.env.ENABLE_DEV_COMPETITION_SEED === 'true'
+  );
+}
+
 @Injectable()
 export class CompetitionsService {
   constructor(
@@ -79,6 +86,90 @@ export class CompetitionsService {
       status: 'active',
     });
     return doc.save();
+  }
+
+  /**
+   * Insert multiple sample competitions (contests) linked to existing challenges.
+   * Idempotent by name. Requires ENABLE_DEV_CHALLENGE_SEED or ENABLE_DEV_COMPETITION_SEED.
+   */
+  async seedSampleContests(): Promise<{
+    created: { id: string; name: string }[];
+    skipped: string[];
+  }> {
+    if (!devCompetitionSeedAllowed()) {
+      throw new ForbiddenException(
+        'Set ENABLE_DEV_COMPETITION_SEED=true or ENABLE_DEV_CHALLENGE_SEED=true in .env',
+      );
+    }
+    const result = await this.challengeService.findAll({ page: 1, limit: 20 } as any);
+    const challenges = (result as any).challenges as { _id: Types.ObjectId }[];
+    if (!challenges?.length) {
+      throw new BadRequestException(
+        'No challenges found. Seed challenges first (POST /challenges/seed or dev triple).',
+      );
+    }
+    const oid = (i: number) => new Types.ObjectId(challenges[i]._id);
+    const now = new Date();
+    const end = new Date(now);
+    end.setDate(end.getDate() + 14);
+
+    const specs: Array<{
+      name: string;
+      description: string;
+      type: CompetitionType;
+      indices: number[];
+      rules: string;
+    }> = [
+      {
+        name: '[Dev] Speed Contest',
+        description: 'Fastest correct solution wins. Uses the first seeded challenge.',
+        type: 'speed',
+        indices: [0],
+        rules: 'Ranking: execution time (ms), then submission time.',
+      },
+      {
+        name: '[Dev] Code Golf Contest',
+        description: 'Shortest source code wins. Same challenge as speed contest.',
+        type: 'code_golf',
+        indices: [0],
+        rules: 'Ranking: character count (excluding whitespace optional — server uses raw length).',
+      },
+    ];
+    if (challenges.length >= 3) {
+      specs.push({
+        name: '[Dev] Algorithmic Contest',
+        description: 'Multi-challenge contest using the first three challenges.',
+        type: 'algorithmic',
+        indices: [0, 1, 2],
+        rules: 'Complete all challenges; ranking by aggregate score.',
+      });
+    }
+
+    const created: { id: string; name: string }[] = [];
+    const skipped: string[] = [];
+
+    for (const s of specs) {
+      const exists = await this.competitionModel.findOne({ name: s.name }).lean().exec();
+      if (exists) {
+        skipped.push(s.name);
+        continue;
+      }
+      const doc = await new this.competitionModel({
+        name: s.name,
+        description: s.description,
+        type: s.type,
+        challengeIds: s.indices.map((i) => oid(i)),
+        startTime: now,
+        endTime: end,
+        supportedLanguages: ['javascript', 'python', 'java', 'cpp'],
+        rules: s.rules,
+        status: 'active' as const,
+        participants: [],
+      }).save();
+      created.push({ id: doc._id.toString(), name: s.name });
+    }
+
+    return { created, skipped };
   }
 
   async findAll(query: GetCompetitionsDto) {

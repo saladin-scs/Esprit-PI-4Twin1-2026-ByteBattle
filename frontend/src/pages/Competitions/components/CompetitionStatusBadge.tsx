@@ -11,7 +11,7 @@ const STATUS_CONFIG: Record<
   },
   active: {
     label: 'Active',
-    className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
+    className: 'bg-primary-500/20 text-primary-700 border-primary-500/40 dark:text-primary-300',
     ariaLabel: 'Contest is active',
   },
   closed: {

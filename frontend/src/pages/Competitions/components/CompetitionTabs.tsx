@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { CompetitionTab } from '../types';
+import { cn } from '../../../lib/utils';
 
 const TABS: { value: CompetitionTab; label: string }[] = [
   { value: 'active', label: 'Active' },
@@ -15,11 +16,7 @@ interface CompetitionTabsProps {
 
 function CompetitionTabsComponent({ activeTab, onTabChange, disabled }: CompetitionTabsProps) {
   return (
-    <div
-      className="flex gap-1 p-1 rounded-lg bg-gray-800/80 border border-gray-700"
-      role="tablist"
-      aria-label="Contest filters"
-    >
+    <div className="bb-tablist w-full max-w-md" role="tablist" aria-label="Contest filters">
       {TABS.map(({ value, label }) => (
         <button
           key={value}
@@ -30,15 +27,10 @@ function CompetitionTabsComponent({ activeTab, onTabChange, disabled }: Competit
           id={`tab-${value}`}
           disabled={disabled}
           onClick={() => onTabChange(value)}
-          className={`
-            px-5 py-2.5 text-sm font-medium rounded-md transition-colors
-            focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${activeTab === value
-              ? 'bg-emerald-500 text-white shadow-sm'
-              : 'text-gray-400 hover:text-gray-200'
-            }
-          `}
+          className={cn(
+            'bb-tab-trigger flex-1 sm:flex-none',
+            activeTab === value ? 'bb-tab-trigger-active' : 'bb-tab-trigger-inactive',
+          )}
         >
           {label}
         </button>

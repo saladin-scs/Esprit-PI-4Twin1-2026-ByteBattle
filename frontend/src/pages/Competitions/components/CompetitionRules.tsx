@@ -15,17 +15,17 @@ interface CompetitionRulesProps {
 function CompetitionRulesComponent({ additionalRules, className = '' }: CompetitionRulesProps) {
   return (
     <section className={className} aria-labelledby="rules-heading">
-      <h2 id="rules-heading" className="text-lg font-semibold text-emerald-400 mb-3">
+      <h2 id="rules-heading" className="bb-section-title mb-3">
         Rules
       </h2>
-      <ul className="list-disc list-inside space-y-1.5 text-sm text-gray-400">
+      <ul className="bb-body-text list-inside list-disc space-y-1.5 text-sm">
         {RULES.map((item, i) => (
           <li key={i}>{item}</li>
         ))}
       </ul>
       {additionalRules?.trim() && (
-        <div className="mt-4 pt-4 border-t border-gray-700">
-          <p className="text-sm text-gray-400 whitespace-pre-wrap">{additionalRules}</p>
+        <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+          <p className="bb-body-text whitespace-pre-wrap text-sm">{additionalRules}</p>
         </div>
       )}
     </section>

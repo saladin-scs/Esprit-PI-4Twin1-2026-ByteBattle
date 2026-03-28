@@ -60,5 +60,19 @@ export class AdminController {
   getGamificationStats() {
     return this.adminService.getGamificationStats();
   }
+
+  @Get('dashboard')
+  @ApiOperation({ summary: 'Vue d’ensemble (users, challenges, competitions, soumissions)' })
+  getDashboardOverview() {
+    return this.adminService.getDashboardOverview();
+  }
+
+  @Get('ml-insights')
+  @ApiOperation({
+    summary: 'ML-style platform insights (health index, entropy, 7d growth, recommendations)',
+  })
+  getMlInsights() {
+    return this.adminService.getMlInsights();
+  }
 }
 

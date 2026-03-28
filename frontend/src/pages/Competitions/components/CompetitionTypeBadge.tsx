@@ -11,7 +11,7 @@ export function CompetitionTypeBadge({ type, className = '' }: CompetitionTypeBa
   if (!config) return null;
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 ${className}`}
+      className={`inline-flex items-center gap-1 rounded-md border border-primary-500/35 bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-800 dark:text-primary-300 ${className}`}
     >
       <span aria-hidden>{config.icon}</span>
       {config.shortLabel}

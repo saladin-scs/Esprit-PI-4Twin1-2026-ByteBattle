@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prettier/prettier */
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Challenge, ChallengeDocument, Language } from './schemas/challenge.schema';
@@ -9,6 +14,7 @@ import { Solution, SolutionDocument } from './schemas/solution.schema';
 import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { SEED_CHALLENGES } from './seed-challenges.data';
+import { DEV_TRIPLE_CHALLENGES } from './dev-triple-challenges.data';
 import { CodeExecutionService } from '../code-execution/code-execution.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { UsersService } from '../users/users.service';
@@ -78,6 +84,43 @@ public class Solution {
       } as CreateChallengeDto;
       await this.create(dto);
       created++;
+    }
+    return { created, skipped };
+  }
+
+  /**
+   * POST one easy + one medium + one hard (no admin JWT).
+   * Set ENABLE_DEV_CHALLENGE_SEED=true in .env — disable in production.
+   */
+  async seedDevEasyMediumHard(): Promise<{
+    created: string[];
+    skipped: string[];
+  }> {
+    if (process.env.ENABLE_DEV_CHALLENGE_SEED !== 'true') {
+      throw new ForbiddenException(
+        'Set ENABLE_DEV_CHALLENGE_SEED=true in backend/.env to use this endpoint, then restart the server.',
+      );
+    }
+    const created: string[] = [];
+    const skipped: string[] = [];
+    for (const data of DEV_TRIPLE_CHALLENGES) {
+      const exists = await this.challengeModel
+        .findOne({ title: data.title })
+        .select('_id')
+        .lean()
+        .exec();
+      if (exists) {
+        skipped.push(data.title);
+        continue;
+      }
+      const dto: CreateChallengeDto = {
+        ...data,
+        xpReward: this.XP_MAP[data.difficulty] ?? 50,
+        constraints: [],
+        isPublished: true,
+      } as CreateChallengeDto;
+      await this.create(dto);
+      created.push(data.title);
     }
     return { created, skipped };
   }

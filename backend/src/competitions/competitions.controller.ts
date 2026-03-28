@@ -40,6 +40,15 @@ export class CompetitionsController {
     return this.competitionsService.seedOne();
   }
 
+  @Post('dev/seed-sample-contests')
+  @ApiOperation({
+    summary:
+      'Insert sample contests (speed, code golf, algorithmic if ≥3 challenges). Requires ENABLE_DEV_COMPETITION_SEED or ENABLE_DEV_CHALLENGE_SEED',
+  })
+  async devSeedSampleContests() {
+    return this.competitionsService.seedSampleContests();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get competition by ID' })
   async findOne(@Param('id') id: string) {

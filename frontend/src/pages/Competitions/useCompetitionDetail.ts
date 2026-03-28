@@ -3,7 +3,7 @@ import { competitionsApi, challengesApi } from '../../services/api';
 import type { CompetitionDetail } from './types';
 import type { SubmitResult } from './types';
 
-interface ChallengeInfo {
+export interface ChallengeInfo {
   _id: string;
   title: string;
   description: string;
@@ -22,7 +22,8 @@ const DEFAULT_STARTER: Record<string, string> = {
 
 export function useCompetitionDetail(id: string | undefined) {
   const [competition, setCompetition] = useState<CompetitionDetail | null>(null);
-  const [challenge, setChallenge] = useState<ChallengeInfo | null>(null);
+  const [challenges, setChallenges] = useState<ChallengeInfo[]>([]);
+  const [activeChallengeId, setActiveChallengeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedLang, setSelectedLang] = useState('python');
@@ -31,7 +32,8 @@ export function useCompetitionDetail(id: string | undefined) {
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const challengeId = competition?.challengeIds?.[0];
+  const challenge =
+    challenges.find((c) => c._id === activeChallengeId) ?? challenges[0] ?? null;
 
   useEffect(() => {
     if (!id) {
@@ -42,47 +44,75 @@ export function useCompetitionDetail(id: string | undefined) {
     setError(null);
     setSubmitResult(null);
     setSubmitError(null);
+    setChallenges([]);
+    setActiveChallengeId(null);
+
     competitionsApi
       .getOne(id)
-      .then((res: { data: CompetitionDetail }) => {
+      .then(async (res: { data: CompetitionDetail }) => {
         const comp = res.data;
         setCompetition(comp);
-        const chId = comp?.challengeIds?.[0];
-        if (chId) {
-          return challengesApi.getOne(chId).then((r: { data: ChallengeInfo }) => {
-            const ch = r.data;
-            setChallenge(ch);
-            const langs = comp.supportedLanguages?.length ? comp.supportedLanguages : (ch?.languages ?? ['python', 'javascript']);
-            const lang = langs.includes('python') ? 'python' : langs[0];
-            setSelectedLang(lang);
-            const starter = ch?.starterCode?.[lang] ?? DEFAULT_STARTER[lang] ?? '';
-            setCode(starter || '');
-          });
+        const ids = (comp.challengeIds ?? []).filter(Boolean);
+        if (!ids.length) return;
+
+        const results = await Promise.all(
+          ids.map((chId) =>
+            challengesApi.getOne(chId).then((r: { data: ChallengeInfo }) => r.data).catch(() => null),
+          ),
+        );
+        const loaded = results.filter((c): c is ChallengeInfo => c != null);
+        setChallenges(loaded);
+        const first = loaded[0];
+        if (first) {
+          setActiveChallengeId(first._id);
+          const langs = comp.supportedLanguages?.length
+            ? comp.supportedLanguages
+            : first.languages ?? ['python', 'javascript'];
+          const lang = langs.includes('python') ? 'python' : langs[0];
+          setSelectedLang(lang);
+          setCode(first.starterCode?.[lang] ?? DEFAULT_STARTER[lang] ?? '');
         }
       })
       .catch((err: unknown) => {
         const msg =
           err && typeof err === 'object' && 'response' in err && (err as { response?: { data?: { message?: string } } }).response?.data?.message
             ? (err as { response: { data: { message: string } } }).response.data.message
-            : err instanceof Error ? err.message : 'Failed to load competition';
+            : err instanceof Error
+              ? err.message
+              : 'Failed to load competition';
         setError(msg);
       })
       .finally(() => setLoading(false));
   }, [id]);
 
   useEffect(() => {
-    if (challenge && selectedLang) {
-      setCode(challenge.starterCode?.[selectedLang] ?? DEFAULT_STARTER[selectedLang] ?? '');
-    }
+    if (!challenge || !selectedLang) return;
+    setCode(challenge.starterCode?.[selectedLang] ?? DEFAULT_STARTER[selectedLang] ?? '');
   }, [challenge?._id, selectedLang]);
 
+  const setActiveChallengeIdSafe = useCallback(
+    (chId: string) => {
+      setActiveChallengeId(chId);
+      const ch = challenges.find((c) => c._id === chId);
+      if (ch && competition) {
+        const langs = competition.supportedLanguages?.length
+          ? competition.supportedLanguages
+          : ch.languages ?? ['python'];
+        const lang = langs.includes(selectedLang) ? selectedLang : langs.includes('python') ? 'python' : langs[0];
+        setSelectedLang(lang);
+        setCode(ch.starterCode?.[lang] ?? DEFAULT_STARTER[lang] ?? '');
+      }
+    },
+    [challenges, competition, selectedLang],
+  );
+
   const submit = useCallback(() => {
-    if (!id || !code.trim()) return;
+    if (!id || !code.trim() || !activeChallengeId) return;
     setSubmitting(true);
     setSubmitError(null);
     setSubmitResult(null);
     competitionsApi
-      .submit(id, { code, language: selectedLang, challengeId: challengeId ?? undefined })
+      .submit(id, { code, language: selectedLang, challengeId: activeChallengeId })
       .then((res: { data: SubmitResult }) => {
         setSubmitResult(res.data);
       })
@@ -90,15 +120,20 @@ export function useCompetitionDetail(id: string | undefined) {
         const msg =
           err && typeof err === 'object' && 'response' in err && (err as { response?: { data?: { message?: string } } }).response?.data?.message
             ? (err as { response: { data: { message: string } } }).response.data.message
-            : err instanceof Error ? err.message : 'Submission failed';
+            : err instanceof Error
+              ? err.message
+              : 'Submission failed';
         setSubmitError(msg);
       })
       .finally(() => setSubmitting(false));
-  }, [id, code, selectedLang, challengeId]);
+  }, [id, code, selectedLang, activeChallengeId]);
 
   return {
     competition,
     challenge,
+    challenges,
+    activeChallengeId,
+    setActiveChallengeId: setActiveChallengeIdSafe,
     loading,
     error,
     selectedLang,

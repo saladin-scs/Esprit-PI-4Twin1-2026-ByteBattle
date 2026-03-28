@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Button, Card } from '../../shared/components';
@@ -17,6 +17,7 @@ import {
   CompetitionRules,
   LeaderboardTable,
   SubmissionPanel,
+  ContestChallengePicker,
 } from './components';
 
 export default function CompetitionDetail() {
@@ -28,6 +29,9 @@ export default function CompetitionDetail() {
   const {
     competition,
     challenge,
+    challenges,
+    activeChallengeId,
+    setActiveChallengeId,
     loading,
     error,
     selectedLang,
@@ -43,7 +47,7 @@ export default function CompetitionDetail() {
   const { entries: leaderboardEntries, loading: leaderboardLoading } = useLeaderboard(
     id,
     competition?.status,
-    leaderboardLang
+    leaderboardLang,
   );
 
   useEffect(() => {
@@ -61,80 +65,120 @@ export default function CompetitionDetail() {
 
   const handleBack = () => navigate('/competitions');
 
+  const challengeTitles = challenges.map((c) => c.title);
+
   if (loading || !id) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]" aria-busy="true">
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3" aria-busy="true">
         <Spinner size="lg" />
+        <p className="text-sm text-slate-500 dark:text-slate-400">Loading contest…</p>
       </div>
     );
   }
 
   if (error || !competition) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-8">
-        <p className="text-red-400" role="alert">{error ?? 'Competition not found'}</p>
-        <Button variant="secondary" className="mt-4" onClick={handleBack}>
-          <ArrowLeft className="w-4 h-4 mr-2 inline" /> Back to Contests
-        </Button>
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 dark:border-red-900/50 dark:bg-red-950/30">
+          <p className="text-red-700 dark:text-red-300" role="alert">
+            {error ?? 'Competition not found'}
+          </p>
+          <Button variant="secondary" className="mt-6" onClick={handleBack}>
+            <ArrowLeft className="mr-2 inline h-4 w-4" /> Back to contests
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <div className="bb-hero-gradient-detail" aria-hidden />
       <Button
         variant="ghost"
         onClick={handleBack}
-        className="mb-6 text-gray-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-2"
+        className="bb-link relative mb-6"
         aria-label="Back to contests list"
       >
-        <ArrowLeft className="w-4 h-4" /> Back to Contests
+        <ArrowLeft className="h-4 w-4" /> Back to contests
       </Button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="relative grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="bg-gray-800/50 border border-gray-700 rounded-xl p-6"
+            className="bb-card overflow-hidden p-6"
           >
-            <CompetitionHero competition={competition} />
-            <div className="prose prose-sm dark:prose-invert max-w-none text-gray-300 mt-4 mb-6">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{competition.description}</ReactMarkdown>
+            <div className="flex items-start gap-2">
+              <Sparkles className="mt-1 h-5 w-5 shrink-0 text-amber-500" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <CompetitionHero competition={competition} challengeCount={challenges.length} />
+                <div className="prose prose-sm max-w-none text-slate-600 dark:prose-invert dark:text-slate-300">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{competition.description}</ReactMarkdown>
+                </div>
+              </div>
             </div>
-            <CompetitionOverview competition={competition} />
-            <div className="mt-6 pt-6 border-t border-gray-700">
+
+            <ContestChallengePicker
+              challenges={challenges}
+              activeId={activeChallengeId}
+              onSelect={setActiveChallengeId}
+              competitionType={competition.type}
+              className="mt-6"
+            />
+
+            <CompetitionOverview
+              competition={competition}
+              challengeTitles={challengeTitles}
+              className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-700"
+            />
+            <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-700">
               <CompetitionRules additionalRules={competition.rules} />
             </div>
-            <p className="text-xs text-gray-500 mt-4">
-              Supported languages: {competition.supportedLanguages?.join(', ') || 'All'}
+            <p className="bb-body-text mt-4 text-xs">
+              Languages:{' '}
+              <span className="font-medium text-slate-700 dark:text-slate-300">
+                {competition.supportedLanguages?.join(' · ') || 'All'}
+              </span>
             </p>
           </motion.div>
 
           <AnimatePresence mode="wait">
             {challenge && (
               <motion.div
-                key="challenge"
+                key={challenge._id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <Card className="bg-gray-800/50 border-gray-700 [&_h2]:text-emerald-400" title={challenge.title}>
-                  <div className="flex items-center gap-2 mb-3">
+                <Card
+                  className="bb-card [&_h2]:text-primary-600 dark:[&_h2]:text-primary-400"
+                  title={challenge.title}
+                >
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
                     <DifficultyBadge difficulty={challenge.difficulty} />
+                    <span className="text-xs text-slate-500">Statement · submit below</span>
                   </div>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-300">
+                  <div className="prose prose-sm max-w-none text-slate-600 dark:prose-invert dark:text-slate-300">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{challenge.description}</ReactMarkdown>
                   </div>
                   {challenge.examples?.length > 0 && (
                     <div className="mt-4">
-                      <h4 className="text-sm font-semibold text-emerald-400 mb-2">Examples</h4>
+                      <h4 className="bb-section-title mb-2 text-sm">Examples</h4>
                       {challenge.examples.map((ex, i) => (
-                        <div key={i} className="mb-2 p-2 rounded bg-gray-700/50 text-sm text-gray-300">
-                          <div>Input: <code className="text-emerald-300">{ex.input}</code></div>
-                          <div>Output: <code className="text-emerald-300">{ex.output}</code></div>
+                        <div
+                          key={i}
+                          className="mb-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-600 dark:bg-slate-800/50"
+                        >
+                          <div>
+                            Input: <code className="bb-code">{ex.input}</code>
+                          </div>
+                          <div>
+                            Output: <code className="bb-code">{ex.output}</code>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -148,7 +192,7 @@ export default function CompetitionDetail() {
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, delay: 0.1 }}
+              transition={{ duration: 0.25, delay: 0.08 }}
             >
               <SubmissionPanel
                 competition={competition}

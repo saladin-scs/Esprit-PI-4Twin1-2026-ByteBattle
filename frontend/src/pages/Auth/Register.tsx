@@ -147,6 +147,41 @@ const useEmailAvailability = (email: string, apiUrl: string) => {
   return { isAvailable, isChecking };
 };
 
+const useUsernameAvailability = (username: string, apiUrl: string) => {
+  const [debouncedUsername] = useDebounce(username, 500);
+  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+
+  useEffect(() => {
+    const checkUsername = async () => {
+      if (!debouncedUsername || debouncedUsername.trim().length < 3) {
+        setIsAvailable(null);
+        return;
+      }
+
+      setIsChecking(true);
+      try {
+        const response = await fetch(
+          `${apiUrl}/auth/check-username?username=${encodeURIComponent(
+            debouncedUsername.trim(),
+          )}`,
+        );
+        const data = await response.json();
+        setIsAvailable(data.available);
+      } catch (error) {
+        console.error('Username check failed:', error);
+        setIsAvailable(null);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkUsername();
+  }, [debouncedUsername, apiUrl]);
+
+  return { isAvailable, isChecking };
+};
+
 // Face recognition hook
 const useFaceRecognition = (modelsUrl: string = '/models') => {
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -374,9 +409,12 @@ function Register() {
 
   // Watchers
   const watchEmail = watch('email');
+  const watchUsername = watch('username');
   const watchPassword = watch('password');
   const { isAvailable: isEmailAvailable, isChecking: isCheckingEmail } =
     useEmailAvailability(watchEmail, API_URL);
+  const { isAvailable: isUsernameAvailable, isChecking: isCheckingUsername } =
+    useUsernameAvailability(watchUsername, API_URL);
 
   // Registration steps
   const steps = [
@@ -425,6 +463,13 @@ function Register() {
         setFormError('email', { 
           type: 'manual', 
           message: 'This email is already registered' 
+        });
+        return;
+      }
+      if (currentStep === 0 && isUsernameAvailable === false) {
+        setFormError('username', {
+          type: 'manual',
+          message: 'This username is already taken',
         });
         return;
       }
@@ -531,6 +576,10 @@ function Register() {
       toast.error('This email is already registered');
       return;
     }
+    if (isUsernameAvailable === false) {
+      toast.error('This username is already taken');
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -540,7 +589,7 @@ function Register() {
       const result = await dispatch(
         registerAction({
           email,
-          username,
+          username: username.trim(),
           password,
         }),
       ).unwrap();
@@ -664,6 +713,15 @@ function Register() {
                     `}
                     placeholder="johndoe123"
                   />
+                  {isCheckingUsername && watchUsername && (
+                    <p className="text-gray-500 text-xs mt-1">Checking username...</p>
+                  )}
+                  {!isCheckingUsername && isUsernameAvailable === false && watchUsername && (
+                    <p className="text-red-500 text-xs mt-1">Username is already taken</p>
+                  )}
+                  {!isCheckingUsername && isUsernameAvailable === true && watchUsername && (
+                    <p className="text-green-500 text-xs mt-1">Username is available</p>
+                  )}
                   {errors.username && (
                     <p className="text-red-500 text-xs mt-1">{errors.username.message}</p>
                   )}

@@ -264,7 +264,7 @@ const ChallengeDetail = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-gray-500 dark:text-gray-400">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-indigo-500 border-t-transparent" />
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary-500 border-t-transparent" />
       </div>
     );
   }
@@ -279,26 +279,31 @@ const ChallengeDetail = () => {
   // Page "Choix du langage": no lang in URL → show grid with Unsolved/Solved per language
   if (!langFromUrl) {
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+      <div className="relative mx-auto max-w-3xl px-4 py-8 sm:px-6 md:py-12">
+        <div className="bb-hero-gradient-tall" aria-hidden />
         <button
           type="button"
           onClick={() => navigate('/challenges')}
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6"
+          className="bb-link relative mb-6 inline-flex items-center gap-2 text-sm font-medium"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to challenges
+          <ArrowLeft className="h-4 w-4" /> Back to challenges
         </button>
-        <div className="mb-6">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{challenge.title}</h1>
-            <DifficultyBadge difficulty={challenge.difficulty} />
-            <span className="text-amber-600 dark:text-amber-400 font-semibold">+{challenge.xpReward} XP</span>
+        <div className="relative mb-6 bb-card p-6">
+          <div className="bb-kicker mb-3 w-fit">
+            <Target className="h-3.5 w-3.5" aria-hidden />
+            Challenge
           </div>
-          <p className="flex items-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
-            <Target className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0" aria-hidden />
-            Complete this challenge once per language. Select a language to start.
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <h1 className="bb-title-gradient text-2xl sm:text-3xl">{challenge.title}</h1>
+            <DifficultyBadge difficulty={challenge.difficulty} />
+            <span className="font-semibold text-amber-600 dark:text-amber-400">+{challenge.xpReward} XP</span>
+          </div>
+          <p className="bb-body-text flex items-center gap-2 text-sm">
+            <Target className="h-4 w-4 shrink-0 text-primary-500 dark:text-primary-400" aria-hidden />
+            Complete once per language. Pick a language to open the editor.
           </p>
         </div>
-        <div className="mb-4">
+        <div className="relative mb-4">
           <LanguagePicker
             languages={challenge.languages}
             completedLanguages={completedLanguages}
@@ -329,18 +334,18 @@ const ChallengeDetail = () => {
 
   return (
     <>
-    <div className="flex h-[calc(100vh-4rem)] font-sans overflow-hidden bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 font-sans dark:bg-slate-950">
       <Group {...({ direction: 'horizontal' } as any)}>
         <Panel defaultSize={45} minSize={30}>
-          <div className="h-full flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="flex border-b border-gray-200 dark:border-gray-700 shrink-0">
+          <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex shrink-0 border-b border-slate-200 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => setActiveTab('description')}
                 className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'description'
-                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 Description
@@ -351,8 +356,8 @@ const ChallengeDetail = () => {
                   onClick={() => setActiveTab('solutions')}
                   className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'solutions'
-                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                      ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   Solutions
@@ -364,8 +369,8 @@ const ChallengeDetail = () => {
                   onClick={() => setActiveTab('result')}
                   className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === 'result'
-                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                      : 'border-transparent text-gray-500 dark:text-gray-400'
+                      ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                      : 'border-transparent text-slate-500 dark:text-slate-400'
                   }`}
                 >
                   Result {displayResult?.status === 'accepted' ? '✅' : displayResult ? '❌' : '⚠️'}
@@ -383,7 +388,7 @@ const ChallengeDetail = () => {
                   </div>
                   <div className="flex flex-wrap gap-1.5 mb-4">
                     {challenge.tags.map((t) => (
-                      <span key={t} className="px-2 py-0.5 rounded text-xs bg-indigo-500/10 dark:bg-indigo-400/10 text-indigo-700 dark:text-indigo-300">
+                      <span key={t} className="rounded px-2 py-0.5 text-xs bg-primary-500/10 text-primary-800 dark:text-primary-300">
                         {t}
                       </span>
                     ))}
@@ -467,10 +472,10 @@ const ChallengeDetail = () => {
                   {displayResult && (
                     <>
                       <div
-                        className={`p-4 rounded-lg ${
+                        className={`rounded-lg p-4 ${
                           displayResult.status === 'accepted'
-                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200'
-                            : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
+                            ? 'border border-primary-500/30 bg-primary-500/10 text-primary-900 dark:text-primary-100'
+                            : 'border border-red-500/30 bg-red-500/10 text-red-900 dark:text-red-100'
                         }`}
                       >
                         <div className="font-semibold">
@@ -495,11 +500,11 @@ const ChallengeDetail = () => {
                           key={t.testNumber}
                           className={`p-3 rounded-lg border text-sm ${
                             t.passed
-                              ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'
-                              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                              ? 'border border-primary-500/25 bg-primary-500/5 dark:bg-primary-500/10'
+                              : 'border border-red-500/25 bg-red-500/5 dark:bg-red-500/10'
                           }`}
                         >
-                          <div className={`font-medium ${t.passed ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
+                          <div className={`font-medium ${t.passed ? 'text-primary-800 dark:text-primary-300' : 'text-red-700 dark:text-red-300'}`}>
                             {t.passed ? '✅' : '❌'} Test #{t.testNumber}
                           </div>
                           {!t.passed && (
@@ -526,7 +531,7 @@ const ChallengeDetail = () => {
           </div>
         </Panel>
 
-        <Separator className="w-2 bg-gray-200 dark:bg-gray-700 hover:bg-indigo-500/30 transition-colors cursor-col-resize" />
+        <Separator className="w-2 bg-gray-200 dark:bg-gray-700 hover:bg-primary-500/30 transition-colors cursor-col-resize" />
 
         <Panel minSize={30}>
           <Group {...({ direction: 'vertical' } as any)}>
@@ -541,7 +546,7 @@ const ChallengeDetail = () => {
                         onClick={() => handleLangChange(lang)}
                         className={`px-3 py-1.5 rounded text-sm font-medium ${
                           selectedLang === lang
-                            ? 'bg-indigo-600 text-white'
+                            ? 'bg-primary-600 text-white'
                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         }`}
                       >
@@ -561,7 +566,7 @@ const ChallengeDetail = () => {
                     <button
                       type="button"
                       title="Vim mode"
-                      className={`p-1.5 rounded ${isVimMode ? 'text-indigo-400' : 'text-gray-400 hover:text-gray-300'}`}
+                      className={`rounded p-1.5 ${isVimMode ? 'text-primary-400' : 'text-gray-400 hover:text-gray-300'}`}
                       onClick={() => setIsVimMode(!isVimMode)}
                     >
                       <Keyboard className="w-4 h-4" />
@@ -588,7 +593,7 @@ const ChallengeDetail = () => {
                       type="button"
                       onClick={handleSubmit}
                       disabled={submitting}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Send className="w-4 h-4" /> {submitting ? 'Submitting...' : 'Submit'}
                     </button>
@@ -613,7 +618,7 @@ const ChallengeDetail = () => {
                       padding: { top: 16 },
                     }}
                   />
-                  <div id="vim-status-node" className={`h-6 bg-blue-600 text-white text-xs px-2 flex items-center font-mono ${isVimMode ? '' : 'hidden'}`} />
+                  <div id="vim-status-node" className={`flex h-6 items-center bg-primary-600 px-2 font-mono text-xs text-white ${isVimMode ? '' : 'hidden'}`} />
                 </div>
               </div>
             </Panel>
@@ -634,7 +639,7 @@ const ChallengeDetail = () => {
                             onClick={() => setSelectedTestCase(i)}
                             className={`px-4 py-2 rounded-lg text-sm font-medium ${
                               selectedTestCase === i
-                                ? 'bg-indigo-600 text-white'
+                                ? 'bg-primary-600 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                             }`}
                           >

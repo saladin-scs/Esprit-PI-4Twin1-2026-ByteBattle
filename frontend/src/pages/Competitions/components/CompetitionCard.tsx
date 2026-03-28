@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, ChevronRight, Calendar } from 'lucide-react';
+import { Users, ChevronRight, Calendar, Layers } from 'lucide-react';
 import type { CompetitionListItem } from '../types';
 import { COMPETITION_TYPE_CONFIG } from '../types';
 import { CompetitionStatusBadge } from './CompetitionStatusBadge';
@@ -36,46 +36,53 @@ function CompetitionCardComponent({ competition, index }: CompetitionCardProps) 
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: index * 0.04 }}
-      className="group bg-gray-800/50 dark:bg-gray-800/50 border border-gray-700 rounded-xl p-5 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+      className="bb-card-interactive group"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="button"
       aria-label={`Open ${competition.name}, ${competition.status}`}
     >
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
             <CompetitionTypeBadge type={competition.type} />
             <CompetitionStatusBadge status={competition.status as any} />
+            {(competition.challengeIds?.length ?? 0) > 1 && (
+              <span className="bb-badge-multi">
+                <Layers className="h-3 w-3" aria-hidden />
+                {competition.challengeIds.length} problems
+              </span>
+            )}
           </div>
-          <h2 className="text-xl font-semibold text-gray-100 mb-1 line-clamp-2 group-hover:text-emerald-400 transition-colors">
+          <h2 className="mb-1 line-clamp-2 text-xl font-semibold text-slate-900 transition-colors group-hover:text-primary-600 dark:text-slate-100 dark:group-hover:text-primary-400">
             {competition.name}
           </h2>
-          <p className="text-sm text-gray-400 line-clamp-2 mb-3">
-            {competition.description}
+          <p className="bb-body-text mb-3 line-clamp-2 text-sm">{competition.description}</p>
+          <p className="mb-2 text-xs text-slate-500 dark:text-slate-500">
+            {COMPETITION_TYPE_CONFIG[competition.type]?.shortLabel ?? competition.type} contest ·{' '}
+            {isFinished ? 'finished' : 'open'}
           </p>
-          <p className="text-xs text-gray-500 mb-2">
-            {COMPETITION_TYPE_CONFIG[competition.type]?.shortLabel ?? competition.type} contest. Click to view {isFinished ? 'solutions' : 'contest'}.
-          </p>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400/90 text-sm">
-            <Calendar className="w-4 h-4 shrink-0" aria-hidden />
-            <span>Active dates: {dateRange}</span>
-            {isFinished && <span className="font-medium">(Finished)</span>}
+          <div className="bb-pill-dates">
+            <Calendar className="h-4 w-4 shrink-0" aria-hidden />
+            <span>{dateRange}</span>
+            {isFinished && <span className="font-medium opacity-80">(ended)</span>}
           </div>
-          <div className="flex items-center gap-4 mt-3 text-sm text-gray-400">
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
             <span className="inline-flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-gray-500" aria-hidden />
-              Total solutions: {competition.totalSubmissions ?? 0}
+              <Users className="h-4 w-4 text-slate-400" aria-hidden />
+              Submissions: {competition.totalSubmissions ?? 0}
             </span>
             {competition.participants?.length != null && competition.participants.length > 0 && (
-              <span>{competition.participants.length} participant{competition.participants.length !== 1 ? 's' : ''}</span>
+              <span>
+                {competition.participants.length} participant{competition.participants.length !== 1 ? 's' : ''}
+              </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 text-emerald-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+        <div className="flex shrink-0 items-center gap-2 text-primary-600 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:text-primary-400">
           <span className="text-sm font-medium">View</span>
-          <ChevronRight className="w-5 h-5" aria-hidden />
+          <ChevronRight className="h-5 w-5" aria-hidden />
         </div>
       </div>
     </motion.article>

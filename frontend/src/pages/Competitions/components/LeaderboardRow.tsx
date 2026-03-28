@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Avatar } from '../../../shared/components';
 import type { LeaderboardEntry } from '../types';
 import type { CompetitionType } from '../types';
-import { COMPETITION_TYPE_CONFIG } from '../types';
 
 function formatDate(s: string): string {
   return new Date(s).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
@@ -19,7 +18,6 @@ function LeaderboardRowComponent({ entry, type, index }: LeaderboardRowProps) {
   const isFirst = entry.rank === 1;
   const isSecond = entry.rank === 2;
   const isThird = entry.rank === 3;
-  const config = COMPETITION_TYPE_CONFIG[type];
   const scoreText =
     type === 'code_golf'
       ? `${entry.score} bytes with ${entry.language}`

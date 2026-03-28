@@ -3,6 +3,7 @@ import type { CompetitionDetail } from '../types';
 
 interface CompetitionOverviewProps {
   competition: CompetitionDetail;
+  challengeTitles?: string[];
   className?: string;
 }
 
@@ -10,7 +11,11 @@ function formatDate(s: string): string {
   return new Date(s).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-function CompetitionOverviewComponent({ competition, className = '' }: CompetitionOverviewProps) {
+function CompetitionOverviewComponent({
+  competition,
+  challengeTitles,
+  className = '',
+}: CompetitionOverviewProps) {
   const isCodeGolf = competition.type === 'code_golf';
   const overviewItems = [
     competition.status === 'active'
@@ -28,10 +33,27 @@ function CompetitionOverviewComponent({ competition, className = '' }: Competiti
 
   return (
     <section className={className} aria-labelledby="overview-heading">
-      <h2 id="overview-heading" className="text-lg font-semibold text-emerald-400 mb-3">
+      <h2 id="overview-heading" className="bb-section-title mb-3">
         Overview
       </h2>
-      <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400">
+      {challengeTitles && challengeTitles.length > 0 && (
+        <div className="bb-included-problems">
+          <p className="text-xs font-medium uppercase tracking-wide text-primary-800 dark:text-primary-300">
+            Included problems
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {challengeTitles.map((t, i) => (
+              <li
+                key={i}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm font-medium text-slate-800 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <span className="bb-problem-index font-semibold">{i + 1}.</span> {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <ol className="bb-body-text list-inside list-decimal space-y-2 text-sm">
         {overviewItems.map((item, i) => (
           <li key={i} className="pl-1">
             {item}

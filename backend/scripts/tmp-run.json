@@ -1,0 +1,1 @@
+{"code":"a, b = map(int, input().split())\nprint(a + b)","language":"python"}

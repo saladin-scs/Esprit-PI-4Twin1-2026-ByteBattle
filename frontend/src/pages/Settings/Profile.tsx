@@ -3,13 +3,30 @@ import { useDispatch, useSelector } from 'react-redux';
 import { usersApi } from '../../services/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchMe } from '../../store/slices/authSlice';
-import { Button, Input, Textarea, Card, Alert, PageContainer, Avatar } from '../../shared/components';
-import { Camera } from 'lucide-react';
+import {
+  Button,
+  Input,
+  Textarea,
+  Card,
+  Alert,
+  PageContainer,
+  Avatar,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  SimpleTooltip,
+  ProgressBar,
+} from '../../shared/components';
+import { Camera, User, UserCircle, Heart, Share2, ImageIcon, HelpCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { cn } from '../../lib/utils';
+
+const BIO_MAX = 500;
 
 function ProfileSettings() {
   const dispatch = useDispatch<AppDispatch>();
@@ -88,14 +105,14 @@ function ProfileSettings() {
       setAvatarUploadProgress(1);
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const res = await usersApi.uploadAvatar(formData, {
         onUploadProgress: (progressEvent: any) => {
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             setAvatarUploadProgress(percentCompleted);
           }
-        }
+        },
       });
       setAvatarUrl(res.data?.avatarUrl || res.data?.url || res.data || avatarUrl);
       toast.success('Avatar uploaded successfully');
@@ -104,7 +121,7 @@ function ProfileSettings() {
       toast.error(err?.response?.data?.message || 'Failed to upload avatar');
     } finally {
       setAvatarUploadProgress(0);
-      e.target.value = ''; // reset input
+      e.target.value = '';
     }
   };
 
@@ -115,14 +132,14 @@ function ProfileSettings() {
       setCoverUploadProgress(1);
       const formData = new FormData();
       formData.append('file', file);
-      
+
       const res = await usersApi.uploadCover(formData, {
         onUploadProgress: (progressEvent: any) => {
           if (progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
             setCoverUploadProgress(percentCompleted);
           }
-        }
+        },
       });
       setCoverImage(res.data?.coverImage || res.data?.coverUrl || res.data?.url || res.data || coverImage);
       toast.success('Cover uploaded successfully');
@@ -131,7 +148,7 @@ function ProfileSettings() {
       toast.error(err?.response?.data?.message || 'Failed to upload cover');
     } finally {
       setCoverUploadProgress(0);
-      e.target.value = ''; // reset input
+      e.target.value = '';
     }
   };
 
@@ -170,6 +187,7 @@ function ProfileSettings() {
       });
       await dispatch(fetchMe());
       setSuccess('Profile updated.');
+      toast.success('Profile saved');
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || 'Failed to save');
     } finally {
@@ -177,197 +195,418 @@ function ProfileSettings() {
     }
   };
 
+  const tabTriggerClass =
+    'w-full justify-start gap-2 rounded-lg px-3 py-2.5 text-left data-[state=active]:shadow-sm sm:w-auto sm:min-w-[140px]';
+
+  const fieldShell = 'rounded-xl border border-slate-200/80 bg-slate-50/50 p-5 dark:border-slate-700 dark:bg-slate-800/30';
+
+  const bioLen = bio.length;
+  const bioPct = Math.min(100, (bioLen / BIO_MAX) * 100);
+
   return (
-    <PageContainer maxWidth="2xl" className="py-12">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">Profile settings</h1>
+    <PageContainer maxWidth="4xl" className="relative pb-28 py-10 md:py-14">
+      <div className="bb-hero-gradient-tall" aria-hidden />
 
-      <Card title="">
-        <form onSubmit={onSave} className="space-y-6">
-          {error && <Alert variant="error">{error}</Alert>}
-          {success && <Alert variant="success">{success}</Alert>}
+      <header className="relative mb-8">
+        <div className="bb-kicker">
+          <User className="h-3.5 w-3.5" aria-hidden />
+          Account
+        </div>
+        <h1 className="bb-page-heading mb-2">
+          <span className="bb-title-gradient text-3xl md:text-4xl">Profile settings</span>
+        </h1>
+        <p className="bb-body-text max-w-xl">
+          Manage your account, identity, and how others see you — same layout language as contests.
+        </p>
+      </header>
 
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Account</h2>
-            <Input
-              label="Email"
-              value={email}
-              disabled
-              title="Email cannot be changed here"
-            />
-            <Input
-              label="Username"
-              value={username}
-              disabled
-              title="Username cannot be changed here"
-            />
-          </div>
+      <form id="profile-settings-form" onSubmit={onSave}>
+        {error && (
+          <Alert variant="error" className="mb-6">
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert variant="success" className="mb-6">
+            {success}
+          </Alert>
+        )}
 
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Personal</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="First name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="John"
-              />
-              <Input
-                label="Last name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Doe"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
-              <PhoneInput
-                country="us"
-                value={phone}
-                onChange={(v) => setPhone(v)}
-                inputClass="!w-full !bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white !border-gray-300 dark:!border-gray-600 !rounded-lg !px-4 !py-2"
-                containerClass="w-full"
-                buttonClass="!bg-gray-100 dark:!bg-gray-700 !border-gray-300 dark:!border-gray-600"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date of birth</label>
-              <DatePicker
-                selected={dateOfBirth}
-                onChange={(d) => setDateOfBirth(d)}
-                maxDate={new Date()}
-                showYearDropdown
-                scrollableYearDropdown
-                placeholderText="Select date"
-                className="w-full px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
+        <Tabs defaultValue="account" className="w-full">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+            <TabsList
+              className={cn(
+                'bb-tablist flex h-auto w-full flex-row flex-wrap gap-1 overflow-x-auto p-2 lg:w-52 lg:flex-col lg:flex-nowrap',
+              )}
+            >
+              <TabsTrigger value="account" className={tabTriggerClass}>
+                <User className="h-4 w-4 shrink-0 opacity-70" />
+                Account
+              </TabsTrigger>
+              <TabsTrigger value="personal" className={tabTriggerClass}>
+                <UserCircle className="h-4 w-4 shrink-0 opacity-70" />
+                Personal
+              </TabsTrigger>
+              <TabsTrigger value="profile" className={tabTriggerClass}>
+                <Heart className="h-4 w-4 shrink-0 opacity-70" />
+                Profile
+              </TabsTrigger>
+              <TabsTrigger value="social" className={tabTriggerClass}>
+                <Share2 className="h-4 w-4 shrink-0 opacity-70" />
+                Social
+              </TabsTrigger>
+              <TabsTrigger value="media" className={tabTriggerClass}>
+                <ImageIcon className="h-4 w-4 shrink-0 opacity-70" />
+                Media
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Profile</h2>
-            <Input
-              label="Display name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
-            <Textarea
-              label="Bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={4}
-            />
-            <Input
-              label="Country (ISO2)"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              maxLength={2}
-            />
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Preferences</h2>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="newsletter"
-                checked={newsletter}
-                onChange={(e) => setNewsletter(e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 focus:ring-blue-500"
-              />
-              <label htmlFor="newsletter" className="text-sm text-gray-700 dark:text-gray-300">Subscribe to newsletter</label>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">How did you hear about us?</label>
-              <select
-                value={referralSource}
-                onChange={(e) => setReferralSource(e.target.value)}
-                className="w-full px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select an option</option>
-                <option value="social">Social Media</option>
-                <option value="friend">Friend Referral</option>
-                <option value="google">Google Search</option>
-                <option value="ad">Advertisement</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Social links</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label="GitHub URL" type="url" value={github} onChange={(e) => setGithub(e.target.value)} placeholder="https://github.com/..." />
-              <Input label="LinkedIn URL" type="url" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="https://linkedin.com/..." />
-              <Input label="Twitter / X URL" type="url" value={twitter} onChange={(e) => setTwitter(e.target.value)} placeholder="https://twitter.com/..." />
-              <Input label="Portfolio URL" type="url" value={portfolio} onChange={(e) => setPortfolio(e.target.value)} placeholder="https://..." />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Media</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* Avatar Upload */}
-            <div className="flex flex-col space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Avatar Image</label>
-              <div className="flex items-center space-x-4 relative">
-                <Avatar src={avatarUrl} fallback={displayName || user?.username || '?'} size="lg" className="w-20 h-20" />
-                <div className="flex-1">
-                  <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors">
-                    <Camera className="w-4 h-4" />
-                    <span>Upload Avatar</span>
-                    <input type="file" className="hidden" accept="image/png, image/jpeg, image/webp" onChange={handleAvatarUpload} disabled={avatarUploadProgress > 0} />
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG, WEBP max 5MB</p>
-                  {avatarUploadProgress > 0 && (
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2 dark:bg-gray-700 overflow-hidden">
-                      <div className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${avatarUploadProgress}%` }}></div>
+            <div className="min-w-0 flex-1 space-y-6">
+              <TabsContent value="account" className="mt-0 focus-visible:outline-none">
+                <Card className="bb-card shadow-lg" title="">
+                  <div className={fieldShell}>
+                    <div className="mb-4 flex items-center gap-2">
+                      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Account
+                      </h2>
+                      <SimpleTooltip content="Email and username are fixed for security. Contact support if you need a change.">
+                        <button
+                          type="button"
+                          className="rounded-full p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                          aria-label="About account fields"
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </SimpleTooltip>
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
+                    <div className="space-y-4">
+                      <Input label="Email" value={email} disabled title="Email cannot be changed here" />
+                      <Input label="Username" value={username} disabled title="Username cannot be changed here" />
+                    </div>
+                  </div>
+                </Card>
+              </TabsContent>
 
-            {/* Cover Upload */}
-            <div className="flex flex-col space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Cover Image</label>
-              <div className="flex-1 relative border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-center">
-                {coverImage ? (
-                  <div className="relative w-full h-20 rounded overflow-hidden mb-2">
-                    <img src={coverImage} alt="Cover" loading="lazy" className="w-full h-full object-cover" />
+              <TabsContent value="personal" className="mt-0 focus-visible:outline-none">
+                <Card className="bb-card shadow-lg" title="">
+                  <div className={fieldShell}>
+                    <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Personal
+                    </h2>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Input
+                        label="First name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="John"
+                      />
+                      <Input
+                        label="Last name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Doe"
+                      />
+                    </div>
+                    <div className="mt-4">
+                      <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Phone
+                      </label>
+                      <PhoneInput
+                        country="us"
+                        value={phone}
+                        onChange={(v) => setPhone(v)}
+                        inputClass="!w-full !bg-white dark:!bg-slate-800 !text-slate-900 dark:!text-white !border-slate-300 dark:!border-slate-600 !rounded-xl !px-4 !py-2.5"
+                        containerClass="w-full"
+                        buttonClass="!bg-slate-100 dark:!bg-slate-700 !border-slate-300 dark:!border-slate-600 !rounded-l-xl"
+                      />
+                    </div>
+                    <div className="mt-4">
+                      <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Date of birth
+                      </label>
+                      <DatePicker
+                        selected={dateOfBirth}
+                        onChange={(d: Date | null) => setDateOfBirth(d)}
+                        maxDate={new Date()}
+                        showYearDropdown
+                        scrollableYearDropdown
+                        placeholderText="Select date"
+                        className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                      />
+                    </div>
                   </div>
-                ) : (
-                  <div className="w-full h-20 bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center mb-2">
-                    <span className="text-gray-400">No cover image</span>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="profile" className="mt-0 focus-visible:outline-none">
+                <Card className="bb-card shadow-lg" title="">
+                  <div className="space-y-6">
+                    <div className={fieldShell}>
+                      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Public profile
+                      </h2>
+                      <Input
+                        label="Display name"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                      />
+                      <div className="mt-4">
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Bio</label>
+                          <span
+                            className={cn(
+                              'text-xs tabular-nums',
+                              bioLen > BIO_MAX * 0.9 ? 'font-medium text-amber-600 dark:text-amber-400' : 'text-slate-500',
+                            )}
+                          >
+                            {bioLen} / {BIO_MAX}
+                          </span>
+                        </div>
+                        <Textarea
+                          id="profile-bio"
+                          label=""
+                          value={bio}
+                          onChange={(e) => setBio(e.target.value.slice(0, BIO_MAX))}
+                          rows={4}
+                          placeholder="Short intro shown on your public profile…"
+                          className="min-h-[100px]"
+                        />
+                        <div className="mt-2">
+                          <ProgressBar
+                            value={bioPct}
+                            className={cn(bioLen > BIO_MAX * 0.9 && 'opacity-90')}
+                            aria-label="Bio length"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <div className="mb-1 flex items-center gap-1.5">
+                          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            Country (ISO2)
+                          </label>
+                          <SimpleTooltip content="Two-letter code, e.g. US, FR, MA. Shown on leaderboard and profile.">
+                            <span className="inline-flex cursor-help">
+                              <HelpCircle className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                            </span>
+                          </SimpleTooltip>
+                        </div>
+                        <Input
+                          id="profile-country"
+                          label=""
+                          value={country}
+                          onChange={(e) => setCountry(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2))}
+                          maxLength={2}
+                          placeholder="US"
+                        />
+                      </div>
+                    </div>
+                    <div className={fieldShell}>
+                      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Preferences
+                      </h2>
+                      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-600 dark:bg-slate-800/50">
+                        <input
+                          id="profile-newsletter"
+                          type="checkbox"
+                          checked={newsletter}
+                          onChange={(e) => setNewsletter(e.target.checked)}
+                          className="h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <label
+                          htmlFor="profile-newsletter"
+                          className="flex-1 cursor-pointer text-sm text-slate-700 dark:text-slate-300"
+                        >
+                          Subscribe to newsletter
+                        </label>
+                        <SimpleTooltip content="Occasional product updates and contest news. You can turn this off anytime.">
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-full p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            aria-label="About newsletter"
+                          >
+                            <HelpCircle className="h-4 w-4" />
+                          </button>
+                        </SimpleTooltip>
+                      </div>
+                      <div className="mt-4">
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                          How did you hear about us?
+                        </label>
+                        <select
+                          value={referralSource}
+                          onChange={(e) => setReferralSource(e.target.value)}
+                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 focus:ring-2 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                        >
+                          <option value="">Select an option</option>
+                          <option value="social">Social Media</option>
+                          <option value="friend">Friend Referral</option>
+                          <option value="google">Google Search</option>
+                          <option value="ad">Advertisement</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                )}
-                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors mx-auto relative z-10">
-                  <Camera className="w-4 h-4" />
-                  <span>Change Cover</span>
-                  <input type="file" className="hidden" accept="image/png, image/jpeg, image/webp" onChange={handleCoverUpload} disabled={coverUploadProgress > 0} />
-                </label>
-                {coverUploadProgress > 0 && (
-                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-3 dark:bg-gray-700 overflow-hidden">
-                    <div className="bg-blue-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${coverUploadProgress}%` }}></div>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="social" className="mt-0 focus-visible:outline-none">
+                <Card className="bb-card shadow-lg" title="">
+                  <div className={fieldShell}>
+                    <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Social links
+                    </h2>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Input
+                        label="GitHub URL"
+                        type="url"
+                        value={github}
+                        onChange={(e) => setGithub(e.target.value)}
+                        placeholder="https://github.com/..."
+                      />
+                      <Input
+                        label="LinkedIn URL"
+                        type="url"
+                        value={linkedin}
+                        onChange={(e) => setLinkedin(e.target.value)}
+                        placeholder="https://linkedin.com/..."
+                      />
+                      <Input
+                        label="Twitter / X URL"
+                        type="url"
+                        value={twitter}
+                        onChange={(e) => setTwitter(e.target.value)}
+                        placeholder="https://twitter.com/..."
+                      />
+                      <Input
+                        label="Portfolio URL"
+                        type="url"
+                        value={portfolio}
+                        onChange={(e) => setPortfolio(e.target.value)}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div className="mt-6">
+                      <Textarea
+                        label="Links (one per line)"
+                        value={links}
+                        onChange={(e) => setLinks(e.target.value)}
+                        rows={4}
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="media" className="mt-0 focus-visible:outline-none">
+                <Card className="bb-card shadow-lg" title="">
+                  <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+                    <div className={cn(fieldShell, '!p-0 overflow-hidden')}>
+                      <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-700 dark:bg-slate-800/50">
+                        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Avatar</h2>
+                      </div>
+                      <div className="p-5">
+                        <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+                          <Avatar
+                            src={avatarUrl}
+                            fallback={displayName || user?.username || '?'}
+                            size="lg"
+                            className="h-24 w-24 ring-4 ring-primary-500/20"
+                          />
+                          <div className="flex-1 text-center sm:text-left">
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                              <Camera className="h-4 w-4" />
+                              Upload avatar
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="image/png, image/jpeg, image/webp"
+                                onChange={handleAvatarUpload}
+                                disabled={avatarUploadProgress > 0}
+                              />
+                            </label>
+                            <p className="mt-2 text-xs text-slate-500">PNG, JPG, WEBP · max 5MB</p>
+                            {avatarUploadProgress > 0 && (
+                              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                                <div
+                                  className="h-full rounded-full bg-primary-600 transition-all"
+                                  style={{ width: `${avatarUploadProgress}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={cn(fieldShell, '!p-0 overflow-hidden')}>
+                      <div className="border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-700 dark:bg-slate-800/50">
+                        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Cover image</h2>
+                      </div>
+                      <div className="p-5">
+                        <div
+                          className={cn(
+                            'mb-4 overflow-hidden rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600',
+                          )}
+                        >
+                          {coverImage ? (
+                            <img src={coverImage} alt="" className="h-28 w-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="flex h-28 items-center justify-center bg-slate-100 dark:bg-slate-800">
+                              <span className="text-sm text-slate-400">No cover</span>
+                            </div>
+                          )}
+                        </div>
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-md hover:bg-primary-700">
+                          <Camera className="h-4 w-4" />
+                          Change cover
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/png, image/jpeg, image/webp"
+                            onChange={handleCoverUpload}
+                            disabled={coverUploadProgress > 0}
+                          />
+                        </label>
+                        {coverUploadProgress > 0 && (
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                            <div
+                              className="h-full rounded-full bg-primary-600 transition-all"
+                              style={{ width: `${coverUploadProgress}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </TabsContent>
             </div>
           </div>
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Links</h2>
-            <Textarea
-            label="Links (one per line)"
-            value={links}
-            onChange={(e) => setLinks(e.target.value)}
-            rows={4}
-          />
-          </div>
-          <Button type="submit" loading={loading} disabled={loading}>
-            Save
+        </Tabs>
+
+      </form>
+
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2"
+        role="region"
+        aria-label="Save profile"
+      >
+        <div className="pointer-events-auto flex w-full max-w-4xl items-center justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white/95 px-4 py-3 shadow-[0_-8px_32px_rgba(15,23,42,0.12)] backdrop-blur-md dark:border-slate-700/90 dark:bg-slate-950/95 dark:shadow-[0_-8px_32px_rgba(0,0,0,0.45)]">
+          <p className="hidden text-sm text-slate-500 sm:block dark:text-slate-400">
+            Changes apply after you save.
+          </p>
+          <Button
+            type="submit"
+            form="profile-settings-form"
+            loading={loading}
+            disabled={loading}
+            className="min-w-[160px] px-8 sm:ml-auto"
+          >
+            Save changes
           </Button>
-        </form>
-      </Card>
+        </div>
+      </div>
     </PageContainer>
   );
 }

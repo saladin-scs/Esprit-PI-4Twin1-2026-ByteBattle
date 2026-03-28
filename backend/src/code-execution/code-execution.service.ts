@@ -31,6 +31,18 @@ export class CodeExecutionService {
   };
 
   /** Piston expects a file name; some runtimes use the extension. */
+  /** Piston runs plain Node — inject readline() from stdin (same idea as local runner). */
+  private wrapJavaScriptForPiston(userCode: string): string {
+    const prelude = [
+      "const fs=require('fs');",
+      "const _bbStdin=(()=>{try{return fs.readFileSync(0,'utf8');}catch(e){return'';}})();",
+      "const _bbLines=_bbStdin.replace(/\\r\\n/g,'\\n').split('\\n');",
+      'let _bbI=0;',
+      "const readline=()=>_bbLines[_bbI++]??'';",
+    ].join('');
+    return `${prelude}\n${userCode}`;
+  }
+
   private getPistonFileName(lang: string): string {
     switch (lang) {
       case 'python': return 'main.py';
@@ -47,14 +59,39 @@ export class CodeExecutionService {
     return lang === 'c++' ? 'cpp' : lang;
   }
 
-  /** Normalize stdin so "2, 3" becomes "2 3" for compatibility with input().split() */
+  /** Run on server (Node / Python) first — matches judge0-style stdin; avoids Piston limits & readline gaps. */
+  private shouldRunLocallyFirst(lang: string): boolean {
+    if (lang === 'javascript') return true;
+    if (lang !== 'python') return false;
+    return this.getPythonExecutablePath() != null;
+  }
+
+  /**
+   * Judges often send stdin without a final \\n. `sys.stdin.readline()` then waits for a newline
+   * or EOF; with an open pipe that can hang or fail. Always end stdin with \\n when non-empty.
+   */
+  private finalizeStdinForExecution(stdin: string): string {
+    const s = String(stdin ?? '');
+    if (!s.length) return s;
+    return s.endsWith('\n') ? s : `${s}\n`;
+  }
+
+  /**
+   * Keep newlines intact for multi-line stdin (e.g. "n" then array line).
+   * Only normalize single-line numeric-ish input: "2, 3" → "2 3".
+   */
   private normalizeStdin(input: string): string {
-    const s = String(input ?? '').trim();
-    if (!s) return s;
-    if (/^[\d\s,.+-eE]+$/.test(s)) {
-      return s.replace(/\s*,\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    const raw = String(input ?? '');
+    const s = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    if (!s.trim()) return '';
+    if (s.includes('\n')) {
+      return s.replace(/\s+$/m, '').split('\n').map((l) => l.trimEnd()).join('\n');
     }
-    return s;
+    const line = s.trim();
+    if (/^[\d\s,.+-eE]+$/.test(line)) {
+      return line.replace(/\s*,\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    return line;
   }
 
   /**
@@ -101,7 +138,10 @@ export class CodeExecutionService {
 
     // Detect obvious mismatch: e.g. JavaScript code sent with language=python
     const looksLikeJs = /^\s*(function\s+\w+|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|\w+\s*=>)/m.test(code) || (code.includes('readline()') && code.includes('console.log'));
-    const looksLikePython = /^\s*(def\s+\w+|import\s+|from\s+\w+\s+import|class\s+\w+)/m.test(code) || (code.includes('input()') && code.includes('print('));
+    const looksLikePython =
+      /^\s*(def\s+\w+|import\s+|from\s+\w+\s+import|class\s+\w+)/m.test(code) ||
+      (code.includes('input()') && code.includes('print(')) ||
+      (/\bstdin\b/.test(code) && /\bprint\s*\(/.test(code));
     if (lang === 'python' && looksLikeJs && !looksLikePython) {
       throw new BadRequestException(
         'The code looks like JavaScript but Python is selected. Please select "JavaScript" in the language selector above the editor.',
@@ -115,19 +155,31 @@ export class CodeExecutionService {
 
     const results: { testCase: number; passed: boolean; output: string; error: string; executionTime: number }[] = [];
 
+    const preferLocal =
+      process.env.CODE_EXECUTION_PREFER_PISTON === 'true'
+        ? false
+        : this.shouldRunLocallyFirst(lang);
+
+    if (preferLocal) {
+      return this.runAllTestCasesLocally(code, lang, testCases);
+    }
+
     for (const [index, testCase] of testCases.entries()) {
       try {
-        const stdin = this.normalizeStdin(testCase.input);
+        let stdin = this.normalizeStdin(testCase.input);
+        stdin = this.finalizeStdinForExecution(stdin);
         if (stdin.length > this.maxStdinChars) {
           throw new BadRequestException(
             `Test case ${index + 1} input is too large (max ${this.maxStdinChars} chars)`,
           );
         }
 
+        const codeForPiston =
+          lang === 'javascript' ? this.wrapJavaScriptForPiston(code) : code;
         const payload = {
           language: lang,
           version,
-          files: [{ name: this.getPistonFileName(lang), content: code }],
+          files: [{ name: this.getPistonFileName(lang), content: codeForPiston }],
           stdin,
           run_timeout: Math.min(this.requestTimeoutMs, 15000),
         };
@@ -148,6 +200,10 @@ export class CodeExecutionService {
           const msg = response.status === 401 ? 'PISTON_401' : (response.data?.message || `Piston API error: ${response.status}`);
           throw new Error(msg);
         }
+        const compileErr = response.data?.compile?.stderr || response.data?.compile?.output;
+        if (compileErr && String(compileErr).trim()) {
+          throw new Error(`PISTON_COMPILE: ${String(compileErr).slice(0, 200)}`);
+        }
 
         const runPayload = response.data?.run ?? {};
         const rawOutput = typeof runPayload.stdout === 'string' ? runPayload.stdout : '';
@@ -167,8 +223,11 @@ export class CodeExecutionService {
         const msg = err?.message || '';
         const isPistonUnavailable =
           msg === 'PISTON_401' ||
+          msg.startsWith('PISTON_COMPILE') ||
           msg.includes('Piston API error') ||
           err?.response?.status === 401 ||
+          err?.response?.status === 429 ||
+          (err?.response?.status >= 500 && err?.response?.status < 600) ||
           err?.code === 'ECONNREFUSED' ||
           err?.code === 'ETIMEDOUT' ||
           err?.code === 'ENOTFOUND';
@@ -201,7 +260,7 @@ export class CodeExecutionService {
 
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
-      const input = this.normalizeStdin(tc.input);
+      const input = this.finalizeStdinForExecution(this.normalizeStdin(tc.input));
       const res = await this.runLocalSingle(code, localLang, input);
       const expected = this.normalizeOutput(tc.expectedOutput ?? '');
       const actual = this.normalizeOutput(res.output ?? '');
@@ -233,27 +292,31 @@ export class CodeExecutionService {
     }
   }
 
-  private getPythonCommand(): string {
+  /**
+   * Full path to python.exe — avoids spawnSync ENOENT when `py` is not on PATH for child processes.
+   */
+  private getPythonExecutablePath(): string | null {
     const win = os.platform() === 'win32';
-    if (win) {
+    const probes = win
+      ? ['py -3 -c "import sys; print(sys.executable)"', 'python -c "import sys; print(sys.executable)"']
+      : ['python3 -c "import sys; print(sys.executable)"', 'python -c "import sys; print(sys.executable)"'];
+    for (const cmd of probes) {
       try {
-        execSync('python --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-        return 'python';
+        const out = execSync(cmd, {
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+          maxBuffer: 8192,
+          ...(win ? { shell: process.env.ComSpec || 'cmd.exe' } : {}),
+          windowsHide: true,
+        }).trim();
+        const lines = out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        const p = lines[lines.length - 1];
+        if (p && fs.existsSync(p)) return p;
       } catch {
-        try {
-          execSync('py -3 --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-          return 'py -3';
-        } catch {
-          return 'python';
-        }
+        /* try next */
       }
     }
-    try {
-      execSync('python3 --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-      return 'python3';
-    } catch {
-      return 'python';
-    }
+    return null;
   }
 
   private runLocalJavaScript(code: string, input: string, tmpDir: string, start: number): { output: string; error?: string; executionTimeMs: number } {
@@ -290,11 +353,16 @@ ${code}
     const file = path.join(tmpDir, 'solution.py');
     const normalized = (code || '').trimStart();
     fs.writeFileSync(file, normalized, 'utf8');
-    const pythonCmd = this.getPythonCommand();
-    const args = pythonCmd === 'py -3' ? ['-3', file] : [file];
-    const prog = pythonCmd === 'py -3' ? 'py' : pythonCmd;
+    const pythonExe = this.getPythonExecutablePath();
+    if (!pythonExe) {
+      return {
+        output: '',
+        error: 'Python not found. Install Python 3 or set CODE_EXECUTION_PREFER_PISTON=true in .env',
+        executionTimeMs: Date.now() - start,
+      };
+    }
     try {
-      const result = spawnSync(prog, args, {
+      const result = spawnSync(pythonExe, ['-u', file], {
         input,
         encoding: 'utf8',
         timeout: this.localTimeoutMs,
@@ -304,6 +372,12 @@ ${code}
       });
       const stdout = (result.stdout || '').trim();
       const stderr = (result.stderr || '').trim();
+      if (result.error) {
+        return { output: '', error: stderr || result.error.message || 'Python not found (install Python 3)', executionTimeMs: Date.now() - start };
+      }
+      if (result.status === 0 || (result.status === null && stdout.length > 0 && !stderr)) {
+        return { output: stdout, executionTimeMs: Date.now() - start };
+      }
       if (result.status !== 0) {
         return { output: '', error: stderr || `Process exited with code ${result.status}`, executionTimeMs: Date.now() - start };
       }

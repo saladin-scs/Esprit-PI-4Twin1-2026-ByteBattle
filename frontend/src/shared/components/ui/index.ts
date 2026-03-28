@@ -13,3 +13,6 @@ export {
   DropdownMenuSeparator,
 } from './DropdownMenu';
 export { Modal } from './Modal';
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
+export { TooltipProvider, SimpleTooltip } from './Tooltip';
+export { ProgressBar } from './ProgressBar';

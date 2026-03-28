@@ -21,6 +21,15 @@ export class ChallengeController {
     return this.challengeService.findAll(query);
   }
 
+  @Post('dev/post-easy-medium-hard')
+  @ApiOperation({
+    summary:
+      'DEV: create 1 easy + 1 medium + 1 hard sample challenge (ENABLE_DEV_CHALLENGE_SEED=true)',
+  })
+  async devPostEasyMediumHard() {
+    return this.challengeService.seedDevEasyMediumHard();
+  }
+
   @Get(':id/stats')
   @ApiOperation({ summary: 'Stats d\'un challenge (taux d\'acceptation, etc.)' })
   async getStats(@Param('id') id: string) {
