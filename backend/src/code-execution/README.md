@@ -24,7 +24,7 @@ cd piston/cli && npm i
 node index.js -u http://127.0.0.1:2000 ppman install javascript python java c++
 ```
 
-Vérifie les versions avec `GET http://localhost:2000/api/v2/runtimes` et aligne-les si besoin avec `languageVersionMap` dans `code-execution.service.ts`.
+Le backend interroge automatiquement `GET …/runtimes` (dérivé de `PISTON_ENDPOINT` en retirant `/execute`) et choisit une version compatible — par ex. **Node** pour JavaScript lorsque l’API publique expose aussi Deno. En secours si l’API est injoignable, `languageVersionMap` dans `code-execution.service.ts` sert de repli.
 
 #### Linux / macOS (dépôt officiel)
 
@@ -68,14 +68,14 @@ Si cette API exige une clé (ex. 401) :
 
 ### Langages et versions
 
-Les runtimes sont définis dans `code-execution.service.ts` (`languageVersionMap`).  
-Pour une instance Piston auto-hébergée, les versions disponibles sont listées par :
+Au démarrage d’un run, le service appelle `GET {base}/runtimes` (ex. `https://emkc.org/api/v2/piston/runtimes` ou `http://localhost:2000/api/v2/runtimes`) et sélectionne la version (Node pour JS, GCC pour C/C++, etc.).  
+`languageVersionMap` reste le **fallback** si `/runtimes` échoue (réseau, instance sans route).
 
 ```bash
+curl https://emkc.org/api/v2/piston/runtimes
+# ou
 curl http://localhost:2000/api/v2/runtimes
 ```
-
-Ajuste `languageVersionMap` si besoin pour correspondre à ces runtimes.
 
 ## Exécution locale (fallback)
 

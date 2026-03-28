@@ -28,8 +28,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   private readonly logger = new Logger(ChatGateway.name);
-  private readonly messageWindowMs = 10_000;
-  private readonly maxMessagesPerWindow = 25;
+  private readonly messageWindowMs = Number(process.env.CHAT_RATE_WINDOW_MS || 10_000);
+  private readonly maxMessagesPerWindow = Number(process.env.CHAT_RATE_MAX_PER_WINDOW || 25);
+  private readonly maxMessageChars = Number(process.env.CHAT_MESSAGE_MAX_CHARS || 2000);
   private readonly typingWindowMs = 4_000;
   private readonly messageCounters = new Map<string, { windowStart: number; count: number }>();
   private readonly typingLastEmit = new Map<string, number>();
@@ -147,11 +148,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
     if (!payload?.room || !isValidChatRoom(payload.room)) return;
-    if (!payload?.message || typeof payload.message !== 'string') return;
+    if (!payload?.message || typeof payload.message !== 'string') {
+      client.emit('error', { code: 'EMPTY', message: 'Message vide.' });
+      return;
+    }
     const text = payload.message.trim();
-    if (!text.length || text.length > 2000) return;
+    if (!text.length) {
+      client.emit('error', { code: 'EMPTY', message: 'Message vide.' });
+      return;
+    }
+    if (text.length > this.maxMessageChars) {
+      client.emit('error', {
+        code: 'TOO_LONG',
+        message: `Message trop long (max ${this.maxMessageChars} caractères).`,
+      });
+      return;
+    }
     if (!this.enforceMessageRateLimit(client)) {
-      client.emit('error', { code: 'RATE_LIMIT', message: 'Trop de messages, ralentis.' });
+      const sec = Math.ceil(this.messageWindowMs / 1000);
+      client.emit('error', {
+        code: 'RATE_LIMIT',
+        message: `Trop de messages : max ${this.maxMessagesPerWindow} messages / ${sec}s. Réessaie dans quelques secondes.`,
+      });
       return;
     }
 

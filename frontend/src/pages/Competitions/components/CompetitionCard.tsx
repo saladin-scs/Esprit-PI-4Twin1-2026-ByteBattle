@@ -6,6 +6,7 @@ import type { CompetitionListItem } from '../types';
 import { COMPETITION_TYPE_CONFIG } from '../types';
 import { CompetitionStatusBadge } from './CompetitionStatusBadge';
 import { CompetitionTypeBadge } from './CompetitionTypeBadge';
+import { getCompetitionTimeHint } from '../utils/competitionTiming';
 
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start);
@@ -22,6 +23,11 @@ function CompetitionCardComponent({ competition, index }: CompetitionCardProps) 
   const navigate = useNavigate();
   const isFinished = competition.status === 'closed' || competition.status === 'archived';
   const dateRange = formatDateRange(competition.startTime, competition.endTime);
+  const timeHint = getCompetitionTimeHint(
+    competition.startTime,
+    competition.endTime,
+    competition.status,
+  );
 
   const handleClick = () => navigate(`/competitions/${competition._id}`);
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -48,6 +54,11 @@ function CompetitionCardComponent({ competition, index }: CompetitionCardProps) 
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <CompetitionTypeBadge type={competition.type} />
             <CompetitionStatusBadge status={competition.status as any} />
+            {timeHint && (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100">
+                {timeHint}
+              </span>
+            )}
             {(competition.challengeIds?.length ?? 0) > 1 && (
               <span className="bb-badge-multi">
                 <Layers className="h-3 w-3" aria-hidden />

@@ -19,8 +19,14 @@ New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 # Chemin compatible Docker Desktop (WSL2) : préférer des slashes
 $vol = ($dataDir -replace '\\', '/')
 
-docker inspect $containerName 2>$null | Out-Null
-if ($LASTEXITCODE -eq 0) {
+# docker inspect écrit sur stderr si absent — éviter Stop sur cette erreur attendue
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'SilentlyContinue'
+& docker inspect $containerName 2>&1 | Out-Null
+$containerExists = ($LASTEXITCODE -eq 0)
+$ErrorActionPreference = $prevEap
+
+if ($containerExists) {
   $running = docker inspect -f '{{.State.Running}}' $containerName 2>$null
   if ($running -eq 'true') {
     Write-Host "Piston déjà en cours : $containerName (port 2000)" -ForegroundColor Green

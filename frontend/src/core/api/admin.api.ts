@@ -7,4 +7,8 @@ export const adminApi = {
   setUserRole: (id: string, role: 'user' | 'moderator' | 'admin') =>
     apiClient.patch(`/admin/users/${id}/role`, { role }),
   getGamificationStats: () => apiClient.get('/admin/gamification/stats'),
+  getChatReports: (params?: { page?: number; limit?: number; status?: 'open' | 'reviewed' }) =>
+    apiClient.get<{ total: number; items: Array<Record<string, unknown>> }>('/admin/chat-reports', {
+      params,
+    }),
 };

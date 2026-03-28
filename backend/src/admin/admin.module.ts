@@ -10,9 +10,11 @@ import {
 import { Submission, SubmissionSchema } from '../challenges/schemas/Submission.schema';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
   imports: [
+    ChatModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Challenge.name, schema: ChallengeSchema },

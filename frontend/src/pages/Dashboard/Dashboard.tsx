@@ -3,7 +3,17 @@ import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import { RootState } from '../../store/store';
-import { PageContainer, Card, Button, Spinner, SimpleTooltip, ProgressBar } from '../../shared/components';
+import {
+  PageContainer,
+  Card,
+  Button,
+  Spinner,
+  SimpleTooltip,
+  ProgressBar,
+  PostRegisterOnboardingModal,
+  shouldShowPostRegisterOnboarding,
+  clearPostRegisterOnboardingFlag,
+} from '../../shared/components';
 import { gamificationApi } from '../../services/api';
 import { useGamificationStore } from '../../stores/gamificationStore';
 import { LayoutDashboard, Flame, Target, Trophy, Sparkles, Info } from 'lucide-react';
@@ -26,7 +36,12 @@ function Dashboard() {
   const { user } = useSelector((state: RootState) => state.auth);
   const { summary, loading, error: storeError, fetchSummary, setError } = useGamificationStore();
   const [claimingDaily, setClaimingDaily] = useState(false);
+  const [showPostRegisterOnboarding, setShowPostRegisterOnboarding] = useState(false);
   const error = storeError ?? '';
+
+  useEffect(() => {
+    if (shouldShowPostRegisterOnboarding()) setShowPostRegisterOnboarding(true);
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -315,6 +330,14 @@ function Dashboard() {
           </p>
         </Card>
       )}
+
+      <PostRegisterOnboardingModal
+        open={showPostRegisterOnboarding}
+        onDismiss={() => {
+          clearPostRegisterOnboardingFlag();
+          setShowPostRegisterOnboarding(false);
+        }}
+      />
     </PageContainer>
   );
 }

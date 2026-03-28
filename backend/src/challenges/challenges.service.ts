@@ -240,7 +240,9 @@ public class Solution {
       throw new BadRequestException(`Le langage ${dto.language} n'est pas supporté pour ce challenge`);
     }
 
-    const rawTestCases = (challenge as any).testCases as Array<{ input?: string; expectedOutput?: string }> | undefined;
+    const rawTestCases = (challenge as any).testCases as
+      | Array<{ input?: string; expectedOutput?: string; isHidden?: boolean }>
+      | undefined;
     if (!rawTestCases?.length) {
       throw new BadRequestException('Ce challenge n\'a pas de tests configurés');
     }
@@ -329,6 +331,34 @@ public class Solution {
     }
     await this.submissionModel.findByIdAndUpdate(submission._id, { $set: { xpEarned } }).exec();
 
+    /** Anti-triche : ne jamais renvoyer entrée / sortie attendue / sortie réelle pour les tests cachés (isHidden !== false). */
+    const clientTestResults = testResults.map((r, i) => {
+      const testNumber = i + 1;
+      if (r.passed) {
+        return { testNumber, passed: true as const };
+      }
+      const hidden = rawTestCases?.[i]?.isHidden !== false;
+      if (hidden) {
+        const hasErr = Boolean(r.error && String(r.error).trim());
+        return {
+          testNumber,
+          passed: false as const,
+          isHiddenCase: true as const,
+          message: hasErr
+            ? 'Erreur sur un cas de test confidentiel (détails non affichés).'
+            : 'Réponse incorrecte sur un cas de test confidentiel (entrée et sortie attendue non affichées).',
+        };
+      }
+      return {
+        testNumber,
+        passed: false as const,
+        input: r.input,
+        expectedOutput: r.expectedOutput,
+        actualOutput: r.actualOutput,
+        error: r.error,
+      };
+    });
+
     return {
       status,
       passedTests,
@@ -336,17 +366,7 @@ public class Solution {
       xpEarned,
       badgesUnlocked,
       executionTimeMs: Math.round(totalTimeMs / totalTests),
-      testResults: testResults.map((r, i) => ({
-        testNumber: i + 1,
-        passed: r.passed,
-        // On n'expose l'input/output attendu que si le test a échoué (feedback pédagogique)
-        ...(r.passed ? {} : {
-          input: r.input,
-          expectedOutput: r.expectedOutput,
-          actualOutput: r.actualOutput,
-          error: r.error,
-        }),
-      })),
+      testResults: clientTestResults,
     };
   }
 
@@ -357,6 +377,7 @@ public class Solution {
 
     return this.submissionModel
       .find(filter)
+      .select('-testResults')
       .populate('challengeId', 'title difficulty')
       .sort({ createdAt: -1 })
       .limit(50)

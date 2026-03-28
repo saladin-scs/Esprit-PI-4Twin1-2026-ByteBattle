@@ -24,6 +24,8 @@ export interface UseSocketChatReturn {
   error: string | null;
   transport: 'websocket' | 'polling' | 'unknown';
   reconnect: () => void;
+  /** Messages en file d’attente (hors connexion temps réel). */
+  pendingOutboundCount: number;
 }
 
 /**
@@ -42,6 +44,20 @@ export function useSocketChat(
   const [transport, setTransport] = useState<'websocket' | 'polling' | 'unknown'>('unknown');
   const socketRef = useRef<Socket | null>(null);
   const roomRef = useRef<string | null>(null);
+  const pendingOutboundRef = useRef<string[]>([]);
+  const [pendingOutboundCount, setPendingOutboundCount] = useState(0);
+
+  const flushPendingOutbound = useCallback(() => {
+    const s = socketRef.current;
+    const r = roomRef.current;
+    if (!s?.connected || !r) return;
+    const q = [...pendingOutboundRef.current];
+    pendingOutboundRef.current = [];
+    setPendingOutboundCount(0);
+    for (const t of q) {
+      s.emit('message', { room: r, message: t });
+    }
+  }, []);
 
   const reconnect = useCallback(() => {
     const s = socketRef.current;
@@ -57,6 +73,8 @@ export function useSocketChat(
       setLines([]);
       setTypingUsers({});
       setTransport('unknown');
+      pendingOutboundRef.current = [];
+      setPendingOutboundCount(0);
       return;
     }
 
@@ -65,12 +83,16 @@ export function useSocketChat(
       setError('Connexion requise pour le chat');
       setLines([]);
       setTypingUsers({});
+      pendingOutboundRef.current = [];
+      setPendingOutboundCount(0);
       return;
     }
 
     setLines([]);
     setTypingUsers({});
     setError(null);
+    pendingOutboundRef.current = [];
+    setPendingOutboundCount(0);
     roomRef.current = room;
 
     const socket = io(getPublicApiUrl(), {
@@ -118,6 +140,7 @@ export function useSocketChat(
       syncTransport();
       const r = roomRef.current;
       if (r) socket.emit('join-room', r);
+      setTimeout(() => flushPendingOutbound(), 200);
     });
 
     socket.io.engine?.on('upgrade', syncTransport);
@@ -134,7 +157,10 @@ export function useSocketChat(
     });
 
     socket.on('error', (payload: { message?: string; code?: string }) => {
-      if (payload?.message) setError(payload.message);
+      if (payload?.message) {
+        const code = payload.code ? `[${payload.code}] ` : '';
+        setError(`${code}${payload.message}`);
+      }
     });
 
     socket.on('message', onMessage);
@@ -153,15 +179,25 @@ export function useSocketChat(
       setConnected(false);
       setTransport('unknown');
     };
-  }, [room, enabled]);
+  }, [room, enabled, flushPendingOutbound]);
 
   const sendMessage = useCallback((text: string) => {
-    const s = socketRef.current;
-    const r = roomRef.current;
-    if (!s?.connected || !r) return;
     const trimmed = text.trim();
     if (!trimmed) return;
-    s.emit('message', { room: r, message: trimmed });
+    const s = socketRef.current;
+    const r = roomRef.current;
+    if (s?.connected && r) {
+      s.emit('message', { room: r, message: trimmed });
+      return;
+    }
+    if (r) {
+      const cap = 20;
+      if (pendingOutboundRef.current.length >= cap) {
+        pendingOutboundRef.current.shift();
+      }
+      pendingOutboundRef.current.push(trimmed);
+      setPendingOutboundCount(pendingOutboundRef.current.length);
+    }
   }, []);
 
   const setTyping = useCallback((typing: boolean) => {
@@ -185,5 +221,6 @@ export function useSocketChat(
     error,
     transport,
     reconnect,
+    pendingOutboundCount,
   };
 }

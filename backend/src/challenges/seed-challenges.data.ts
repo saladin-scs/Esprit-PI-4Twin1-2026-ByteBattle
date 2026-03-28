@@ -86,6 +86,18 @@ public class Solution {
 }`,
       cpp: '#include <iostream>\nusing namespace std;\nint main() { int n; cin >> n; long long sum = 0; int x; for (int i = 0; i < n && cin >> x; i++) { /* TODO: add x to sum */ } cout << sum << endl; return 0; }',
     },
+    hints: [
+      {
+        text: 'Parcours le tableau avec une boucle (`for` ou `while`) et **ajoute** chaque élément à une variable `sum` initialisée à 0.',
+        tier: 'basic' as const,
+        cost: 0,
+      },
+      {
+        text: 'En Python, une fois `arr` correctement lu avec `list(map(int, input().split()))`, tu peux utiliser la fonction **`sum(arr)`**.',
+        tier: 'detailed' as const,
+        cost: 0,
+      },
+    ],
   },
   // ─── Medium ─────────────────────────────────────────────────────────────
   {

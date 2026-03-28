@@ -17,6 +17,7 @@ import { useDebounce } from 'use-debounce';
 import toast from 'react-hot-toast';
 import * as faceapi from 'face-api.js';
 import { getPublicApiUrl } from '../../config/publicEnv';
+import { setPostRegisterOnboardingFlag } from '../../shared/components';
 
 // Icons
 const GoogleIcon = () => (
@@ -496,6 +497,7 @@ function Auth() {
         navigate('/setup-2fa');
       } else {
         toast.success('Registration successful! Please check your email.');
+        setPostRegisterOnboardingFlag();
         handleModeChange('login');
         registerForm.reset();
       }

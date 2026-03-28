@@ -29,6 +29,7 @@ const {
   ResetPassword,
   SocialCallback,
   Setup2FA,
+  Status,
 } = LazyRoutes;
 
 export function AppRoutes() {
@@ -37,6 +38,7 @@ export function AppRoutes() {
       <Suspense fallback={<SuspensePageFallback />}>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/status" element={<Status />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

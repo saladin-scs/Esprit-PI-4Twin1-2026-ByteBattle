@@ -21,15 +21,40 @@ export class UsersService {
       const email = String(dto.email || '').toLowerCase().trim();
       const username = String(dto.username || '').trim();
       const hashedPassword = await bcrypt.hash(dto.password, 10);
-      const { faceDescriptor, ...rest } = dto;
+      const faceDescriptor = dto.faceDescriptor;
       const faceEmbedding = Array.isArray(faceDescriptor) && faceDescriptor.length === 128
         ? faceDescriptor
         : undefined;
+
+      const firstName = dto.firstName != null ? String(dto.firstName).trim() : '';
+      const lastName = dto.lastName != null ? String(dto.lastName).trim() : '';
+      const phone = dto.phone != null ? String(dto.phone).trim() : '';
+      let dateOfBirth: Date | null = null;
+      if (dto.dateOfBirth) {
+        const d = new Date(dto.dateOfBirth);
+        if (!Number.isNaN(d.getTime())) dateOfBirth = d;
+      }
+      const displayNameFromRegister = [firstName, lastName].filter(Boolean).join(' ').trim() || undefined;
+
+      const preferences: Record<string, unknown> = {
+        preferredLanguage: 'python',
+        theme: 'dark',
+        notifications: { email: true, product: true },
+      };
+      if (typeof dto.newsletter === 'boolean') preferences.newsletter = dto.newsletter;
+      const ref = dto.referralSource != null ? String(dto.referralSource).trim() : '';
+      if (ref) preferences.referralSource = ref;
+
       const user = new this.userModel({
-        ...rest,
         email,
         username,
         password: hashedPassword,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        phone: phone || undefined,
+        dateOfBirth,
+        displayName: displayNameFromRegister,
+        preferences,
         roles: dto.roles?.length ? dto.roles : undefined,
         ...(faceEmbedding && { faceEmbedding }),
       });
@@ -163,7 +188,7 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
 
   async findPublicByUsername(username: string) {
     const u = await this.userModel.findOne({ username: String(username || '').trim() })
-      .select('username displayName bio country avatarUrl coverImage links socialLinks profilePublic rating totalChallengesSolved totalBattlesWon achievements roles createdAt xp rankTier currentStreak longestStreak totalActiveDays lastActiveAt activityHeatmap dailyGoalTarget dailyGoalCompleted problemsByDifficulty acceptanceRate languageStats totalSubmissions totalAccepted battleLosses eloRating guildId codynCoins badgeIds emailVerifiedAt skillTreeProgress recentActivity')
+      .select('username displayName firstName lastName bio country avatarUrl coverImage links socialLinks profilePublic rating totalChallengesSolved totalBattlesWon achievements roles createdAt xp rankTier currentStreak longestStreak totalActiveDays lastActiveAt activityHeatmap dailyGoalTarget dailyGoalCompleted problemsByDifficulty acceptanceRate languageStats totalSubmissions totalAccepted battleLosses eloRating guildId codynCoins badgeIds emailVerifiedAt skillTreeProgress recentActivity')
       .lean().exec();
     if (!u) return null;
     const xp = (u as any).xp ?? 0;

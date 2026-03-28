@@ -188,6 +188,11 @@ function PublicProfile() {
 
   if (!profile) return null;
 
+  const profileDisplayName =
+    profile.displayName?.trim() ||
+    [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() ||
+    profile.username;
+
   const rankProgress = profile.rankProgress || {
     currentTier: profile.rankTier || 'F',
     nextTier: 'E',
@@ -275,13 +280,13 @@ function PublicProfile() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-700/50 p-6 shadow-xl"
+          className="rounded-xl border border-slate-200 bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:border-gray-700/50 dark:bg-gray-800/80"
         >
-          <div className="flex flex-col sm:flex-row items-start gap-6">
+          <div className="flex flex-col items-start gap-6 sm:flex-row">
             {/* Avatar */}
             <div className="relative -mt-16 sm:-mt-20">
               <div
-                className={`w-24 h-24 sm:w-32 sm:h-32 rounded-2xl border-4 border-gray-800 bg-gray-800 overflow-hidden flex-shrink-0 relative group ${isOwner ? 'cursor-pointer' : ''}`}
+                className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-slate-100 sm:h-32 sm:w-32 dark:border-gray-800 dark:bg-gray-800 ${isOwner ? 'cursor-pointer group' : ''}`}
                 onClick={handleAvatarClick}
               >
                 {(avatarPreview || profile.avatarUrl) ? (
@@ -289,11 +294,11 @@ function PublicProfile() {
                     key={profile.avatarUrl}
                     src={avatarPreview || profile.avatarUrl + '?t=' + Date.now()}
                     alt=""
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-gray-500">
-                    {(profile.displayName || profile.username).charAt(0).toUpperCase()}
+                  <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-slate-500 dark:text-gray-500">
+                    {profileDisplayName.charAt(0).toUpperCase()}
                   </div>
                 )}
                 {isOwner && (
@@ -309,18 +314,18 @@ function PublicProfile() {
             </div>
 
             {/* User details */}
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                      {profile.displayName || profile.username}
+                    <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
+                      {profileDisplayName}
                     </h1>
                     {profile.emailVerifiedAt && (
-                      <span className="text-blue-500 dark:text-blue-400" title="Email verified">✓</span>
+                      <span className="text-blue-600 dark:text-blue-400" title="Email verified">✓</span>
                     )}
                   </div>
-                  <p className="text-gray-500 dark:text-gray-400">@{profile.username}</p>
+                  <p className="text-slate-600 dark:text-gray-400">@{profile.username}</p>
                 </div>
                 {isOwner && (
                   <Button type="button" onClick={() => setShowEditModal(true)} className="!py-2 text-sm">
@@ -330,15 +335,15 @@ function PublicProfile() {
               </div>
 
               {profile.bio && (
-                <p className="mt-2 text-gray-600 dark:text-gray-300 whitespace-pre-wrap max-w-2xl">{profile.bio}</p>
+                <p className="mt-2 max-w-2xl whitespace-pre-wrap text-slate-700 dark:text-gray-300">{profile.bio}</p>
               )}
 
-              <div className="flex flex-wrap gap-3 mt-2">
+              <div className="mt-2 flex flex-wrap gap-3">
                 {profile.country && (
-                  <span className="text-gray-500 dark:text-gray-400 text-sm">📍 {profile.country}</span>
+                  <span className="text-sm text-slate-600 dark:text-gray-400">📍 {profile.country}</span>
                 )}
                 {profile.memberSince && (
-                  <span className="text-gray-500 dark:text-gray-400 text-sm">
+                  <span className="text-sm text-slate-600 dark:text-gray-400">
                     Joined {new Date(profile.memberSince).toLocaleDateString()}
                   </span>
                 )}

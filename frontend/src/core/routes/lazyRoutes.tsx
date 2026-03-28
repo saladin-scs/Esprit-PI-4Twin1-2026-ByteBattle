@@ -22,6 +22,7 @@ const ForgotPassword = lazy(() => import('../../pages/Auth/ForgotPassword').then
 const ResetPassword = lazy(() => import('../../pages/Auth/ResetPassword').then((m) => ({ default: m.default })));
 const SocialCallback = lazy(() => import('../../pages/Auth/SocialCallback').then((m) => ({ default: m.default })));
 const Setup2FA = lazy(() => import('../../pages/Auth/Setup2FA').then((m) => ({ default: m.default })));
+const Status = lazy(() => import('../../pages/Status/Status').then((m) => ({ default: m.default })));
 
 export const LazyRoutes = {
   Home,
@@ -43,6 +44,7 @@ export const LazyRoutes = {
   ResetPassword,
   SocialCallback,
   Setup2FA,
+  Status,
 };
 
 const PageFallback = () => (

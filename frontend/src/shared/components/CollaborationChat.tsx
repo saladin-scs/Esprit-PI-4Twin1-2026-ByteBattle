@@ -8,13 +8,16 @@ import {
   RefreshCw,
   ChevronUp,
   Loader2,
+  Flag,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocketChat, type ChatLine } from '../../hooks/useSocketChat';
 import { chatApi } from '../../services/api';
 import { cn } from '../../lib/utils';
 import { useDebouncedCallback } from 'use-debounce';
 import { RootState } from '../../store/store';
+import { CHAT_MESSAGE_MAX_CHARS, CHAT_RATE_HINT } from '../../config/chatLimits';
 
 const HISTORY_PAGE = 45;
 
@@ -63,6 +66,7 @@ export function CollaborationChat({
     error,
     transport,
     reconnect,
+    pendingOutboundCount,
   } = useSocketChat(enabled ? room : null, { enabled });
 
   const roomFetchRef = useRef(room);
@@ -169,6 +173,25 @@ export function CollaborationChat({
     setInput('');
   };
 
+  const reportLine = async (line: ChatLine) => {
+    if (!line.id || !room) return;
+    const reason = window.prompt('Raison du signalement (optionnel) :') ?? '';
+    try {
+      await chatApi.reportMessage({
+        messageId: line.id,
+        room,
+        reason: reason.trim() || undefined,
+      });
+      toast.success('Signalement enregistré. Merci.');
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      toast.error(typeof msg === 'string' ? msg : 'Signalement impossible pour le moment.');
+    }
+  };
+
   const typingLabel = Object.values(typingUsers).filter(Boolean).join(', ');
   const transportLabel =
     transport === 'websocket' ? 'WebSocket' : transport === 'polling' ? 'Polling' : '…';
@@ -224,6 +247,16 @@ export function CollaborationChat({
           role="alert"
         >
           {error}
+        </p>
+      )}
+
+      {pendingOutboundCount > 0 && (
+        <p
+          className="border-b border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/35 dark:text-sky-100"
+          role="status"
+        >
+          {pendingOutboundCount} message{pendingOutboundCount > 1 ? 's' : ''} en attente d’envoi — ils
+          partiront à la reconnexion.
         </p>
       )}
 
@@ -305,6 +338,20 @@ export function CollaborationChat({
                 >
                   {line.message}
                 </p>
+                {!mine && line.id && (
+                  <button
+                    type="button"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      void reportLine(line);
+                    }}
+                    className="mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-200/80 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                    title="Signaler ce message"
+                  >
+                    <Flag className="h-3 w-3" aria-hidden />
+                    Signaler
+                  </button>
+                )}
               </motion.div>
             );
           })}
@@ -334,22 +381,30 @@ export function CollaborationChat({
             value={input}
             onChange={(e) => onInputChange(e.target.value)}
             onBlur={() => setTyping(false)}
-            placeholder={connected ? 'Écrire un message…' : 'Connexion temps réel requise'}
-            disabled={!connected}
-            maxLength={2000}
+            placeholder={
+              connected
+                ? 'Écrire un message…'
+                : 'Hors ligne — le message sera mis en file pour envoi à la reconnexion'
+            }
+            maxLength={CHAT_MESSAGE_MAX_CHARS}
             className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             aria-label="Message"
           />
           <button
             type="submit"
-            disabled={!connected || !input.trim()}
+            disabled={!input.trim()}
             className="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary-600 px-4 py-2.5 text-white shadow-sm hover:bg-primary-700 disabled:opacity-40"
             aria-label="Envoyer le message"
           >
             <Send className="h-4 w-4" />
           </button>
         </div>
-        <p className="mt-1 text-right text-[10px] text-slate-400">{input.length}/2000</p>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-1 text-[10px] text-slate-400">
+          <span>{CHAT_RATE_HINT}</span>
+          <span>
+            {input.length}/{CHAT_MESSAGE_MAX_CHARS}
+          </span>
+        </div>
       </form>
     </div>
   );

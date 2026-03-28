@@ -41,6 +41,8 @@ export const chatApi = {
       body: string;
       createdAt: string;
     }> }>('/chat/history', { params: { room, ...params } }),
+  reportMessage: (body: { messageId: string; room: string; reason?: string }) =>
+    apiClient.post<{ ok: true }>('/chat/report', body),
 };
 
 export const feedbackApi = {

@@ -8,9 +8,36 @@ import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
+import { randomUUID } from 'crypto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use((req: any, res: any, next: any) => {
+    const id =
+      (typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].trim()) ||
+      randomUUID();
+    req.correlationId = id;
+    res.setHeader('X-Request-Id', id);
+    const start = Date.now();
+    res.on('finish', () => {
+      try {
+        console.log(
+          JSON.stringify({
+            level: 'http',
+            correlationId: id,
+            method: req.method,
+            path: req.originalUrl?.split('?')[0] ?? req.url,
+            status: res.statusCode,
+            ms: Date.now() - start,
+          }),
+        );
+      } catch {
+        /* ignore */
+      }
+    });
+    next();
+  });
 
   // Serve uploaded files (avatars, covers)
   const uploadsPath = join(process.cwd(), 'uploads');
@@ -50,6 +77,7 @@ async function bootstrap() {
   app.use(async (req: any, res: any, next: any) => {
     try {
       const key = req.ip || req.connection?.remoteAddress || 'unknown';
+      if (req.path === '/health' || req.path?.startsWith('/health/')) return next();
       // softer for swagger/assets
       if (req.path?.startsWith('/api')) return next();
       await rateLimiter.consume(key, 1);

@@ -3,6 +3,7 @@ import { Controller, Get, Patch, Param, Query, Body, UseGuards, Request } from '
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard, Roles } from '../core';
 import { AdminService } from './admin.service';
+import { ChatService } from '../chat/chat.service';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { SetRoleDto } from './dto/set-role.dto';
 
@@ -12,7 +13,10 @@ import { SetRoleDto } from './dto/set-role.dto';
 @Roles('admin')
 @ApiBearerAuth()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly chatService: ChatService,
+  ) {}
 
   @Get('users')
   @ApiOperation({ summary: 'List users (admin)' })
@@ -73,6 +77,20 @@ export class AdminController {
   })
   getMlInsights() {
     return this.adminService.getMlInsights();
+  }
+
+  @Get('chat-reports')
+  @ApiOperation({ summary: 'Signalements de messages chat (modération)' })
+  async chatReports(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: 'open' | 'reviewed',
+  ) {
+    return this.chatService.listReportsForAdmin(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 30,
+      status === 'open' || status === 'reviewed' ? status : undefined,
+    );
   }
 }
 

@@ -7,6 +7,8 @@ interface User {
   username: string;
   roles?: string[];
   displayName?: string;
+  firstName?: string;
+  lastName?: string;
   avatarUrl?: string;
   emailVerifiedAt?: string | null;
   twoFactorEnabled?: boolean;
@@ -78,7 +80,17 @@ export const verify2faLogin = createAsyncThunk(
 
 export const register = createAsyncThunk(
   'auth/register',
-  async (userData: { email: string; username: string; password: string }) => {
+  async (userData: {
+    email: string;
+    username: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    newsletter?: boolean;
+    referralSource?: string;
+  }) => {
     const response = await authApi.register(userData);
     if (response.data.twoFactorSetupRequired && response.data.setupToken) {
       localStorage.setItem('token', response.data.setupToken);
@@ -226,6 +238,8 @@ const authSlice = createSlice({
             username: u.username,
             roles: u.roles || (u.isAdmin ? ['admin'] : ['user']),
             displayName: u.displayName,
+            firstName: u.firstName,
+            lastName: u.lastName,
             avatarUrl: u.avatarUrl,
             emailVerifiedAt: u.emailVerifiedAt || null,
             twoFactorEnabled: u.twoFactorEnabled || false,

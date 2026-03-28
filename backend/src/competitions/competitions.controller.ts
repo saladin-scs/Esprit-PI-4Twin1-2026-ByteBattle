@@ -13,6 +13,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CompetitionsService } from './competitions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ActionRateLimitGuard, RateLimitAction } from '../common/action-rate-limit.guard';
 import { CreateCompetitionDto } from './dto/create-competition.dto';
 import { SubmitCompetitionDto } from './dto/submit-competition.dto';
 import { GetCompetitionsDto } from './dto/get-competitions.dto';
@@ -82,7 +83,8 @@ export class CompetitionsController {
   }
 
   @Post(':id/submit')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActionRateLimitGuard)
+  @RateLimitAction('competition_submit')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Submit solution for a competition' })
   async submit(

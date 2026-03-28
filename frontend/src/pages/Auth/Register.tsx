@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import * as faceapi from 'face-api.js';
 import axios from 'axios';
 import { getPublicApiUrl } from '../../config/publicEnv';
+import { setPostRegisterOnboardingFlag } from '../../shared/components';
 
 // Icons
 const GoogleIcon = () => (
@@ -540,10 +541,24 @@ function Register() {
     setSuccess("");
 
     try {
+      const dob =
+        formData.dateOfBirth instanceof Date
+          ? formData.dateOfBirth.toISOString().slice(0, 10)
+          : formData.dateOfBirth
+            ? new Date(formData.dateOfBirth as string).toISOString().slice(0, 10)
+            : undefined;
+      const fn = formData.firstName?.trim();
+      const ln = formData.lastName?.trim();
       const response = await axios.post(`${API_URL}/auth/register`, {
         email: formData.email,
         username: formData.username.trim(),
         password: formData.password,
+        ...(fn && fn.length >= 2 ? { firstName: fn } : {}),
+        ...(ln && ln.length >= 2 ? { lastName: ln } : {}),
+        ...(formData.phone ? { phone: formData.phone } : {}),
+        ...(dob ? { dateOfBirth: dob } : {}),
+        newsletter: !!formData.newsletter,
+        ...(formData.referralSource?.trim() ? { referralSource: formData.referralSource.trim() } : {}),
         faceDescriptor: faceDescriptor ?? undefined,
       });
 
@@ -586,12 +601,34 @@ function Register() {
     setError('');
 
     try {
-      const { email, username, password } = data;
+      const {
+        email,
+        username,
+        password,
+        firstName,
+        lastName,
+        phone,
+        dateOfBirth,
+        newsletter,
+        referralSource,
+      } = data;
+      const dob =
+        dateOfBirth instanceof Date
+          ? dateOfBirth.toISOString().slice(0, 10)
+          : dateOfBirth
+            ? new Date(dateOfBirth as string).toISOString().slice(0, 10)
+            : undefined;
       const result = await dispatch(
         registerAction({
           email,
           username: username.trim(),
           password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone,
+          dateOfBirth: dob,
+          newsletter: !!newsletter,
+          referralSource: referralSource?.trim() || undefined,
         }),
       ).unwrap();
 
@@ -600,6 +637,7 @@ function Register() {
         navigate('/setup-2fa');
       } else {
         toast.success('Registration successful! Please check your email.');
+        setPostRegisterOnboardingFlag();
         navigate('/login');
       }
     } catch (err: any) {

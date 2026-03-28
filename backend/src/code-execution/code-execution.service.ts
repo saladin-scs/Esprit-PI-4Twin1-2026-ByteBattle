@@ -7,6 +7,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+/** One row from GET …/api/v2/runtimes (Piston public API). */
+interface PistonRuntimeEntry {
+  language: string;
+  version: string;
+  aliases?: string[];
+  runtime?: string;
+}
+
 @Injectable()
 export class CodeExecutionService {
   private readonly logger = new Logger(CodeExecutionService.name);
@@ -21,7 +29,7 @@ export class CodeExecutionService {
   private readonly localTimeoutMs = 5000;
   private readonly localMaxBuffer = 4 * 1024 * 1024; // 4MB stdout/stderr cap per run
 
-  // Piston runtime versions (align with GET /api/v2/runtimes on your Piston instance)
+  // Fallback versions when GET …/runtimes is unreachable (align with your Piston instance)
   private languageVersionMap: Record<string, string> = {
     python: '3.10.0',
     javascript: '18.15.0',
@@ -29,6 +37,83 @@ export class CodeExecutionService {
     c: '10.2.0',
     java: '15.0.2',
   };
+
+  private runtimeCache: { base: string; at: number; list: PistonRuntimeEntry[] } | null = null;
+  private readonly runtimeCacheTtlMs = 60 * 60 * 1000;
+
+  /** GET /runtimes — public emkc has multiple "javascript" entries (Deno vs Node). */
+  private getPistonApiBase(): string {
+    const ep = (this.pistonEndpoint || '').trim().replace(/\/$/, '');
+    if (ep.endsWith('/execute')) return ep.slice(0, -'/execute'.length);
+    return ep;
+  }
+
+  private async fetchPistonRuntimesList(): Promise<PistonRuntimeEntry[] | null> {
+    const base = this.getPistonApiBase();
+    if (!base) return null;
+    const now = Date.now();
+    if (
+      this.runtimeCache &&
+      this.runtimeCache.base === base &&
+      now - this.runtimeCache.at < this.runtimeCacheTtlMs
+    ) {
+      return this.runtimeCache.list;
+    }
+    try {
+      const url = `${base}/runtimes`;
+      const res = await axios.get<PistonRuntimeEntry[]>(url, {
+        timeout: 8000,
+        validateStatus: (s) => s === 200,
+      });
+      if (!Array.isArray(res.data) || res.data.length === 0) return null;
+      this.runtimeCache = { base, at: now, list: res.data };
+      return res.data;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.logger.warn(`Piston runtimes fetch failed (${msg}) — using static languageVersionMap`);
+      return null;
+    }
+  }
+
+  private pickVersionFromRuntimes(lang: string, runtimes: PistonRuntimeEntry[]): string | null {
+    const langNorm = lang.toLowerCase();
+    const candidates = runtimes.filter((r) => {
+      if (r.language.toLowerCase() === langNorm) return true;
+      return (r.aliases || []).some((a) => a.toLowerCase() === langNorm);
+    });
+    if (!candidates.length) return null;
+    const fallback = this.languageVersionMap[lang];
+
+    if (langNorm === 'javascript') {
+      const node = candidates.find((c) => c.runtime === 'node');
+      if (node) return node.version;
+      const byFallback = fallback ? candidates.find((c) => c.version === fallback) : undefined;
+      if (byFallback) return byFallback.version;
+      const v18 = candidates.find((c) => String(c.version).startsWith('18.'));
+      if (v18) return v18.version;
+    }
+    if (langNorm === 'c++' || langNorm === 'c') {
+      const gcc = candidates.find((c) => c.runtime === 'gcc' && c.language.toLowerCase() === langNorm);
+      if (gcc) return gcc.version;
+    }
+    if (fallback) {
+      const exact = candidates.find((c) => c.version === fallback);
+      if (exact) return exact.version;
+    }
+    return candidates[0].version;
+  }
+
+  private async resolvePistonVersionForLanguage(lang: string): Promise<string> {
+    const fallback = this.languageVersionMap[lang];
+    const list = await this.fetchPistonRuntimesList();
+    if (!list) return fallback;
+    const picked = this.pickVersionFromRuntimes(lang, list);
+    if (picked) {
+      this.logger.debug(`Piston ${lang} → version ${picked} @ ${this.getPistonApiBase()}`);
+      return picked;
+    }
+    return fallback;
+  }
 
   /** Piston expects a file name; some runtimes use the extension. */
   /** Piston runs plain Node — inject readline() from stdin (same idea as local runner). */
@@ -129,12 +214,13 @@ export class CodeExecutionService {
     }
 
     const lang = language.toLowerCase();
-    const version = this.languageVersionMap[lang];
-    if (!version) {
+    if (!this.languageVersionMap[lang]) {
       throw new BadRequestException(
         `Unsupported language: ${language}. Supported: ${Object.keys(this.languageVersionMap).join(', ')}`,
       );
     }
+
+    const pistonVersion = await this.resolvePistonVersionForLanguage(lang);
 
     // Detect obvious mismatch: e.g. JavaScript code sent with language=python
     const looksLikeJs = /^\s*(function\s+\w+|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|\w+\s*=>)/m.test(code) || (code.includes('readline()') && code.includes('console.log'));
@@ -178,7 +264,7 @@ export class CodeExecutionService {
           lang === 'javascript' ? this.wrapJavaScriptForPiston(code) : code;
         const payload = {
           language: lang,
-          version,
+          version: pistonVersion,
           files: [{ name: this.getPistonFileName(lang), content: codeForPiston }],
           stdin,
           run_timeout: Math.min(this.requestTimeoutMs, 15000),
@@ -206,9 +292,34 @@ export class CodeExecutionService {
         }
 
         const runPayload = response.data?.run ?? {};
-        const rawOutput = typeof runPayload.stdout === 'string' ? runPayload.stdout : '';
-        const output = this.normalizeOutput(rawOutput);
+        const rawOutput =
+          typeof runPayload.stdout === 'string'
+            ? runPayload.stdout
+            : typeof runPayload.output === 'string'
+              ? runPayload.output
+              : '';
         const stderrStr = typeof runPayload.stderr === 'string' ? runPayload.stderr : '';
+        const exitCode = runPayload.code;
+        const signal = runPayload.signal;
+        const hasBadExit = exitCode !== null && exitCode !== undefined && exitCode !== 0;
+        const hasSignal = signal != null && signal !== '';
+
+        if (hasBadExit || hasSignal) {
+          const output = this.normalizeOutput(rawOutput);
+          const errMsg = hasSignal
+            ? (stderrStr.trim() || `Terminated: ${signal}`)
+            : stderrStr.trim() || `Process exited with code ${exitCode}`;
+          results.push({
+            testCase: index + 1,
+            passed: false,
+            output,
+            error: errMsg,
+            executionTime: Number(runPayload.time) || 0,
+          });
+          continue;
+        }
+
+        const output = this.normalizeOutput(rawOutput);
         const error = stderrStr.trim();
         const expected = this.normalizeOutput(String(testCase.expectedOutput ?? ''));
         const passed = output === expected;
@@ -230,6 +341,7 @@ export class CodeExecutionService {
           (err?.response?.status >= 500 && err?.response?.status < 600) ||
           err?.code === 'ECONNREFUSED' ||
           err?.code === 'ETIMEDOUT' ||
+          err?.code === 'ECONNABORTED' ||
           err?.code === 'ENOTFOUND';
         if (isPistonUnavailable) {
           return this.runAllTestCasesLocally(code, lang, testCases);

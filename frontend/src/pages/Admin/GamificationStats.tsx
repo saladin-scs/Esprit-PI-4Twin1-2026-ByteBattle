@@ -11,10 +11,39 @@ interface GamificationStatsResponse {
   topBadges: Array<{ badgeId: string; count: number }>;
 }
 
+function formatAdminApiError(err: unknown, fallback: string): string {
+  const res =
+    err && typeof err === 'object' && 'response' in err
+      ? (err as { response?: { status?: number; data?: { message?: string } } }).response
+      : undefined;
+  if (res?.status === 403) {
+    return (
+      res.data?.message ||
+      'Accès refusé (admin requis). Vérifie que ton compte est promu : `npm run make-admin -- ton@email.com` dans backend/, puis rafraîchis.'
+    );
+  }
+  return res?.data?.message || (err instanceof Error ? err.message : fallback);
+}
+
+interface ChatReportRow {
+  id: string;
+  room: string;
+  bodySnapshot?: string;
+  reason?: string;
+  status?: string;
+  reporterUserId?: string;
+  reportedUserId?: string;
+  createdAt?: string;
+}
+
 function AdminGamificationStats() {
   const [data, setData] = useState<GamificationStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reports, setReports] = useState<ChatReportRow[]>([]);
+  const [reportsTotal, setReportsTotal] = useState(0);
+  const [reportsLoading, setReportsLoading] = useState(true);
+  const [reportsError, setReportsError] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -30,6 +59,23 @@ function AdminGamificationStats() {
       }
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    const loadReports = async () => {
+      setReportsLoading(true);
+      setReportsError('');
+      try {
+        const res = await adminApi.getChatReports({ limit: 50, status: 'open' });
+        setReportsTotal(res.data?.total ?? 0);
+        setReports((res.data?.items as unknown as ChatReportRow[]) ?? []);
+      } catch (e) {
+        setReportsError(formatAdminApiError(e, 'Could not load chat reports.'));
+      } finally {
+        setReportsLoading(false);
+      }
+    };
+    loadReports();
   }, []);
 
   return (
@@ -79,6 +125,49 @@ function AdminGamificationStats() {
           </Card>
         </div>
       ) : null}
+
+      <Card className="p-6 mt-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Chat reports (open)</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Signalements utilisateurs — API <code className="text-xs">GET /admin/chat-reports</code>
+        </p>
+        {reportsError && (
+          <p className="text-sm text-red-600 dark:text-red-400 mb-2">{reportsError}</p>
+        )}
+        {reportsLoading ? (
+          <Spinner size="sm" />
+        ) : reports.length === 0 ? (
+          <p className="text-sm text-gray-600 dark:text-gray-300">Aucun signalement ouvert.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <p className="text-xs text-gray-500 mb-2">Total ouverts (toutes pages) : {reportsTotal}</p>
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-600 text-gray-500">
+                  <th className="py-2 pr-2">Room</th>
+                  <th className="py-2 pr-2">Extrait</th>
+                  <th className="py-2 pr-2">Raison</th>
+                  <th className="py-2">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((r) => (
+                  <tr key={r.id} className="border-b border-gray-100 dark:border-gray-700/80">
+                    <td className="py-2 pr-2 font-mono text-xs">{r.room}</td>
+                    <td className="py-2 pr-2 max-w-[200px] truncate" title={r.bodySnapshot}>
+                      {r.bodySnapshot}
+                    </td>
+                    <td className="py-2 pr-2 text-xs">{r.reason || '—'}</td>
+                    <td className="py-2 text-xs text-gray-500">
+                      {r.createdAt ? new Date(r.createdAt).toLocaleString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       {data?.topBadges && data.topBadges.length > 0 && (
         <Card className="p-6 mt-6">

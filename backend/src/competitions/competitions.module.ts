@@ -9,9 +9,11 @@ import { ChallengeModule } from '../challenges/challenges.module';
 import { CodeExecutionModule } from '../code-execution/code-execution.module';
 import { GamificationModule } from '../gamification/gamification.module';
 import { UsersModule } from '../users/users.module';
+import { CommonRateLimitModule } from '../common/common.module';
 
 @Module({
   imports: [
+    CommonRateLimitModule,
     MongooseModule.forFeature([
       { name: Competition.name, schema: CompetitionSchema },
       { name: CompetitionSubmission.name, schema: CompetitionSubmissionSchema },

@@ -7,6 +7,7 @@ import { CreateSolutionDto } from './dto/solution.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ActionRateLimitGuard, RateLimitAction } from '../common/action-rate-limit.guard';
 
 @ApiTags('Challenges')
 @Controller('challenges')
@@ -53,7 +54,8 @@ export class ChallengeController {
   // ─── Routes PROTÉGÉES (JWT requis) ──────────────────────────────────────
 
   @Post(':id/run')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActionRateLimitGuard)
+  @RateLimitAction('challenge_run')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Exécuter le code contre les exemples uniquement (sans enregistrer)' })
   async run(
@@ -64,7 +66,8 @@ export class ChallengeController {
   }
 
   @Post(':id/submit')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActionRateLimitGuard)
+  @RateLimitAction('challenge_submit')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Soumettre une solution' })
   async submit(
