@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import { PageContainer, Card, Button } from '../../shared/components';
 import { Trophy, Zap, BarChart3, MessageCircle } from 'lucide-react';
+import { SiteRatingWidget } from './SiteRatingWidget';
 
 function Home() {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -52,6 +53,8 @@ function Home() {
             </>
           )}
         </div>
+
+        <SiteRatingWidget />
       </div>
 
       <div className="relative mt-16 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 md:gap-8">

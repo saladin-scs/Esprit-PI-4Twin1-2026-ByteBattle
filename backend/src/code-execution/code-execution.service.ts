@@ -19,8 +19,9 @@ interface PistonRuntimeEntry {
 export class CodeExecutionService {
   private readonly logger = new Logger(CodeExecutionService.name);
 
+  /** Default: Piston Docker local (scripts/start-piston.ps1). Production: set PISTON_ENDPOINT (e.g. emkc + clé si autorisé). */
   private readonly pistonEndpoint =
-    process.env.PISTON_ENDPOINT || 'https://emkc.org/api/v2/piston/execute';
+    (process.env.PISTON_ENDPOINT || '').trim() || 'http://127.0.0.1:2000/api/v2/execute';
 
   private readonly requestTimeoutMs = Number(process.env.CODE_EXECUTION_TIMEOUT_MS || 15000);
   private readonly maxTestCases = Number(process.env.CODE_EXECUTION_MAX_TESTCASES || 20);
@@ -152,6 +153,51 @@ export class CodeExecutionService {
   }
 
   /**
+   * Par défaut : Piston d’abord (Docker local ou PISTON_ENDPOINT).
+   * CODE_EXECUTION_PREFER_LOCAL=true → Node / Python sur la machine si dispo (comportement dev « judge0 »).
+   * CODE_EXECUTION_PREFER_PISTON=true → forcer Piston. false → forcer logique locale dès que possible (legacy).
+   */
+  private useLocalRunnerFirst(lang: string): boolean {
+    if (process.env.CODE_EXECUTION_PREFER_PISTON === 'true') return false;
+    if (process.env.CODE_EXECUTION_PREFER_PISTON === 'false') return this.shouldRunLocallyFirst(lang);
+    if (process.env.CODE_EXECUTION_PREFER_LOCAL === 'true') return this.shouldRunLocallyFirst(lang);
+    return false;
+  }
+
+  private canRunLanguageLocally(lang: string): boolean {
+    const l = this.toLocalLanguage(lang);
+    if (l === 'javascript') {
+      const r = spawnSync('node', ['--version'], { encoding: 'utf8', timeout: 4000, windowsHide: true });
+      return r.status === 0 && !!(r.stdout || '').trim();
+    }
+    if (l === 'python') return this.getPythonExecutablePath() != null;
+    if (l === 'java') {
+      const r = spawnSync('javac', ['-version'], { encoding: 'utf8', timeout: 6000, windowsHide: true });
+      return r.status === 0;
+    }
+    if (l === 'cpp') {
+      const r = spawnSync('g++', ['--version'], { encoding: 'utf8', timeout: 6000, windowsHide: true });
+      return r.status === 0;
+    }
+    return false;
+  }
+
+  private allTestsFailed(
+    testCases: { input: string; expectedOutput: string }[],
+    error: string,
+  ): { results: { testCase: number; passed: boolean; output: string; error: string; executionTime: number }[]; overall: { passed: number; total: number } } {
+    const err = String(error || 'Execution failed').slice(0, 800);
+    const results = testCases.map((_, i) => ({
+      testCase: i + 1,
+      passed: false,
+      output: '',
+      error: err,
+      executionTime: 0,
+    }));
+    return { results, overall: { passed: 0, total: testCases.length } };
+  }
+
+  /**
    * Judges often send stdin without a final \\n. `sys.stdin.readline()` then waits for a newline
    * or EOF; with an open pipe that can hang or fail. Always end stdin with \\n when non-empty.
    */
@@ -241,12 +287,7 @@ export class CodeExecutionService {
 
     const results: { testCase: number; passed: boolean; output: string; error: string; executionTime: number }[] = [];
 
-    const preferLocal =
-      process.env.CODE_EXECUTION_PREFER_PISTON === 'true'
-        ? false
-        : this.shouldRunLocallyFirst(lang);
-
-    if (preferLocal) {
+    if (this.useLocalRunnerFirst(lang)) {
       return this.runAllTestCasesLocally(code, lang, testCases);
     }
 
@@ -283,8 +324,15 @@ export class CodeExecutionService {
         });
 
         if (response.status === 401 || response.status >= 400) {
-          const msg = response.status === 401 ? 'PISTON_401' : (response.data?.message || `Piston API error: ${response.status}`);
-          throw new Error(msg);
+          const bodyMsg =
+            response.status === 401
+              ? 'Piston API returned 401. Set PISTON_API_KEY if your host requires a Bearer token.'
+              : typeof response.data?.message === 'string'
+                ? response.data.message
+                : `Piston API error: ${response.status}`;
+          const e = new Error(bodyMsg) as Error & { pistonHttpStatus?: number };
+          e.pistonHttpStatus = response.status;
+          throw e;
         }
         const compileErr = response.data?.compile?.stderr || response.data?.compile?.output;
         if (compileErr && String(compileErr).trim()) {
@@ -331,9 +379,14 @@ export class CodeExecutionService {
           executionTime: Number(runPayload.time) || 0,
         });
       } catch (err: any) {
+        if (err instanceof BadRequestException) throw err;
         const msg = err?.message || '';
+        const pistonHttp = err?.pistonHttpStatus as number | undefined;
+        if (pistonHttp === 401 || pistonHttp === 403 || pistonHttp === 429) {
+          this.logger.warn(`Piston HTTP ${pistonHttp}: ${msg.slice(0, 200)}`);
+          return this.allTestsFailed(testCases, msg);
+        }
         const isPistonUnavailable =
-          msg === 'PISTON_401' ||
           msg.startsWith('PISTON_COMPILE') ||
           msg.includes('Piston API error') ||
           err?.response?.status === 401 ||
@@ -344,7 +397,19 @@ export class CodeExecutionService {
           err?.code === 'ECONNABORTED' ||
           err?.code === 'ENOTFOUND';
         if (isPistonUnavailable) {
-          return this.runAllTestCasesLocally(code, lang, testCases);
+          if (this.canRunLanguageLocally(lang)) {
+            return this.runAllTestCasesLocally(code, lang, testCases);
+          }
+          if (msg.startsWith('PISTON_COMPILE')) {
+            return this.allTestsFailed(testCases, msg);
+          }
+          const hint =
+            `Piston indisponible (${msg.slice(0, 240)}). ` +
+            `Démarre un exécuteur : depuis la racine du repo, .\\scripts\\start-piston.ps1 (Docker), ` +
+            `puis installe les langages (piston CLI : ppman install javascript python java c++). ` +
+            `Vérifie PISTON_ENDPOINT dans backend/.env (défaut http://127.0.0.1:2000/api/v2/execute). ` +
+            `L’API publique emkc.org est soumise à liste blanche depuis 2026 — utilise une instance auto-hébergée ou une clé.`;
+          return this.allTestsFailed(testCases, hint);
         }
         this.logger.error(`Execution error for test case ${index + 1}`, msg);
         results.push({
@@ -469,7 +534,8 @@ ${code}
     if (!pythonExe) {
       return {
         output: '',
-        error: 'Python not found. Install Python 3 or set CODE_EXECUTION_PREFER_PISTON=true in .env',
+        error:
+          'Python not found locally. Use Piston (Docker): run scripts/start-piston.ps1, set PISTON_ENDPOINT=http://127.0.0.1:2000/api/v2/execute, or install Python 3 on the server.',
         executionTimeMs: Date.now() - start,
       };
     }

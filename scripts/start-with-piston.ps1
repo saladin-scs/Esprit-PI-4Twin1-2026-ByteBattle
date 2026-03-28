@@ -5,9 +5,9 @@ $nodePath = "C:\Program Files\nodejs"
 $envFile = Join-Path $root "backend\.env"
 if (Test-Path $envFile) {
   $c = Get-Content $envFile -Raw
-  if ($c -notmatch 'CODE_EXECUTION_PREFER_PISTON=true') {
-    Add-Content $envFile "`nCODE_EXECUTION_PREFER_PISTON=true"
-    Write-Host "Appended CODE_EXECUTION_PREFER_PISTON=true to backend\.env" -ForegroundColor Yellow
+  if ($c -notmatch 'PISTON_ENDPOINT=') {
+    Add-Content $envFile "`nPISTON_ENDPOINT=http://127.0.0.1:2000/api/v2/execute"
+    Write-Host "Appended PISTON_ENDPOINT=http://127.0.0.1:2000/api/v2/execute to backend\.env" -ForegroundColor Yellow
   }
 }
 Write-Host "Starting backend (Piston mode) + frontend..." -ForegroundColor Cyan

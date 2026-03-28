@@ -48,9 +48,8 @@ if ($containerExists) {
 
 Write-Host ""
 Write-Host "API Piston : http://localhost:2000" -ForegroundColor Green
-Write-Host "Pour ByteBattle, dans backend/.env :" -ForegroundColor Yellow
-Write-Host "  PISTON_ENDPOINT=http://localhost:2000/api/v2/execute" -ForegroundColor Gray
-Write-Host "  CODE_EXECUTION_PREFER_PISTON=true" -ForegroundColor Gray
+Write-Host "Pour ByteBattle, dans backend/.env (ou laisse le defaut du backend) :" -ForegroundColor Yellow
+Write-Host "  PISTON_ENDPOINT=http://127.0.0.1:2000/api/v2/execute" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Important : au premier lancement, aucun langage n'est installé." -ForegroundColor Yellow
 Write-Host "Clone https://github.com/engineer-man/piston puis :" -ForegroundColor Yellow

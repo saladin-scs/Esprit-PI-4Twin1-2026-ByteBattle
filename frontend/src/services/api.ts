@@ -45,6 +45,17 @@ export const chatApi = {
     apiClient.post<{ ok: true }>('/chat/report', body),
 };
 
+/** Note site : 1 à 5 étoiles. */
+export const SITE_RATING_MAX_STARS = 5;
+
+export const siteRatingsApi = {
+  getStats: () =>
+    apiClient.get<{ average: number; count: number; maxStars: number }>('/site-ratings/stats'),
+  getMe: () => apiClient.get<{ stars: number | null }>('/site-ratings/me'),
+  setRating: (stars: number) =>
+    apiClient.post<{ ok: true; stars: number }>('/site-ratings', { stars }),
+};
+
 export type ReclamationCategory = 'bug' | 'account' | 'content' | 'harassment' | 'other';
 export type ReclamationStatus = 'open' | 'read' | 'resolved' | 'cancelled';
 

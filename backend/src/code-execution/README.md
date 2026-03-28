@@ -1,6 +1,6 @@
 # Code Execution (Piston)
 
-Le backend utilise **Piston** pour l’exécution de code à distance. Si Piston est indisponible, l’exécution locale (Node, Python, Java, g++) est utilisée en secours.
+Le backend utilise **Piston** par défaut pour Run/Submit. **Sans `PISTON_ENDPOINT` dans `.env`**, l’URL par défaut est `http://127.0.0.1:2000/api/v2/execute` (conteneur Docker local). Si Piston est indisponible **et** que les outils sont présents sur le serveur, l’exécution locale (Node, Python, Java, g++) sert de secours. Sinon un message d’erreur explicite indique de démarrer Piston ou d’installer les langages.
 
 ## Utiliser Piston (exécution à distance)
 
@@ -42,28 +42,25 @@ Puis installer les langages avec le CLI (`cli/index.js ppman install …`) comme
 2. Dans ton `.env` backend :
 
 ```env
-PISTON_ENDPOINT=http://localhost:2000/api/v2/execute
-CODE_EXECUTION_PREFER_PISTON=true
+PISTON_ENDPOINT=http://127.0.0.1:2000/api/v2/execute
 ```
 
 Pas besoin de `PISTON_API_KEY` en local.
 
 3. Redémarrer le backend. Les runs/submit utiliseront Piston.
 
-### Option 2 : API publique (emkc.org)
+### Option 2 : API emkc.org (liste blanche)
 
-L’URL par défaut est `https://emkc.org/api/v2/piston/execute`.  
-Si cette API exige une clé (ex. 401) :
-
-- Renseigner `PISTON_API_KEY` dans `.env` si tu as une clé.
-- Sinon, utiliser l’option 1 (Piston en Docker).
+Depuis février 2026, l’API publique **https://emkc.org/api/v2/piston/execute** est **souvent refusée** (403 / message « whitelist only ») sans accord préalable. Pour l’utiliser : `PISTON_ENDPOINT=https://emkc.org/api/v2/piston/execute` et, si besoin, `PISTON_API_KEY`. En pratique, préfère **l’option 1 (Docker)**.
 
 ### Variables d’environnement
 
 | Variable | Description |
 |----------|-------------|
-| `PISTON_ENDPOINT` | URL de l’API execute (ex. `http://localhost:2000/api/v2/execute`) |
+| `PISTON_ENDPOINT` | URL de l’API execute ; défaut code : `http://127.0.0.1:2000/api/v2/execute` |
 | `PISTON_API_KEY` | Clé optionnelle (Bearer), selon l’instance utilisée |
+| `CODE_EXECUTION_PREFER_LOCAL` | `true` = tenter Node/Python en local en premier (si installés) |
+| `CODE_EXECUTION_PREFER_PISTON` | `true` / `false` (legacy) pour forcer Piston ou la logique locale |
 | `CODE_EXECUTION_TIMEOUT_MS` | Timeout par exécution en ms (défaut 15000) |
 
 ### Langages et versions

@@ -14,6 +14,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { ChatModule } from './chat/chat.module';
 import { HealthModule } from './health/health.module';
 import { ReclamationsModule } from './reclamations/reclamations.module';
+import { SiteRatingsModule } from './site-ratings/site-ratings.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ReclamationsModule } from './reclamations/reclamations.module';
     ChatModule,
     HealthModule,
     ReclamationsModule,
+    SiteRatingsModule,
   ],
 })
 export class AppModule {}
