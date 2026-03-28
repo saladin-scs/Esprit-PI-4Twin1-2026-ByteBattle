@@ -11,7 +11,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/main.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
@@ -19,7 +19,12 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:challenges": "ts-node scripts/seed-challenges.run.ts",
+<<<<<<< HEAD
     "make-admin": "ts-node scripts/make-admin.run.ts"
+=======
+    "test:ci": "jest --ci --coverage --passWithNoTests",
+    "audit:ci": "npm audit --audit-level=high"
+>>>>>>> a334d7ef96e9a8b62ed2a3da6f0e6609d3c7b496
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
