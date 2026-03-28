@@ -31,6 +31,18 @@ export const codeExecutionApi = {
     apiClient.post('/code-execution/run', data),
 };
 
+export const chatApi = {
+  getHistory: (room: string, params?: { limit?: number; before?: string }) =>
+    apiClient.get<{ room: string; messages: Array<{
+      id: string;
+      room: string;
+      userId: string;
+      username: string;
+      body: string;
+      createdAt: string;
+    }> }>('/chat/history', { params: { room, ...params } }),
+};
+
 export const feedbackApi = {
   analyze: (data: {
     code: string;

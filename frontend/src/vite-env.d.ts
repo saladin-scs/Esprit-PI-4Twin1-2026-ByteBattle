@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_API_URL: string;
+  /** URL du backend ; si absent, défaut http://localhost:3000 (voir getPublicApiUrl) */
+  readonly VITE_API_URL?: string;
 }
 
 interface ImportMeta {

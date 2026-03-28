@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useSelector } from 'react-redux';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
@@ -7,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { initVimMode } from 'monaco-vim';
-import { Play, Send, Keyboard, AlignLeft, Lightbulb, ArrowLeft, Target } from 'lucide-react';
+import { Play, Send, Keyboard, AlignLeft, Lightbulb, ArrowLeft, Target, MessageCircle, Sparkles } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { challengesApi } from '../../services/api';
 import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
@@ -15,6 +16,9 @@ import { SubmissionSuccessModal } from '../../components/Gamification/Submission
 import { useChallengeDetailStore } from '../../stores/challengeDetailStore';
 import { useGamificationStore, type RankProgress } from '../../stores/gamificationStore';
 import CommunitySolutions from './CommunitySolutions';
+import { RootState } from '../../store/store';
+import { CollaborationChat } from '../../shared/components/CollaborationChat';
+import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -97,7 +101,10 @@ const ChallengeDetail = () => {
   const [submitting, setSubmitting] = useState(false);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [result, setResult] = useState<SubmissionResult | null>(null);
-  const [activeTab, setActiveTab] = useState<'description' | 'result' | 'solutions'>('description');
+  const [activeTab, setActiveTab] = useState<
+    'description' | 'result' | 'solutions' | 'chat' | 'coach'
+  >('description');
+  const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
   const [isVimMode, setIsVimMode] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState(0);
@@ -376,6 +383,34 @@ const ChallengeDetail = () => {
                   Result {displayResult?.status === 'accepted' ? '✅' : displayResult ? '❌' : '⚠️'}
                 </button>
               )}
+              {isAuthed && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('chat')}
+                    className={`inline-flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === 'chat'
+                        ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                        : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <MessageCircle className="h-4 w-4" aria-hidden />
+                    Chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('coach')}
+                    className={`inline-flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === 'coach'
+                        ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                        : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                    Coach IA
+                  </button>
+                </>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto p-5">
@@ -526,6 +561,30 @@ const ChallengeDetail = () => {
                 <div className="h-full min-h-0">
                   <CommunitySolutions challengeId={id!} />
                 </div>
+              )}
+
+              {activeTab === 'chat' && isAuthed && id && (
+                <CollaborationChat
+                  room={`challenge:${id}`}
+                  title="Chat du défi"
+                  className="h-[min(420px,calc(100vh-12rem))]"
+                  enabled
+                />
+              )}
+
+              {activeTab === 'coach' && isAuthed && challenge && (
+                <AiCodeFeedbackPanel
+                  code={code}
+                  language={selectedLang}
+                  taskDescription={`${challenge.title}\n\n${(challenge.description || '').slice(0, 12_000)}`}
+                  testsPassed={displayResult?.status === 'accepted'}
+                  executionError={
+                    submitError ??
+                    displayResult?.testResults?.find((t) => !t.passed)?.error ??
+                    undefined
+                  }
+                  runtimeMs={displayResult?.executionTimeMs ?? runResult?.executionTimeMs}
+                />
               )}
             </div>
           </div>

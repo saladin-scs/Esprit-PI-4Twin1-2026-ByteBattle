@@ -17,6 +17,7 @@ import { useDebounce } from 'use-debounce';
 import toast from 'react-hot-toast';
 import * as faceapi from 'face-api.js';
 import axios from 'axios';
+import { getPublicApiUrl } from '../../config/publicEnv';
 
 // Icons
 const GoogleIcon = () => (
@@ -355,7 +356,7 @@ function Register() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = getPublicApiUrl();
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
   
   // Mode state

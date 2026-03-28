@@ -19,12 +19,11 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:challenges": "ts-node scripts/seed-challenges.run.ts",
-<<<<<<< HEAD
-    "make-admin": "ts-node scripts/make-admin.run.ts"
-=======
+    "seed:competitions": "ts-node scripts/seed-competitions.run.ts",
+    "seed:all": "npm run seed:challenges && npm run seed:competitions",
+    "make-admin": "ts-node scripts/make-admin.run.ts",
     "test:ci": "jest --ci --coverage --passWithNoTests",
     "audit:ci": "npm audit --audit-level=high"
->>>>>>> a334d7ef96e9a8b62ed2a3da6f0e6609d3c7b496
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",

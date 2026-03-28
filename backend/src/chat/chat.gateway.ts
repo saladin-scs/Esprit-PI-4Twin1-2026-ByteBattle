@@ -4,9 +4,14 @@ import {
   SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  ConnectedSocket,
+  MessageBody,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { verify } from 'jsonwebtoken';
+import { ChatService } from './chat.service';
+import { isValidChatRoom } from './chat-room.util';
 
 @WebSocketGateway({
   cors: {
@@ -16,14 +21,20 @@ import { verify } from 'jsonwebtoken';
       .filter(Boolean),
     credentials: true,
   },
+  transports: ['websocket', 'polling'],
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  private messageWindowMs = 10_000;
-  private maxMessagesPerWindow = 20;
-  private messageCounters = new Map<string, { windowStart: number; count: number }>();
+  private readonly logger = new Logger(ChatGateway.name);
+  private readonly messageWindowMs = 10_000;
+  private readonly maxMessagesPerWindow = 25;
+  private readonly typingWindowMs = 4_000;
+  private readonly messageCounters = new Map<string, { windowStart: number; count: number }>();
+  private readonly typingLastEmit = new Map<string, number>();
+
+  constructor(private readonly chatService: ChatService) {}
 
   private getBearerToken(client: Socket): string | null {
     const authToken = (client.handshake as any)?.auth?.token;
@@ -36,9 +47,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return null;
   }
 
-  private attachUserOrDisconnect(client: Socket) {
+  private attachUserOrDisconnect(client: Socket): void {
     const token = this.getBearerToken(client);
     if (!token) {
+      client.emit('error', { code: 'AUTH_REQUIRED', message: 'Token manquant' });
       client.disconnect(true);
       return;
     }
@@ -52,25 +64,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const payload: any = verify(token, secret);
       client.data.user = {
-        userId: payload.sub,
+        userId: String(payload.sub),
         email: payload.email,
         roles: payload.roles || [],
-        username: payload.username,
+        username: payload.username || 'user',
       };
     } catch {
+      client.emit('error', { code: 'AUTH_INVALID', message: 'Token invalide ou expiré' });
       client.disconnect(true);
     }
   }
 
-  private validateRoom(room: string): boolean {
-    if (!room || typeof room !== 'string') return false;
-    if (room.length > 100) return false;
-    // allow only namespaced rooms
-    if (!(room.startsWith('competition:') || room.startsWith('challenge:'))) return false;
-    return /^[a-zA-Z0-9:_-]+$/.test(room);
-  }
-
-  private enforceRateLimit(client: Socket): boolean {
+  private enforceMessageRateLimit(client: Socket): boolean {
     const now = Date.now();
     const entry = this.messageCounters.get(client.id);
     if (!entry || now - entry.windowStart > this.messageWindowMs) {
@@ -82,49 +87,112 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return true;
   }
 
+  private enforceTypingRateLimit(client: Socket): boolean {
+    const now = Date.now();
+    const last = this.typingLastEmit.get(client.id) ?? 0;
+    if (now - last < this.typingWindowMs) return false;
+    this.typingLastEmit.set(client.id, now);
+    return true;
+  }
+
   handleConnection(client: Socket) {
     this.attachUserOrDisconnect(client);
     if (!client.connected) return;
-    console.log(`Client connected: ${client.id} user=${client.data.user?.userId}`);
+    this.logger.debug(`chat connect socket=${client.id} user=${client.data.user?.userId}`);
   }
 
   handleDisconnect(client: Socket) {
     this.messageCounters.delete(client.id);
-    console.log(`Client disconnected: ${client.id}`);
+    this.typingLastEmit.delete(client.id);
+    this.logger.debug(`chat disconnect socket=${client.id}`);
   }
 
   @SubscribeMessage('join-room')
-  handleJoinRoom(client: Socket, room: string) {
-    if (!client.data.user) return;
-    if (!this.validateRoom(room)) return;
+  handleJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() room: string,
+  ): { ok: boolean; error?: string } {
+    if (!client.data.user) return { ok: false, error: 'Non authentifié' };
+    if (!isValidChatRoom(room)) return { ok: false, error: 'Salle invalide' };
     client.join(room);
-    this.server.to(room).emit('user-joined', { userId: client.data.user.userId });
+    this.server.to(room).emit('user-joined', {
+      userId: client.data.user.userId,
+      username: client.data.user.username,
+    });
+    return { ok: true };
   }
 
   @SubscribeMessage('leave-room')
-  handleLeaveRoom(client: Socket, room: string) {
-    if (!client.data.user) return;
-    if (!this.validateRoom(room)) return;
+  handleLeaveRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() room: string,
+  ): { ok: boolean; error?: string } {
+    if (!client.data.user) return { ok: false, error: 'Non authentifié' };
+    if (!isValidChatRoom(room)) return { ok: false, error: 'Salle invalide' };
     client.leave(room);
-    this.server.to(room).emit('user-left', { userId: client.data.user.userId });
+    this.server.to(room).emit('user-left', {
+      userId: client.data.user.userId,
+      username: client.data.user.username,
+    });
+    return { ok: true };
   }
 
   @SubscribeMessage('message')
-  handleMessage(client: Socket, payload: { room: string; message: string; user: string }) {
-    if (!client.data.user) return;
-    if (!payload?.room || !this.validateRoom(payload.room)) return;
+  async handleMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { room: string; message: string },
+  ): Promise<void> {
+    if (!client.data.user) {
+      client.emit('error', { code: 'AUTH', message: 'Non authentifié' });
+      return;
+    }
+    if (!payload?.room || !isValidChatRoom(payload.room)) return;
     if (!payload?.message || typeof payload.message !== 'string') return;
-    if (payload.message.length > 2000) return;
-    if (!this.enforceRateLimit(client)) return;
+    const text = payload.message.trim();
+    if (!text.length || text.length > 2000) return;
+    if (!this.enforceMessageRateLimit(client)) {
+      client.emit('error', { code: 'RATE_LIMIT', message: 'Trop de messages, ralentis.' });
+      return;
+    }
+
+    let saved: Awaited<ReturnType<ChatService['saveMessage']>>;
+    try {
+      saved = await this.chatService.saveMessage(
+        payload.room,
+        client.data.user.userId,
+        client.data.user.username,
+        text,
+      );
+    } catch (e: any) {
+      this.logger.warn(`saveMessage failed: ${e?.message ?? e}`);
+      client.emit('error', { code: 'PERSIST', message: 'Impossible d’enregistrer le message' });
+      return;
+    }
 
     this.server.to(payload.room).emit('message', {
-      message: payload.message,
+      room: payload.room,
+      id: saved.id,
+      message: saved.body,
       user: {
-        userId: client.data.user.userId,
-        username: client.data.user.username,
+        userId: saved.userId,
+        username: saved.username,
       },
-      timestamp: new Date(),
+      timestamp: saved.createdAt,
+    });
+  }
+
+  @SubscribeMessage('typing')
+  handleTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { room: string; typing: boolean },
+  ): void {
+    if (!client.data.user) return;
+    if (!payload?.room || !isValidChatRoom(payload.room)) return;
+    if (!this.enforceTypingRateLimit(client)) return;
+    client.to(payload.room).emit('user-typing', {
+      userId: client.data.user.userId,
+      username: client.data.user.username,
+      typing: !!payload.typing,
     });
   }
 }
-

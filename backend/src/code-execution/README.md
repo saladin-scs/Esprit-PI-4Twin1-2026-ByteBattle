@@ -6,18 +6,44 @@ Le backend utilise **Piston** pour l’exécution de code à distance. Si Piston
 
 ### Option 1 : Piston en local (Docker, recommandé)
 
+#### Windows (PowerShell, depuis la racine du dépôt ByteBattle)
+
+1. Installer et ouvrir **Docker Desktop** (Docker doit être dans le `PATH`).
+2. Lancer :
+
+```powershell
+.\scripts\start-piston.ps1
+```
+
+Les données du conteneur sont dans `piston-data/` (ignoré par Git).
+
+3. **Installer les runtimes** (le conteneur démarre sans langages). Cloner le dépôt officiel Piston, puis :
+
+```bash
+cd piston/cli && npm i
+node index.js -u http://127.0.0.1:2000 ppman install javascript python java c++
+```
+
+Vérifie les versions avec `GET http://localhost:2000/api/v2/runtimes` et aligne-les si besoin avec `languageVersionMap` dans `code-execution.service.ts`.
+
+#### Linux / macOS (dépôt officiel)
+
 1. Cloner et lancer Piston :
 
 ```bash
 git clone https://github.com/engineer-man/piston
 cd piston
-docker compose up -d
+docker-compose up -d api
+cd cli && npm i && cd -
 ```
+
+Puis installer les langages avec le CLI (`cli/index.js ppman install …`) comme ci-dessus, ou suivre le [readme Piston](https://github.com/engineer-man/piston).
 
 2. Dans ton `.env` backend :
 
 ```env
 PISTON_ENDPOINT=http://localhost:2000/api/v2/execute
+CODE_EXECUTION_PREFER_PISTON=true
 ```
 
 Pas besoin de `PISTON_API_KEY` en local.

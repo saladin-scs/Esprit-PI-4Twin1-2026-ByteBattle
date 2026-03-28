@@ -10,6 +10,8 @@ import { ChallengeModule } from './challenges/challenges.module';
 import { CodeExecutionModule } from './code-execution/code-execution.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { CompetitionsModule } from './competitions/competitions.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { CompetitionsModule } from './competitions/competitions.module';
     ChallengeModule,
     GamificationModule,
     CompetitionsModule,
+    FeedbackModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

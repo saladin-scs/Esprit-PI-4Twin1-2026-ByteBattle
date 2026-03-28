@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -19,12 +20,16 @@ import {
   SubmissionPanel,
   ContestChallengePicker,
 } from './components';
+import { RootState } from '../../store/store';
+import { CollaborationChat } from '../../shared/components/CollaborationChat';
+import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
 
 export default function CompetitionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [leaderboardLang, setLeaderboardLang] = useState('');
+  const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
 
   const {
     competition,
@@ -207,6 +212,18 @@ export default function CompetitionDetail() {
                 error={submitError}
                 theme={theme === 'dark' ? 'dark' : 'light'}
               />
+              {isAuthed && challenge && (
+                <div className="mt-4">
+                  <AiCodeFeedbackPanel
+                    code={code}
+                    language={selectedLang}
+                    taskDescription={`${competition.name} — ${challenge.title}\n\n${(challenge.description || '').slice(0, 8000)}`}
+                    testsPassed={submitResult?.status === 'accepted'}
+                    executionError={submitError ?? undefined}
+                    runtimeMs={submitResult?.executionTimeMs}
+                  />
+                </div>
+              )}
             </motion.div>
           )}
         </div>
@@ -225,6 +242,16 @@ export default function CompetitionDetail() {
             onLanguageFilterChange={setLeaderboardLang}
             supportedLanguages={competition.supportedLanguages ?? []}
           />
+          {isAuthed && (
+            <div className="mt-6">
+              <CollaborationChat
+                room={`competition:${id}`}
+                title="Chat de la compétition"
+                className="min-h-[280px]"
+                enabled
+              />
+            </div>
+          )}
         </motion.aside>
       </div>
     </div>
