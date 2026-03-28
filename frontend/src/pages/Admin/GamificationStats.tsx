@@ -87,12 +87,14 @@ function AdminGamificationStats() {
             Platform-wide XP and badge statistics.
           </p>
         </div>
-        <Link
-          to="/admin/users"
-          className="text-indigo-500 dark:text-indigo-400 hover:underline text-sm font-medium"
-        >
-          ← Back to User Management
-        </Link>
+        <div className="flex flex-wrap gap-4 text-sm font-medium">
+          <Link to="/admin/users" className="text-indigo-500 dark:text-indigo-400 hover:underline">
+            ← Utilisateurs
+          </Link>
+          <Link to="/admin/reclamations" className="text-indigo-500 dark:text-indigo-400 hover:underline">
+            Réclamations
+          </Link>
+        </div>
       </div>
 
       {error && (

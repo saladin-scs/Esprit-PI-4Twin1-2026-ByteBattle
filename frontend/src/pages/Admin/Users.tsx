@@ -180,12 +180,14 @@ function AdminUsers() {
             Manage user roles and account status. Only administrators can access this page.
           </p>
         </div>
-        <Link
-          to="/admin/gamification"
-          className="text-indigo-500 dark:text-indigo-400 hover:underline text-sm font-medium"
-        >
-          Gamification stats →
-        </Link>
+        <div className="flex flex-wrap gap-4 text-sm font-medium">
+          <Link to="/admin/reclamations" className="text-indigo-500 dark:text-indigo-400 hover:underline">
+            Réclamations →
+          </Link>
+          <Link to="/admin/gamification" className="text-indigo-500 dark:text-indigo-400 hover:underline">
+            Gamification stats →
+          </Link>
+        </div>
       </div>
 
       <form onSubmit={handleSearch} className="flex flex-wrap gap-3 mb-6">

@@ -4,8 +4,10 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard, Roles } from '../core';
 import { AdminService } from './admin.service';
 import { ChatService } from '../chat/chat.service';
+import { ReclamationsService } from '../reclamations/reclamations.service';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { SetRoleDto } from './dto/set-role.dto';
+import { AdminUpdateReclamationDto } from './dto/admin-update-reclamation.dto';
 
 @ApiTags('Admin')
 @Controller('admin')
@@ -16,6 +18,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly chatService: ChatService,
+    private readonly reclamationsService: ReclamationsService,
   ) {}
 
   @Get('users')
@@ -91,6 +94,33 @@ export class AdminController {
       limit ? Number(limit) : 30,
       status === 'open' || status === 'reviewed' ? status : undefined,
     );
+  }
+
+  @Get('reclamations')
+  @ApiOperation({ summary: 'Lister les réclamations (admin)' })
+  async listReclamations(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('q') q?: string,
+  ) {
+    return this.reclamationsService.listForAdmin(page ? Number(page) : 1, limit ? Number(limit) : 20, {
+      status: status || undefined,
+      q: q || undefined,
+    });
+  }
+
+  @Get('reclamations/:id')
+  @ApiOperation({ summary: 'Détail d’une réclamation (admin)' })
+  async getReclamation(@Param('id') id: string) {
+    return this.reclamationsService.getForAdmin(id);
+  }
+
+  @Patch('reclamations/:id')
+  @ApiOperation({ summary: 'Mettre à jour le statut d’une réclamation (admin)' })
+  async patchReclamation(@Param('id') id: string, @Body() dto: AdminUpdateReclamationDto) {
+    const reclamation = await this.reclamationsService.updateStatusAdmin(id, dto.status);
+    return { ok: true as const, reclamation };
   }
 }
 

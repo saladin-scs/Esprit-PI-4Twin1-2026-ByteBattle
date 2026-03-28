@@ -43,6 +43,9 @@ function Navbar() {
                 <Link to="/leaderboard" className={linkClass}>
                   Leaderboard
                 </Link>
+                <Link to="/reclamation" className={linkClass}>
+                  Réclamation
+                </Link>
               </div>
             )}
           </div>
@@ -53,7 +56,10 @@ function Navbar() {
                 <Link to="/dashboard" className={linkClass}>Dashboard</Link>
                 <Link to="/settings/profile" className={linkClass}>Settings</Link>
                 {isAdmin && (
-                  <Link to="/admin/users" className={linkClass}>Admin</Link>
+                  <>
+                    <Link to="/admin/users" className={linkClass}>Admin</Link>
+                    <Link to="/admin/reclamations" className={linkClass}>Réclamations</Link>
+                  </>
                 )}
                 <Link to={`/u/${user?.username}`} className={linkClass}>{user?.username}</Link>
                 <Button variant="danger" onClick={handleLogout} className="!py-1.5">

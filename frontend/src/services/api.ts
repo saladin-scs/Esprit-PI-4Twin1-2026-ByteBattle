@@ -2,10 +2,10 @@
  * Point d'entrée API – réexporte le client core et toutes les APIs domaine.
  * Les modules auth, users, admin sont dans core/api ; les autres restent ici jusqu'à migration.
  */
-import { apiClient, authApi, usersApi, adminApi } from '../core/api';
+import { apiClient } from '../core/api';
 import type { ExecuteTestCase } from '../types/challenge';
 
-export { apiClient, authApi, usersApi, adminApi };
+export { apiClient, authApi, usersApi, adminApi, type AdminReclamationRow } from '../core/api';
 
 export const challengesApi = {
   getAll: (params?: { page?: number; limit?: number; difficulty?: string; language?: string; search?: string; tag?: string }) =>
@@ -43,6 +43,37 @@ export const chatApi = {
     }> }>('/chat/history', { params: { room, ...params } }),
   reportMessage: (body: { messageId: string; room: string; reason?: string }) =>
     apiClient.post<{ ok: true }>('/chat/report', body),
+};
+
+export type ReclamationCategory = 'bug' | 'account' | 'content' | 'harassment' | 'other';
+export type ReclamationStatus = 'open' | 'read' | 'resolved' | 'cancelled';
+
+export type ReclamationMineItem = {
+  id: string;
+  category: ReclamationCategory;
+  subject: string;
+  message: string;
+  status: ReclamationStatus;
+  createdAt: string;
+};
+
+export const reclamationsApi = {
+  create: (data: {
+    category?: ReclamationCategory;
+    subject: string;
+    message: string;
+  }) => apiClient.post<{ ok: true; id: string }>('/reclamations', data),
+  listMine: (params?: { page?: number; limit?: number }) =>
+    apiClient.get<{
+      items: ReclamationMineItem[];
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    }>('/reclamations/me', { params }),
+  getMine: (id: string) => apiClient.get<ReclamationMineItem>(`/reclamations/me/${id}`),
+  cancelMine: (id: string) =>
+    apiClient.patch<{ ok: true; reclamation: ReclamationMineItem }>(`/reclamations/me/${id}/cancel`),
 };
 
 export const feedbackApi = {

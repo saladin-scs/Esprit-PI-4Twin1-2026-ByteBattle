@@ -81,9 +81,14 @@ export function UserMenu() {
             Settings
           </DropdownMenuItem>
           {isAdmin && (
-            <DropdownMenuItem to="/admin/users" icon={<IconShield />}>
-              Admin
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem to="/admin/users" icon={<IconShield />}>
+                Admin — Utilisateurs
+              </DropdownMenuItem>
+              <DropdownMenuItem to="/admin/reclamations" icon={<IconShield />}>
+                Admin — Réclamations
+              </DropdownMenuItem>
+            </>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogoutClick} icon={<IconLogout />} className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">

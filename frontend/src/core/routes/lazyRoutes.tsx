@@ -17,12 +17,14 @@ const SecuritySettings = lazy(() => import('../../pages/Settings/Security').then
 const PublicProfile = lazy(() => import('../../pages/User/PublicProfile').then((m) => ({ default: m.default })));
 const AdminUsers = lazy(() => import('../../pages/Admin/Users').then((m) => ({ default: m.default })));
 const AdminGamificationStats = lazy(() => import('../../pages/Admin/GamificationStats').then((m) => ({ default: m.default })));
+const AdminReclamations = lazy(() => import('../../pages/Admin/Reclamations').then((m) => ({ default: m.default })));
 const VerifyEmail = lazy(() => import('../../pages/Auth/VerifyEmail').then((m) => ({ default: m.default })));
 const ForgotPassword = lazy(() => import('../../pages/Auth/ForgotPassword').then((m) => ({ default: m.default })));
 const ResetPassword = lazy(() => import('../../pages/Auth/ResetPassword').then((m) => ({ default: m.default })));
 const SocialCallback = lazy(() => import('../../pages/Auth/SocialCallback').then((m) => ({ default: m.default })));
 const Setup2FA = lazy(() => import('../../pages/Auth/Setup2FA').then((m) => ({ default: m.default })));
 const Status = lazy(() => import('../../pages/Status/Status').then((m) => ({ default: m.default })));
+const Reclamation = lazy(() => import('../../pages/Reclamation/Reclamation').then((m) => ({ default: m.default })));
 
 export const LazyRoutes = {
   Home,
@@ -39,12 +41,14 @@ export const LazyRoutes = {
   PublicProfile,
   AdminUsers,
   AdminGamificationStats,
+  AdminReclamations,
   VerifyEmail,
   ForgotPassword,
   ResetPassword,
   SocialCallback,
   Setup2FA,
   Status,
+  Reclamation,
 };
 
 const PageFallback = () => (

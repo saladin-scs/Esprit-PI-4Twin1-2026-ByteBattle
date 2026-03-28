@@ -12,6 +12,7 @@ const navLinks = [
   { to: '/challenges', label: 'Challenges', authOnly: true },
   { to: '/competitions', label: 'Competitions', authOnly: true },
   { to: '/leaderboard', label: 'Leaderboard', authOnly: true },
+  { to: '/reclamation', label: 'Réclamation', authOnly: true },
 ] as const;
 
 export function HeaderMobileMenu() {

@@ -24,12 +24,14 @@ const {
   PublicProfile,
   AdminUsers,
   AdminGamificationStats,
+  AdminReclamations,
   VerifyEmail,
   ForgotPassword,
   ResetPassword,
   SocialCallback,
   Setup2FA,
   Status,
+  Reclamation,
 } = LazyRoutes;
 
 export function AppRoutes() {
@@ -50,6 +52,7 @@ export function AppRoutes() {
           <Route path="/challenges/:id" element={<ProtectedRoute><ChallengeDetail /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+          <Route path="/reclamation" element={<ProtectedRoute><Reclamation /></ProtectedRoute>} />
           <Route path="/competitions" element={<ProtectedRoute><Competitions /></ProtectedRoute>} />
           <Route path="/competitions/:id" element={<ProtectedRoute><CompetitionDetail /></ProtectedRoute>} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
@@ -57,6 +60,7 @@ export function AppRoutes() {
           <Route path="/u/:username" element={<PublicProfile />} />
           <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
           <Route path="/admin/gamification" element={<AdminRoute><AdminGamificationStats /></AdminRoute>} />
+          <Route path="/admin/reclamations" element={<AdminRoute><AdminReclamations /></AdminRoute>} />
         </Routes>
       </Suspense>
     </Layout>

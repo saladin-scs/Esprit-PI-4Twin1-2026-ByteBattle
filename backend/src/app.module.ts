@@ -13,6 +13,7 @@ import { CompetitionsModule } from './competitions/competitions.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { ChatModule } from './chat/chat.module';
 import { HealthModule } from './health/health.module';
+import { ReclamationsModule } from './reclamations/reclamations.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { HealthModule } from './health/health.module';
     FeedbackModule,
     ChatModule,
     HealthModule,
+    ReclamationsModule,
   ],
 })
 export class AppModule {}
