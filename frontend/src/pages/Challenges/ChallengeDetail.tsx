@@ -136,7 +136,8 @@ const ChallengeDetail = () => {
   const prevChallengeIdRef = useRef<string | undefined>(undefined);
   const prevLangParamRef = useRef<string | null>(null);
 
-  const editorTheme = theme === 'dark' ? 'vs-dark' : 'light';
+  /** `vs` = thème clair Monaco plus lisible que `light` (meilleur contraste syntaxe) */
+  const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs';
   const loading = loadingChallenge;
   const error = storeError;
 
@@ -393,7 +394,7 @@ const ChallengeDetail = () => {
                 className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                   activeTab === 'description'
                     ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                    : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
                 }`}
               >
                 Description
@@ -405,7 +406,7 @@ const ChallengeDetail = () => {
                   className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'hints'
                       ? 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
-                      : 'border-transparent text-slate-500 hover:text-amber-700 dark:text-[#8b949e] dark:hover:text-amber-200/90'
+                      : 'border-transparent text-slate-700 hover:text-amber-800 dark:text-[#8b949e] dark:hover:text-amber-200/90'
                   }`}
                   aria-label="Indices et aide"
                 >
@@ -420,7 +421,7 @@ const ChallengeDetail = () => {
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'solutions'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                      : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
                   }`}
                 >
                   Solutions
@@ -433,7 +434,7 @@ const ChallengeDetail = () => {
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'result'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                      : 'border-transparent text-slate-500 dark:text-[#8b949e]'
+                      : 'border-transparent text-slate-700 dark:text-[#8b949e]'
                   }`}
                 >
                   Result {displayResult?.status === 'accepted' ? '✅' : displayResult ? '❌' : '⚠️'}
@@ -447,7 +448,7 @@ const ChallengeDetail = () => {
                     className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                       activeTab === 'chat'
                         ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                        : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                        : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
                     }`}
                   >
                     <MessageCircle className="h-4 w-4" aria-hidden />
@@ -459,7 +460,7 @@ const ChallengeDetail = () => {
                     className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                       activeTab === 'coach'
                         ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                        : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                        : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
                     }`}
                   >
                     <Sparkles className="h-4 w-4" aria-hidden />
@@ -515,7 +516,7 @@ const ChallengeDetail = () => {
                         <span className="block text-sm font-semibold text-amber-950 dark:text-amber-100">
                           Besoin d&apos;un coup de pouce ?
                         </span>
-                        <span className="mt-0.5 block text-xs text-amber-900/80 dark:text-amber-200/80">
+                        <span className="mt-0.5 block text-sm text-amber-950 dark:text-amber-200/80">
                           {challenge.hints.length} indice{challenge.hints.length > 1 ? 's' : ''} disponible
                           {challenge.hints.length > 1 ? 's' : ''} — ouvre l&apos;onglet{' '}
                           <strong className="font-semibold">Indices</strong> (icône ampoule).
@@ -525,14 +526,14 @@ const ChallengeDetail = () => {
                   ) : (
                     <div className="mb-5 flex items-start gap-3 rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-[#30363d] dark:bg-[#161b22]">
                       <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80 dark:text-amber-400/90" aria-hidden />
-                      <p className="text-xs leading-relaxed text-slate-600 dark:text-[#8b949e]">
-                        <span className="font-semibold text-slate-800 dark:text-[#c9d1d9]">Petit rappel :</span> lis bien
+                      <p className="text-sm leading-relaxed text-slate-800 dark:text-[#8b949e]">
+                        <span className="font-semibold text-slate-900 dark:text-[#c9d1d9]">Petit rappel :</span> lis bien
                         l&apos;énoncé et les exemples, utilise <strong>Run</strong> sur les cas visibles, puis{' '}
                         <strong>Submit</strong> quand tu es prêt.
                       </p>
                     </div>
                   )}
-                  <div className="markdown-body prose prose-sm mb-6 max-w-none text-gray-700 dark:prose-invert dark:text-[#c9d1d9]">
+                  <div className="markdown-body prose prose-slate prose-sm mb-6 max-w-none text-gray-800 prose-headings:text-gray-900 dark:prose-invert dark:text-[#c9d1d9]">
                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>
                       {challenge.description}
                     </ReactMarkdown>
@@ -635,7 +636,7 @@ const ChallengeDetail = () => {
                               />
                               <div>
                                 <p className="font-medium text-slate-800 dark:text-[#c9d1d9]">Indice {i + 1}</p>
-                                <p className="text-xs text-slate-500 dark:text-[#8b949e]">
+                                <p className="text-sm text-slate-700 dark:text-[#8b949e]">
                                   {tierLabel}
                                   {hint.cost > 0 ? ` · ${hint.cost} XP` : ''} — masqué pour l&apos;instant.
                                 </p>
@@ -803,7 +804,7 @@ const ChallengeDetail = () => {
                     <button
                       type="button"
                       onClick={() => setSearchParams({})}
-                      className="rounded px-3 py-1.5 text-xs text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-gray-100"
+                      className="rounded px-3 py-1.5 text-xs font-medium text-slate-800 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-100"
                       title="Change language"
                     >
                       Change language
@@ -812,7 +813,7 @@ const ChallengeDetail = () => {
                     <button
                       type="button"
                       title="Vim mode"
-                      className={`rounded p-1.5 ${isVimMode ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                      className={`rounded p-1.5 ${isVimMode ? 'text-primary-600 dark:text-primary-400' : 'text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200'}`}
                       onClick={() => setIsVimMode(!isVimMode)}
                     >
                       <Keyboard className="h-4 w-4" />
@@ -820,7 +821,7 @@ const ChallengeDetail = () => {
                     <button
                       type="button"
                       title="Format"
-                      className="rounded p-1.5 text-slate-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200"
+                      className="rounded p-1.5 text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200"
                       onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
                     >
                       <AlignLeft className="h-4 w-4" />
@@ -898,7 +899,7 @@ const ChallengeDetail = () => {
                       {challenge.examples[selectedTestCase] && (
                         <div className="space-y-4">
                           <div>
-                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-[#8b949e]">
+                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-[#8b949e]">
                               Input
                             </div>
                             <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#c9d1d9]">
@@ -906,7 +907,7 @@ const ChallengeDetail = () => {
                             </pre>
                           </div>
                           <div>
-                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-[#8b949e]">
+                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-[#8b949e]">
                               Expected output
                             </div>
                             <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#c9d1d9]">
@@ -917,7 +918,7 @@ const ChallengeDetail = () => {
                       )}
                     </>
                   ) : (
-                    <p className="text-slate-500 dark:text-[#8b949e]">No examples. Run or submit to see results.</p>
+                    <p className="text-slate-700 dark:text-[#8b949e]">No examples. Run or submit to see results.</p>
                   )}
                 </div>
               </div>

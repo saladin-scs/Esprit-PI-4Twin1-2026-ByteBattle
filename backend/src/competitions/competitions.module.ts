@@ -10,10 +10,14 @@ import { CodeExecutionModule } from '../code-execution/code-execution.module';
 import { GamificationModule } from '../gamification/gamification.module';
 import { UsersModule } from '../users/users.module';
 import { CommonRateLimitModule } from '../common/common.module';
+import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     CommonRateLimitModule,
+    AuthModule,
+    NotificationsModule,
     MongooseModule.forFeature([
       { name: Competition.name, schema: CompetitionSchema },
       { name: CompetitionSubmission.name, schema: CompetitionSubmissionSchema },

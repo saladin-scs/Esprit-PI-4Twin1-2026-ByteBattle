@@ -7,9 +7,20 @@ import type { ExecuteTestCase } from '../types/challenge';
 
 export { apiClient, authApi, usersApi, adminApi, type AdminReclamationRow } from '../core/api';
 
+export type RecommendedChallengeItem = {
+  id: string;
+  title: string;
+  difficulty: string;
+  tags: string[];
+  xpReward?: number;
+  languages?: string[];
+};
+
 export const challengesApi = {
   getAll: (params?: { page?: number; limit?: number; difficulty?: string; language?: string; search?: string; tag?: string }) =>
     apiClient.get('/challenges', { params }),
+  getRecommended: (params?: { limit?: number }) =>
+    apiClient.get<{ challenges: RecommendedChallengeItem[] }>('/challenges/recommended', { params }),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
   getMyCompletion: (id: string) => apiClient.get<{ completedLanguages: string[] }>(`/challenges/${id}/my-completion`),
   run: (id: string, data: { code: string; language: string }) =>
@@ -130,6 +141,77 @@ export const gamificationApi = {
   streakFreeze: () => apiClient.post('/gamification/streak-freeze'),
   getLeaderboard: (params?: { page?: number; limit?: number; country?: string }) =>
     apiClient.get('/gamification/leaderboard', { params }),
+};
+
+export type ExploreSearchResult = {
+  query: string;
+  challenges: Array<{
+    id: string;
+    title: string;
+    difficulty: string;
+    tags: string[];
+    xpReward?: number;
+  }>;
+  competitions: Array<{
+    id: string;
+    name: string;
+    status: string;
+    type?: string;
+    startTime?: string;
+    endTime?: string;
+  }>;
+  users: Array<{
+    id: string;
+    username: string;
+    displayName?: string;
+    avatarUrl?: string;
+  }>;
+};
+
+export const exploreApi = {
+  search: (params?: { q?: string; limit?: number }) =>
+    apiClient.get<ExploreSearchResult>('/explore', { params }),
+};
+
+export type NotificationItem = {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  read: boolean;
+  meta: { href?: string; challengeId?: string; competitionId?: string };
+  createdAt: string;
+};
+
+export const notificationsApi = {
+  list: (params?: { page?: number; limit?: number }) =>
+    apiClient.get<{
+      items: NotificationItem[];
+      total: number;
+      unreadCount: number;
+      page: number;
+      totalPages: number;
+    }>('/notifications', { params }),
+  markRead: (id: string) => apiClient.patch<{ ok: true }>(`/notifications/${id}/read`, {}),
+  markAllRead: () => apiClient.patch<{ ok: true }>('/notifications/read-all', {}),
+};
+
+export type ApiKeyRow = {
+  id: string;
+  name: string;
+  prefix: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+};
+
+export const apiKeysApi = {
+  create: (name: string) =>
+    apiClient.post<{ id: string; name: string; secret: string; prefix: string; createdAt: string }>(
+      '/api-keys',
+      { name },
+    ),
+  list: () => apiClient.get<{ keys: ApiKeyRow[] }>('/api-keys'),
+  revoke: (id: string) => apiClient.delete<{ ok: true }>(`/api-keys/${id}`),
 };
 
 export default apiClient;

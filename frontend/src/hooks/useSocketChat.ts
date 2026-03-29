@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { getPublicApiUrl } from '../config/publicEnv';
+import { getSocketIoServerUrl } from '../config/publicEnv';
 
 export interface ChatLine {
   id?: string;
@@ -95,14 +95,24 @@ export function useSocketChat(
     setPendingOutboundCount(0);
     roomRef.current = room;
 
-    const socket = io(getPublicApiUrl(), {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 20,
-      reconnectionDelay: 600,
-      reconnectionDelayMax: 12_000,
-      randomizationFactor: 0.5,
-    });
+    const serverUrl = getSocketIoServerUrl();
+    const socket = serverUrl
+      ? io(serverUrl, {
+          auth: { token },
+          transports: ['websocket', 'polling'],
+          reconnectionAttempts: 20,
+          reconnectionDelay: 600,
+          reconnectionDelayMax: 12_000,
+          randomizationFactor: 0.5,
+        })
+      : io({
+          auth: { token },
+          transports: ['websocket', 'polling'],
+          reconnectionAttempts: 20,
+          reconnectionDelay: 600,
+          reconnectionDelayMax: 12_000,
+          randomizationFactor: 0.5,
+        });
 
     socketRef.current = socket;
 

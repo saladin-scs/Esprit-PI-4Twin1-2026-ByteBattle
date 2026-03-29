@@ -18,6 +18,7 @@ import { DEV_TRIPLE_CHALLENGES } from './dev-triple-challenges.data';
 import { CodeExecutionService } from '../code-execution/code-execution.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ChallengeService {
@@ -28,6 +29,7 @@ export class ChallengeService {
     private codeExecution: CodeExecutionService,
     private usersService: UsersService,
     private gamificationService: GamificationService,
+    private notificationsService: NotificationsService,
   ) {}
 
   /** Map challenge language to code-execution (Piston uses c++, local uses cpp) */
@@ -340,6 +342,19 @@ public class Solution {
     }
     await this.submissionModel.findByIdAndUpdate(submission._id, { $set: { xpEarned } }).exec();
 
+    if (isFirstAcceptance) {
+      const title = String((challenge as any).title || 'Défi');
+      void this.notificationsService
+        .create({
+          userId,
+          type: 'challenge_solved',
+          title: 'Défi résolu',
+          body: `Tu as validé « ${title} »${xpEarned ? ` (+${xpEarned} XP)` : ''}.`,
+          meta: { href: `/challenges/${challengeId}`, challengeId },
+        })
+        .catch(() => undefined);
+    }
+
     /** Anti-triche : ne jamais renvoyer entrée / sortie attendue / sortie réelle pour les tests cachés (isHidden !== false). */
     const clientTestResults = testResults.map((r, i) => {
       const testNumber = i + 1;
@@ -466,13 +481,114 @@ public class Solution {
         { $inc: { upvotes: -1 }, $pull: { upvotedBy: uid } },
         { new: true }
       ).populate('userId', 'username avatarUrl').lean();
-    } else {
-      // Add upvote
-      return this.solutionModel.findByIdAndUpdate(
+    }
+
+    const ownerId = String(solution.userId);
+    const challengeIdStr = String(solution.challengeId);
+    const updated = await this.solutionModel
+      .findByIdAndUpdate(
         solutionId,
         { $inc: { upvotes: 1 }, $push: { upvotedBy: uid } },
         { new: true }
-      ).populate('userId', 'username avatarUrl').lean();
+      )
+      .populate('userId', 'username avatarUrl')
+      .lean()
+      .exec();
+
+    if (ownerId !== userId) {
+      const [ch, voter] = await Promise.all([
+        this.challengeModel.findById(solution.challengeId).select('title').lean().exec(),
+        this.usersService.findOne(userId),
+      ]);
+      const title = (ch as { title?: string } | null)?.title || 'Défi';
+      const voterName = (voter as { username?: string } | null)?.username || 'Un utilisateur';
+      void this.notificationsService
+        .create({
+          userId: ownerId,
+          type: 'solution_upvote',
+          title: 'Nouveau vote sur ta solution',
+          body: `${voterName} a upvoté ta solution sur « ${title} ».`,
+          meta: { href: `/challenges/${challengeIdStr}`, challengeId: challengeIdStr },
+        })
+        .catch(() => undefined);
     }
+
+    return updated;
+  }
+
+  /** Recommandations simples : défis non résolus, biais tags / difficulté des derniers AC. */
+  async recommendForUser(userId: string, limit = 12) {
+    const lim = Math.min(24, Math.max(1, limit));
+    const oid = new Types.ObjectId(userId);
+    const solved = await this.submissionModel.distinct('challengeId', { userId: oid, status: 'accepted' });
+    const solvedSet = new Set(solved.map((id) => String(id)));
+    const nin = [...solvedSet].filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+
+    const baseFilter: Record<string, unknown> = { isPublished: true };
+    if (nin.length) baseFilter._id = { $nin: nin };
+
+    const recentSubs = await this.submissionModel
+      .find({ userId: oid, status: 'accepted' })
+      .sort({ createdAt: -1 })
+      .limit(8)
+      .populate({ path: 'challengeId', select: 'difficulty tags' })
+      .lean()
+      .exec();
+
+    const tagWeights = new Map<string, number>();
+    const diffWeights = new Map<string, number>();
+    for (const s of recentSubs) {
+      const ch = s.challengeId as { difficulty?: string; tags?: string[] } | null;
+      if (!ch) continue;
+      if (ch.difficulty) diffWeights.set(ch.difficulty, (diffWeights.get(ch.difficulty) || 0) + 1);
+      for (const t of ch.tags || []) tagWeights.set(t, (tagWeights.get(t) || 0) + 1);
+    }
+    const topTags = [...tagWeights.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t).slice(0, 6);
+    let preferredDiffs = [...diffWeights.entries()].sort((a, b) => b[1] - a[1]).map(([d]) => d);
+    if (!preferredDiffs.length) preferredDiffs = ['easy', 'medium', 'hard', 'expert'];
+
+    let list: any[] = [];
+    if (topTags.length) {
+      list = await this.challengeModel
+        .find({
+          ...baseFilter,
+          tags: { $in: topTags },
+          difficulty: { $in: preferredDiffs },
+        })
+        .select('-testCases')
+        .sort({ createdAt: -1 })
+        .limit(lim)
+        .lean()
+        .exec();
+    }
+    if (list.length < lim) {
+      const more = await this.challengeModel
+        .find(baseFilter)
+        .select('-testCases')
+        .sort({ createdAt: -1 })
+        .limit(lim * 2)
+        .lean()
+        .exec();
+      const seen = new Set(list.map((c) => String(c._id)));
+      for (const c of more) {
+        if (list.length >= lim) break;
+        const id = String(c._id);
+        if (!seen.has(id)) {
+          seen.add(id);
+          list.push(c);
+        }
+      }
+    }
+
+    return {
+      challenges: list.slice(0, lim).map((c: any) => ({
+        id: String(c._id),
+        title: c.title,
+        difficulty: c.difficulty,
+        tags: c.tags || [],
+        xpReward: c.xpReward,
+        languages: c.languages,
+      })),
+    };
   }
 }

@@ -32,7 +32,7 @@
     @apply text-lg font-semibold text-primary-600 dark:text-primary-400;
   }
   .bb-body-text {
-    @apply text-slate-600 dark:text-slate-400;
+    @apply text-slate-800 dark:text-slate-400;
   }
   .bb-link {
     @apply text-slate-600 transition-colors hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400;
@@ -74,7 +74,7 @@
     @apply bg-primary-600 text-white shadow-sm dark:bg-primary-500;
   }
   .bb-tab-trigger-inactive {
-    @apply text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200;
+    @apply text-slate-800 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-200;
   }
   .bb-lb-aside {
     @apply sticky top-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/90 p-5 shadow-lg shadow-slate-200/40 dark:border-slate-700/90 dark:from-slate-900/95 dark:to-slate-950/90 dark:shadow-none;

@@ -36,7 +36,9 @@ export default function Status() {
       setLive(l);
       setReady(r);
     } catch {
-      setErr('Impossible de joindre l’API. Vérifie que le backend tourne et VITE_API_URL.');
+      setErr(
+        'Impossible de joindre l’API. En dev : lance le backend (port 3000) et, si tu utilises VITE_API_URL direct, vérifie l’URL ; sinon le proxy /bb-api est utilisé.',
+      );
     } finally {
       setLoading(false);
     }

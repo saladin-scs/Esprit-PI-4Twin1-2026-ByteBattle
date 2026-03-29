@@ -9,6 +9,7 @@ import { UserMenu } from './UserMenu';
 import { ChatNavHint } from './ChatNavHint';
 
 const navLinks = [
+  { to: '/explore', label: 'Explore', authOnly: false },
   { to: '/challenges', label: 'Challenges', authOnly: true },
   { to: '/competitions', label: 'Competitions', authOnly: true },
   { to: '/leaderboard', label: 'Leaderboard', authOnly: true },

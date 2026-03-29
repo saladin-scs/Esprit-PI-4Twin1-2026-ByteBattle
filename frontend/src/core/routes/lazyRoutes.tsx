@@ -25,6 +25,8 @@ const SocialCallback = lazy(() => import('../../pages/Auth/SocialCallback').then
 const Setup2FA = lazy(() => import('../../pages/Auth/Setup2FA').then((m) => ({ default: m.default })));
 const Status = lazy(() => import('../../pages/Status/Status').then((m) => ({ default: m.default })));
 const Reclamation = lazy(() => import('../../pages/Reclamation/Reclamation').then((m) => ({ default: m.default })));
+const Explore = lazy(() => import('../../pages/Explore/Explore').then((m) => ({ default: m.default })));
+const DeveloperSettings = lazy(() => import('../../pages/Settings/Developer').then((m) => ({ default: m.default })));
 
 export const LazyRoutes = {
   Home,
@@ -49,6 +51,8 @@ export const LazyRoutes = {
   Setup2FA,
   Status,
   Reclamation,
+  Explore,
+  DeveloperSettings,
 };
 
 const PageFallback = () => (

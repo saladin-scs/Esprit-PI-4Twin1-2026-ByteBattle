@@ -19,6 +19,7 @@ import {
   BADGES_LANGUAGE,
   BADGES_CONTEST,
 } from './badges.config';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 
@@ -27,6 +28,7 @@ export class GamificationService {
   constructor(
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private todayUtc(): string {
@@ -355,6 +357,16 @@ export class GamificationService {
     }).exec();
 
     await this.pushRecentActivity(userId, 'badge_unlocked', { badgeId: badge.id, name: badge.name });
+
+    void this.notificationsService
+      .create({
+        userId,
+        type: 'badge_unlocked',
+        title: 'Badge débloqué',
+        body: `Tu as obtenu le badge « ${badge.name} »${badge.xpReward ? ` (+${badge.xpReward} XP)` : ''}.`,
+        meta: { href: '/dashboard' },
+      })
+      .catch(() => undefined);
   }
 
   private async pushRecentActivity(userId: string, type: string, metadata?: Record<string, any>): Promise<void> {

@@ -165,4 +165,12 @@ export class UsersController {
   async getNewBadge(@Request() req) {
     return this.usersService.consumeAndReturnNewBadge(req.user.userId);
   }
+
+  @Get('me/data-export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export JSON des données liées au compte (RGPD / portabilité)' })
+  async getDataExport(@Request() req) {
+    return this.usersService.buildPersonalDataExport(req.user.userId);
+  }
 }

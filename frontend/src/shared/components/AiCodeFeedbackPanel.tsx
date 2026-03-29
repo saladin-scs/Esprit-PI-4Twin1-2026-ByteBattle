@@ -48,13 +48,21 @@ function ContextChip({
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium',
-        variant === 'ok' && 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200',
-        variant === 'warn' && 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-100',
-        variant === 'neutral' && 'border-slate-200 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200',
+        variant === 'ok' && 'border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200',
+        variant === 'warn' && 'border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/25 dark:text-amber-100',
+        variant === 'neutral' && 'border-slate-200 bg-white text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200',
       )}
     >
-      <Icon className="h-3.5 w-3.5 opacity-70" aria-hidden />
-      <span className="text-slate-500 dark:text-slate-400">{label}</span>
+      <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+      <span
+        className={cn(
+          variant === 'ok' && 'text-emerald-900 dark:text-emerald-300/90',
+          variant === 'warn' && 'text-amber-950 dark:text-amber-100/90',
+          variant === 'neutral' && 'text-slate-600 dark:text-slate-400',
+        )}
+      >
+        {label}
+      </span>
       <span className="max-w-[140px] truncate">{value}</span>
     </span>
   );
@@ -219,7 +227,7 @@ export function AiCodeFeedbackPanel({
       <div className="p-4">
         {stale && (
           <p
-            className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100"
+            className="mb-3 flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-100 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100"
             role="status"
           >
             <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
@@ -229,7 +237,7 @@ export function AiCodeFeedbackPanel({
 
         {err && (
           <p
-            className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+            className="mb-3 rounded-xl border border-red-300 bg-red-100 px-3 py-2 text-sm font-medium text-red-950 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
             role="alert"
           >
             {err}
@@ -239,7 +247,7 @@ export function AiCodeFeedbackPanel({
         {loading && (
           <div className="flex flex-col items-center justify-center gap-3 py-10" aria-busy="true">
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600 dark:border-violet-900 dark:border-t-violet-400" />
-            <p className="text-xs text-slate-500">Envoi au modèle d’analyse…</p>
+            <p className="text-sm text-slate-700 dark:text-slate-400">Envoi au modèle d’analyse…</p>
           </div>
         )}
 
@@ -255,14 +263,14 @@ export function AiCodeFeedbackPanel({
             >
               <div className="flex flex-wrap items-end gap-3">
                 <div>
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-400">
                     Score global
                   </span>
                   <div className="flex items-baseline gap-1">
                     <span className="text-3xl font-bold tabular-nums text-violet-700 dark:text-violet-300">
                       {feedback.overall_score}
                     </span>
-                    <span className="text-sm text-slate-500">/100</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-400">/100</span>
                   </div>
                 </div>
                 <div
@@ -282,7 +290,7 @@ export function AiCodeFeedbackPanel({
                 </div>
               </div>
 
-              <div className="prose prose-sm max-w-none dark:prose-invert prose-p:leading-relaxed prose-headings:text-slate-900 dark:prose-headings:text-slate-100">
+              <div className="prose prose-slate prose-sm max-w-none text-slate-800 dark:prose-invert prose-p:leading-relaxed prose-headings:text-slate-900 dark:prose-headings:text-slate-100">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{feedback.summary}</ReactMarkdown>
               </div>
 

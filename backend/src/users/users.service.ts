@@ -3,6 +3,13 @@ import { Injectable, ConflictException, ForbiddenException, UnauthorizedExceptio
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
+import { Submission, SubmissionDocument } from '../challenges/schemas/Submission.schema';
+import { Solution, SolutionDocument } from '../challenges/schemas/solution.schema';
+import { CompetitionSubmission, CompetitionSubmissionDocument } from '../competitions/schemas/competition-submission.schema';
+import { Reclamation, ReclamationDocument } from '../reclamations/schemas/reclamation.schema';
+import { SiteRating, SiteRatingDocument } from '../site-ratings/schemas/site-rating.schema';
+import { Notification, NotificationDocument } from '../notifications/schemas/notification.schema';
+import { ApiKey, ApiKeyDocument } from '../api-keys/schemas/api-key.schema';
 import { UpdateMeDto } from './dto/update-me.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -13,6 +20,20 @@ export class UsersService {
   constructor(
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    @InjectModel(Submission.name)
+    private submissionModel: Model<SubmissionDocument>,
+    @InjectModel(Solution.name)
+    private solutionModel: Model<SolutionDocument>,
+    @InjectModel(CompetitionSubmission.name)
+    private competitionSubmissionModel: Model<CompetitionSubmissionDocument>,
+    @InjectModel(Reclamation.name)
+    private reclamationModel: Model<ReclamationDocument>,
+    @InjectModel(SiteRating.name)
+    private siteRatingModel: Model<SiteRatingDocument>,
+    @InjectModel(Notification.name)
+    private notificationModel: Model<NotificationDocument>,
+    @InjectModel(ApiKey.name)
+    private apiKeyModel: Model<ApiKeyDocument>,
     private securityEvents: SecurityEventsService,
   ) {}
 
@@ -275,6 +296,59 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     const badge = (user as any).lastUnlockedBadge;
     await this.userModel.findByIdAndUpdate(userId, { lastUnlockedBadge: null }).exec();
     return badge;
+  }
+
+  /**
+   * Copie structurée des données personnelles (RGPD art. 20 / bonnes pratiques écoles).
+   * Ne contient pas les secrets (mot de passe, hash de clés API, jetons).
+   */
+  async buildPersonalDataExport(userId: string) {
+    const oid = new Types.ObjectId(userId);
+    const user = await this.userModel
+      .findById(userId)
+      .select('+faceEmbedding')
+      .lean()
+      .exec();
+    if (!user) throw new NotFoundException('User not found');
+
+    const u = user as Record<string, unknown>;
+    delete u.password;
+    delete u.emailVerificationTokenHash;
+    delete u.passwordResetTokenHash;
+    delete u.refreshTokens;
+    delete u.twoFactorSecret;
+    delete u.twoFactorBackupCodes;
+
+    const [
+      challengeSubmissions,
+      communitySolutions,
+      competitionSubmissions,
+      reclamations,
+      siteRating,
+      notifications,
+      apiKeyRows,
+    ] = await Promise.all([
+      this.submissionModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(5000).lean().exec(),
+      this.solutionModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(2000).lean().exec(),
+      this.competitionSubmissionModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(2000).lean().exec(),
+      this.reclamationModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(500).lean().exec(),
+      this.siteRatingModel.findOne({ userId: oid }).lean().exec(),
+      this.notificationModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(2000).lean().exec(),
+      this.apiKeyModel.find({ userId: oid }).select('-keyHash').sort({ createdAt: -1 }).lean().exec(),
+    ]);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      schemaVersion: 1,
+      profile: u,
+      challengeSubmissions,
+      communitySolutions,
+      competitionSubmissions,
+      reclamations,
+      siteRating: siteRating ?? null,
+      notifications,
+      apiKeys: apiKeyRows,
+    };
   }
 
   async setLastUnlockedBadge(userId: string, badgeId: string, name: string) {
