@@ -16,3 +16,7 @@ export { Modal } from './Modal';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
 export { TooltipProvider, SimpleTooltip } from './Tooltip';
 export { ProgressBar } from './ProgressBar';
+export { Skeleton } from './Skeleton';
+export { Badge } from './Badge';
+export { EmptyState } from './EmptyState';
+export { Breadcrumbs, type BreadcrumbItem } from './Breadcrumbs';

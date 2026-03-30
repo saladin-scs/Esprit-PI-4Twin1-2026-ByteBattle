@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { reclamationsApi, type ReclamationMineItem, type ReclamationStatus } from '../../services/api';
-import { Button, Card, PageContainer, Alert, Modal } from '../../shared/components';
+import { Button, Card, PageContainer, Alert, Modal, EmptyState } from '../../shared/components';
 import { RECLAMATION_CATEGORY_LABELS } from './constants';
 import { ReclamationForm } from './components/ReclamationForm';
 import { ReclamationStatusBadge } from './components/ReclamationStatusBadge';
@@ -138,8 +138,11 @@ export function ReclamationScreen() {
                 </div>
               )}
               {!listLoading && !listError && items.length === 0 && (
-                <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                  Aucune réclamation pour l’instant. Passe à l’onglet « Nouvelle réclamation » pour en créer une.
+                <div className="p-4">
+                  <EmptyState
+                    title="Aucune réclamation pour l'instant"
+                    description="Passe à l'onglet « Nouvelle réclamation » pour en créer une."
+                  />
                 </div>
               )}
               {!listLoading &&

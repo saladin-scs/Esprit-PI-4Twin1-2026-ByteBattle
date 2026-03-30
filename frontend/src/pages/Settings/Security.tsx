@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { authApi, usersApi } from '../../services/api';
 import { AppDispatch, RootState } from '../../store/store';
 import { fetchMe, logout } from '../../store/slices/authSlice';
-import { Button, Input, Card, Alert, PageContainer } from '../../shared/components';
+import { Button, Input, Card, Alert, PageContainer, Modal } from '../../shared/components';
 
 function SecuritySettings() {
   const dispatch = useDispatch<AppDispatch>();
@@ -18,6 +18,9 @@ function SecuritySettings() {
   const [twofaSetup, setTwofaSetup] = useState<{ qrDataUrl: string; backupCodes: string[] } | null>(null);
   const [twofaCode, setTwofaCode] = useState('');
   const [twofaDisableCode, setTwofaDisableCode] = useState('');
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [dangerPassword, setDangerPassword] = useState('');
 
   const onChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +61,50 @@ function SecuritySettings() {
       // ignore
     } finally {
       dispatch(logout());
+    }
+  };
+
+  const onDeactivateAccount = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      await usersApi.deactivateMe(dangerPassword ? { currentPassword: dangerPassword } : undefined);
+      try {
+        await authApi.logout(refreshToken || undefined);
+      } catch {
+        // ignore
+      }
+      dispatch(logout());
+      setSuccess('Account deactivated.');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || 'Error');
+    } finally {
+      setLoading(false);
+      setDangerPassword('');
+      setShowDeactivateModal(false);
+    }
+  };
+
+  const onDeleteAccount = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      await usersApi.deleteMe(dangerPassword ? { currentPassword: dangerPassword } : undefined);
+      try {
+        await authApi.logout(refreshToken || undefined);
+      } catch {
+        // ignore
+      }
+      dispatch(logout());
+      setSuccess('Account deleted.');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || 'Error');
+    } finally {
+      setLoading(false);
+      setDangerPassword('');
+      setShowDeleteModal(false);
     }
   };
 
@@ -233,7 +280,89 @@ function SecuritySettings() {
             Log out
           </Button>
         </Card>
+
+        <Card title="Danger zone">
+          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            Deactivate keeps your data but blocks login. Delete removes your account and related data permanently.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="secondary"
+              disabled={loading}
+              onClick={() => {
+                setDangerPassword('');
+                setShowDeactivateModal(true);
+              }}
+            >
+              Deactivate account
+            </Button>
+            <Button
+              variant="danger"
+              disabled={loading}
+              onClick={() => {
+                setDangerPassword('');
+                setShowDeleteModal(true);
+              }}
+            >
+              Delete account
+            </Button>
+          </div>
+        </Card>
       </div>
+
+      <Modal
+        isOpen={showDeactivateModal}
+        onClose={() => !loading && setShowDeactivateModal(false)}
+        title="Deactivate account?"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            You will not be able to sign in until an admin reactivates your account.
+          </p>
+          <Input
+            label="Current password (if applicable)"
+            type="password"
+            value={dangerPassword}
+            onChange={(e) => setDangerPassword(e.target.value)}
+            placeholder="Enter password"
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" disabled={loading} onClick={() => setShowDeactivateModal(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" loading={loading} disabled={loading} onClick={() => void onDeactivateAccount()}>
+              Deactivate
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => !loading && setShowDeleteModal(false)}
+        title="Delete account?"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            This action is permanent and cannot be undone.
+          </p>
+          <Input
+            label="Current password (if applicable)"
+            type="password"
+            value={dangerPassword}
+            onChange={(e) => setDangerPassword(e.target.value)}
+            placeholder="Enter password"
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" disabled={loading} onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" loading={loading} disabled={loading} onClick={() => void onDeleteAccount()}>
+              Delete permanently
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </PageContainer>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
@@ -62,14 +62,20 @@ export function HeaderMobileMenu() {
             >
               <nav className="flex flex-col gap-1 px-4">
                 {navLinks.filter((l) => !l.authOnly || isAuthenticated).map(({ to, label }) => (
-                  <Link
+                  <NavLink
                     key={to}
                     to={to}
                     onClick={() => setOpen(false)}
-                    className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+                    className={({ isActive }) =>
+                      `px-3 py-2 text-sm font-medium rounded-md ${
+                        isActive
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                          : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                      }`
+                    }
                   >
                     {label}
-                  </Link>
+                  </NavLink>
                 ))}
                 {isAuthenticated && (
                   <div className="px-3 py-2">

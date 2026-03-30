@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi, type AdminReclamationRow } from '../../core/api';
-import { Button, Input, Card, Alert, PageContainer, Spinner } from '../../shared/components';
+import { Button, Input, Card, Alert, PageContainer, Spinner, Breadcrumbs, EmptyState } from '../../shared/components';
 import {
   RECLAMATION_CATEGORY_LABELS,
   RECLAMATION_STATUS_LABELS,
@@ -135,6 +135,7 @@ function AdminReclamations() {
 
   return (
     <PageContainer maxWidth="7xl" className="py-8">
+      <Breadcrumbs className="mb-4" items={[{ label: 'Admin' }, { label: 'Réclamations' }]} />
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Réclamations</h1>
@@ -211,9 +212,12 @@ function AdminReclamations() {
               </div>
             )}
             {!loading && data && data.items.length === 0 && (
-              <p className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                Aucune réclamation ne correspond aux critères.
-              </p>
+              <div className="p-4">
+                <EmptyState
+                  title="Aucun résultat"
+                  description="Aucune réclamation ne correspond aux critères. Essaie d'élargir les filtres."
+                />
+              </div>
             )}
             {data?.items.map((row) => (
               <button

@@ -161,6 +161,48 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     return { success: true };
   }
 
+  private async assertCurrentPasswordIfRequired(user: UserDocument, currentPassword?: string) {
+    const hasLocalPassword = !!(user as any).password;
+    if (!hasLocalPassword) return;
+    if (!currentPassword) throw new UnauthorizedException('Current password is required');
+    const ok = await bcrypt.compare(currentPassword, (user as any).password);
+    if (!ok) throw new UnauthorizedException('Invalid password');
+  }
+
+  async deactivateMyAccount(userId: string, currentPassword?: string) {
+    const user = await this.userModel.findById(userId).select('+password +refreshTokens').exec();
+    if (!user) throw new NotFoundException('User not found');
+    await this.assertCurrentPasswordIfRequired(user, currentPassword);
+
+    user.isActive = false;
+    user.refreshTokens = [];
+    await user.save();
+
+    await this.securityEvents.record({ type: 'user.deactivate_account', userId: String(user._id) });
+    return { success: true };
+  }
+
+  async deleteMyAccount(userId: string, currentPassword?: string) {
+    const oid = new Types.ObjectId(userId);
+    const user = await this.userModel.findById(userId).select('+password +refreshTokens').exec();
+    if (!user) throw new NotFoundException('User not found');
+    await this.assertCurrentPasswordIfRequired(user, currentPassword);
+
+    await Promise.all([
+      this.submissionModel.deleteMany({ userId: oid }).exec(),
+      this.solutionModel.deleteMany({ userId: oid }).exec(),
+      this.competitionSubmissionModel.deleteMany({ userId: oid }).exec(),
+      this.reclamationModel.deleteMany({ userId: oid }).exec(),
+      this.siteRatingModel.deleteMany({ userId: oid }).exec(),
+      this.notificationModel.deleteMany({ userId: oid }).exec(),
+      this.apiKeyModel.deleteMany({ userId: oid }).exec(),
+    ]);
+
+    await this.userModel.deleteOne({ _id: oid }).exec();
+    await this.securityEvents.record({ type: 'user.delete_account', userId: String(oid) });
+    return { success: true };
+  }
+
   static readonly RANK_XP = { F: 0, E: 100, D: 300, C: 600, B: 1000, A: 2000, S: 4000 };
   static readonly RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'S'] as const;
 

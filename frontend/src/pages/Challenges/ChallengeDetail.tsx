@@ -19,6 +19,7 @@ import CommunitySolutions from './CommunitySolutions';
 import { RootState } from '../../store/store';
 import { CollaborationChat } from '../../shared/components/CollaborationChat';
 import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
+import { Breadcrumbs, EmptyState } from '../../shared/components';
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -312,8 +313,51 @@ const ChallengeDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] text-gray-500 dark:text-gray-400">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary-500 border-t-transparent" />
+      <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 dark:bg-[#010409]">
+        <div className="flex h-full w-[38%] min-w-[320px] flex-col border-r border-slate-200 bg-white p-4 dark:border-[#30363d] dark:bg-[#0d1117]">
+          <div className="mb-4 flex gap-3">
+            <div className="h-9 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-9 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-9 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+          </div>
+          <div className="mb-3 h-8 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+          <div className="space-y-2">
+            <div className="h-4 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-4 w-11/12 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-4 w-9/12 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+          </div>
+          <div className="mt-6 space-y-2">
+            <div className="h-4 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-16 w-full animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+            <div className="h-16 w-full animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+          </div>
+        </div>
+        <div className="flex h-full min-w-0 flex-1 flex-col">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-[#30363d] dark:bg-[#0d1117]">
+            <div className="flex gap-2">
+              <div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-9 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="h-9 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            </div>
+          </div>
+          <div className="flex min-h-0 flex-1">
+            <div className="min-w-0 flex-1 bg-white p-4 dark:bg-[#0d1117]">
+              <div className="h-full w-full animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-[#30363d] dark:bg-slate-900/50" />
+            </div>
+            <div className="w-[320px] border-l border-slate-200 bg-white p-4 dark:border-[#30363d] dark:bg-[#0d1117]">
+              <div className="mb-3 h-8 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="space-y-3">
+                <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+                <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+                <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -330,6 +374,7 @@ const ChallengeDetail = () => {
     return (
       <div className="relative mx-auto max-w-3xl px-4 py-8 sm:px-6 md:py-12">
         <div className="bb-hero-gradient-tall" aria-hidden />
+        <Breadcrumbs items={[{ label: 'Challenges', to: '/challenges' }, { label: challenge.title }]} className="relative mb-4" />
         <button
           type="button"
           onClick={() => navigate('/challenges')}
@@ -387,10 +432,13 @@ const ChallengeDetail = () => {
       <Group {...({ direction: 'horizontal' } as any)}>
         <Panel defaultSize={38} minSize={28}>
           <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
-            <div className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
+            <div className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]" role="tablist" aria-label="Challenge panels">
               <button
                 type="button"
                 onClick={() => setActiveTab('description')}
+                role="tab"
+                aria-selected={activeTab === 'description'}
+                tabIndex={activeTab === 'description' ? 0 : -1}
                 className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                   activeTab === 'description'
                     ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
@@ -403,6 +451,9 @@ const ChallengeDetail = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab('hints')}
+                  role="tab"
+                  aria-selected={activeTab === 'hints'}
+                  tabIndex={activeTab === 'hints' ? 0 : -1}
                   className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'hints'
                       ? 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
@@ -418,6 +469,9 @@ const ChallengeDetail = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab('solutions')}
+                  role="tab"
+                  aria-selected={activeTab === 'solutions'}
+                  tabIndex={activeTab === 'solutions' ? 0 : -1}
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'solutions'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
@@ -431,6 +485,9 @@ const ChallengeDetail = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab('result')}
+                  role="tab"
+                  aria-selected={activeTab === 'result'}
+                  tabIndex={activeTab === 'result' ? 0 : -1}
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'result'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
@@ -445,6 +502,9 @@ const ChallengeDetail = () => {
                   <button
                     type="button"
                     onClick={() => setActiveTab('chat')}
+                    role="tab"
+                    aria-selected={activeTab === 'chat'}
+                    tabIndex={activeTab === 'chat' ? 0 : -1}
                     className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                       activeTab === 'chat'
                         ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
@@ -457,6 +517,9 @@ const ChallengeDetail = () => {
                   <button
                     type="button"
                     onClick={() => setActiveTab('coach')}
+                    role="tab"
+                    aria-selected={activeTab === 'coach'}
+                    tabIndex={activeTab === 'coach' ? 0 : -1}
                     className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                       activeTab === 'coach'
                         ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
@@ -784,7 +847,7 @@ const ChallengeDetail = () => {
           <Group {...({ direction: 'vertical' } as any)}>
             <Panel defaultSize={68} minSize={22}>
               <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
-                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
+                <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
                   <div className="flex flex-wrap items-center gap-2">
                     {challenge.languages.map((lang) => (
                       <button
@@ -918,7 +981,11 @@ const ChallengeDetail = () => {
                       )}
                     </>
                   ) : (
-                    <p className="text-slate-700 dark:text-[#8b949e]">No examples. Run or submit to see results.</p>
+                    <EmptyState
+                      title="No execution results yet"
+                      description="Run visible examples or submit your solution to get detailed feedback."
+                      className="py-8"
+                    />
                   )}
                 </div>
               </div>

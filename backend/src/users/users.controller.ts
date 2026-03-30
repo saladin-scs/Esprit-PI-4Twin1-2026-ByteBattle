@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Controller, Get, UseGuards, Request, Put, Body, Post, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request, Put, Body, Post, UseInterceptors, UploadedFile, BadRequestException, Delete } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
@@ -132,6 +132,28 @@ export class UsersController {
   @ApiOperation({ summary: 'Change current user password' })
   async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
     return this.usersService.changePassword(req.user.userId, dto.currentPassword, dto.newPassword);
+  }
+
+  @Post('me/deactivate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Deactivate current account (keeps data)' })
+  async deactivateMyAccount(
+    @Request() req,
+    @Body() body: { currentPassword?: string },
+  ) {
+    return this.usersService.deactivateMyAccount(req.user.userId, body?.currentPassword);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete current account and related data' })
+  async deleteMyAccount(
+    @Request() req,
+    @Body() body: { currentPassword?: string },
+  ) {
+    return this.usersService.deleteMyAccount(req.user.userId, body?.currentPassword);
   }
 
   @Get('me/stats')
