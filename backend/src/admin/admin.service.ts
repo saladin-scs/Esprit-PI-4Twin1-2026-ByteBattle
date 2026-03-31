@@ -140,5 +140,44 @@ export class AdminService {
       topBadges: badgeCounts.map((b: any) => ({ badgeId: b._id, count: b.count })),
     };
   }
+
+  async getDashboardOverview() {
+    const [totalUsers, activeUsers, verifiedUsers, admins] = await Promise.all([
+      this.userModel.countDocuments().exec(),
+      this.userModel.countDocuments({ isActive: true }).exec(),
+      this.userModel.countDocuments({ emailVerifiedAt: { $ne: null } }).exec(),
+      this.userModel.countDocuments({ $or: [{ isAdmin: true }, { roles: 'admin' }] }).exec(),
+    ]);
+
+    return {
+      users: {
+        total: totalUsers,
+        active: activeUsers,
+        verified: verifiedUsers,
+        admins,
+      },
+    };
+  }
+
+  async getMlInsights() {
+    const [totalUsers, activeUsers, avgXpAgg] = await Promise.all([
+      this.userModel.countDocuments().exec(),
+      this.userModel.countDocuments({ isActive: true }).exec(),
+      this.userModel.aggregate([{ $group: { _id: null, avgXp: { $avg: '$xp' } } }]).exec(),
+    ]);
+
+    const activeRate = totalUsers > 0 ? activeUsers / totalUsers : 0;
+    const avgXp = Number(avgXpAgg[0]?.avgXp ?? 0);
+
+    return {
+      healthIndex: Math.round((activeRate * 70 + Math.min(avgXp / 50, 30)) * 100) / 100,
+      activeRate,
+      avgXp,
+      recommendations: [
+        'Increase challenge rotation for medium difficulty.',
+        'Boost onboarding prompts for new users.',
+      ],
+    };
+  }
 }
 

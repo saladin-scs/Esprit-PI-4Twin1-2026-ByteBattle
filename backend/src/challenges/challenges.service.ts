@@ -11,7 +11,7 @@ import { Model, Types } from 'mongoose';
 import { Challenge, ChallengeDocument, Language } from './schemas/challenge.schema';
 import { Submission, SubmissionDocument } from './schemas/Submission.schema';
 import { Solution, SolutionDocument } from './schemas/solution.schema';
-import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
+import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto, UpdateChallengeDto } from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { SEED_CHALLENGES } from './seed-challenges.data';
 import { DEV_TRIPLE_CHALLENGES } from './dev-triple-challenges.data';
@@ -66,6 +66,39 @@ public class Solution {
       dto.xpReward = this.XP_MAP[dto.difficulty] ?? 50;
     }
     return new this.challengeModel(dto).save();
+  }
+
+  // Update a challenge (admin)
+  async update(id: string, dto: UpdateChallengeDto): Promise<ChallengeDocument> {
+    const payload: any = { ...dto };
+    if ((dto.difficulty && dto.xpReward == null) || payload.xpReward == null) {
+      const effectiveDifficulty = dto.difficulty;
+      if (effectiveDifficulty) {
+        payload.xpReward = this.XP_MAP[effectiveDifficulty] ?? 50;
+      }
+    }
+
+    const updated = await this.challengeModel
+      .findByIdAndUpdate(id, { $set: payload }, { new: true })
+      .exec();
+
+    if (!updated) throw new NotFoundException('Challenge not found');
+    return updated;
+  }
+
+  // Delete a challenge (admin)
+  async remove(id: string): Promise<{ ok: true }> {
+    const challenge = await this.challengeModel.findById(id).select('_id').lean().exec();
+    if (!challenge) throw new NotFoundException('Challenge not found');
+
+    const challengeId = new Types.ObjectId(id);
+    await Promise.all([
+      this.submissionModel.deleteMany({ challengeId }).exec(),
+      this.solutionModel.deleteMany({ challengeId }).exec(),
+      this.challengeModel.deleteOne({ _id: challengeId }).exec(),
+    ]);
+
+    return { ok: true as const };
   }
 
   /** Seed 2 easy + 2 medium + 2 hard challenges (idempotent: skip if title exists). */

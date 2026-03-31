@@ -10,6 +10,9 @@ const Challenges = lazy(() => import('../../pages/Challenges/Challenges').then((
 const ChallengeDetail = lazy(() => import('../../pages/Challenges/ChallengeDetail').then((m) => ({ default: m.default })));
 const Dashboard = lazy(() => import('../../pages/Dashboard/Dashboard').then((m) => ({ default: m.default })));
 const Leaderboard = lazy(() => import('../../pages/Leaderboard/Leaderboard').then((m) => ({ default: m.default })));
+const Explore = lazy(() => import('../../pages/Explore/Explore').then((m) => ({ default: m.default })));
+const Status = lazy(() => import('../../pages/Status/Status').then((m) => ({ default: m.default })));
+const Reclamation = lazy(() => import('../../modules/reclamation/ReclamationScreen').then((m) => ({ default: m.ReclamationScreen })));
 const Competitions = lazy(() => import('../../pages/Competitions/Competitions').then((m) => ({ default: m.default })));
 const CompetitionDetail = lazy(() => import('../../pages/Competitions/CompetitionDetail').then((m) => ({ default: m.default })));
 const ProfileSettings = lazy(() => import('../../pages/Settings/Profile').then((m) => ({ default: m.default })));
@@ -18,6 +21,7 @@ const AdminUsers = lazy(() => import('../../pages/Admin/Users').then((m) => ({ d
 const AdminGamificationStats = lazy(() => import('../../pages/Admin/GamificationStats').then((m) => ({ default: m.default })));
 const AdminCompetitions = lazy(() => import('../../pages/Admin/Competitions').then((m) => ({ default: m.default })));
 const AdminChallenges = lazy(() => import('../../pages/Admin/Challenges').then((m) => ({ default: m.default })));
+const AdminReclamations = lazy(() => import('../../pages/Admin/Reclamations').then((m) => ({ default: m.default })));
 const VerifyEmail = lazy(() => import('../../pages/Auth/VerifyEmail').then((m) => ({ default: m.default })));
 const ForgotPassword = lazy(() => import('../../pages/Auth/ForgotPassword').then((m) => ({ default: m.default })));
 const ResetPassword = lazy(() => import('../../pages/Auth/ResetPassword').then((m) => ({ default: m.default })));
@@ -33,6 +37,9 @@ export const LazyRoutes = {
   ChallengeDetail,
   Dashboard,
   Leaderboard,
+  Explore,
+  Status,
+  Reclamation,
   Competitions,
   CompetitionDetail,
   ProfileSettings,
@@ -42,6 +49,7 @@ export const LazyRoutes = {
   AdminGamificationStats,
   AdminCompetitions,
   AdminChallenges,
+  AdminReclamations,
   VerifyEmail,
   ForgotPassword,
   ResetPassword,

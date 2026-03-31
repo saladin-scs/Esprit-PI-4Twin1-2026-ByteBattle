@@ -7,11 +7,11 @@ import { Button, Alert } from '../../shared/components';
 import type { RootState } from '../../store/store';
 
 const LABELS: Record<number, string> = {
-  1: 'Very dissatisfied',
-  2: 'Somewhat dissatisfied',
-  3: 'Satisfied',
-  4: 'Very satisfied',
-  5: 'Excellent',
+  1: 'very satisfied',
+  2: 'somewhat satisfied',
+  3: 'neutral',
+  4: 'satisfied',
+  5: 'very satisfied',
 };
 
 export function SiteRatingWidget() {
@@ -82,14 +82,14 @@ export function SiteRatingWidget() {
       setDraftStars(null);
       setSuccess(
         prevSaved != null && prevSaved !== stars
-          ? 'Your rating was updated. Thank you!'
-          : 'Thanks for your feedback!',
+          ? 'Rating updated successfully.'
+          : 'Rating saved successfully.',
       );
       await refreshStats();
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string | string[] } }; message?: string };
       const msg = ax?.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(', ') : msg || ax?.message || 'Unable to submit rating.');
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || ax?.message || 'Envoi impossible.');
     } finally {
       setSubmitting(false);
     }
@@ -98,20 +98,20 @@ export function SiteRatingWidget() {
   return (
     <div
       className="mx-auto mt-10 max-w-md rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-6 py-5 dark:bg-amber-400/[0.08]"
-      aria-label="App rating"
+      aria-label="Note sur l’application"
     >
       <p className="bb-section-title text-center text-sm font-semibold tracking-wide text-amber-950/90 dark:text-amber-100">
-        Your opinion on ByteBattle
+        your feedback matters! ⭐
       </p>
       <p className="bb-body-text mt-1 text-center text-sm text-gray-700 dark:text-gray-300">
-        Choose from <strong>1 to 5 stars</strong> based on your platform experience.
+        Choose between <strong>1 and 5 stars</strong> based on your experience on the platform.
       </p>
 
       {!loadingStats && stats && stats.count > 0 && (
         <p className="mt-3 text-center text-xs text-gray-600 dark:text-gray-400">
           Community average:{' '}
           <span className="font-semibold text-amber-800 dark:text-amber-200">
-            {stats.average.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} /{' '}
+            {stats.average.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} /{' '}
             {SITE_RATING_MAX_STARS}
           </span>{' '}
           · {stats.count} reviews
@@ -121,7 +121,7 @@ export function SiteRatingWidget() {
       <div
         className="mt-4 flex justify-center gap-2 sm:gap-3"
         role="group"
-        aria-label={`Rating from 1 to ${SITE_RATING_MAX_STARS} stars`}
+        aria-label={`Notation de 1 à ${SITE_RATING_MAX_STARS} étoiles`}
         onMouseLeave={() => setHoverStars(0)}
       >
         {Array.from({ length: SITE_RATING_MAX_STARS }, (_, i) => {
@@ -132,7 +132,7 @@ export function SiteRatingWidget() {
               key={n}
               type="button"
               className="rounded-lg p-1 transition-transform hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
-              aria-label={`${n} star${n > 1 ? 's' : ''} - ${LABELS[n]}`}
+              aria-label={`${n} étoile${n > 1 ? 's' : ''} — ${LABELS[n]}`}
               aria-pressed={effectiveChoice === n}
               onMouseEnter={() => setHoverStars(n)}
               onClick={() => {
@@ -165,7 +165,7 @@ export function SiteRatingWidget() {
       {!isAuthenticated && (
         <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
           <Link to="/login" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-            Log in
+            Sign in
           </Link>{' '}
           or{' '}
           <Link to="/register" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
@@ -190,7 +190,7 @@ export function SiteRatingWidget() {
           </Button>
           {savedStars != null && draftStars == null && (
             <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-              Your saved rating: {savedStars} / {SITE_RATING_MAX_STARS}. Click a star to change it.
+             saved rating : {savedStars} / {SITE_RATING_MAX_STARS}. You can update your rating.
             </p>
           )}
         </div>

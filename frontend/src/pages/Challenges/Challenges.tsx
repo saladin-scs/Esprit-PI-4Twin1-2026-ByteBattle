@@ -5,7 +5,7 @@ import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
 import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
 import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
-import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilityCallout';
+import { ChatAvailabilityCallout } from '../../shared/components';
 import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
 import { RootState } from '../../store/store';
 
@@ -24,6 +24,7 @@ function isNewFromCreatedAt(createdAt?: string): boolean {
 const Challenges = () => {
   const navigate = useNavigate();
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const isAdmin = useSelector((s: RootState) => Boolean(s.auth.user?.roles?.includes('admin')));
   const [reco, setReco] = useState<RecommendedChallengeItem[]>([]);
   const [recoLoading, setRecoLoading] = useState(false);
 
@@ -93,6 +94,11 @@ const Challenges = () => {
           {total} challenge{total !== 1 ? 's' : ''} available — <strong>newest first</strong>. Challenges from the last{' '}
           {NEW_CHALLENGE_DAYS} days are marked <span className="font-medium text-emerald-600 dark:text-emerald-400">New</span>.
         </p>
+        {isAdmin && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={() => navigate('/admin/challenges')}>+ Create Challenge</Button>
+          </div>
+        )}
       </header>
 
       <div className="relative mb-6">

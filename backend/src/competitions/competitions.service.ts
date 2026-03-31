@@ -516,4 +516,19 @@ export class CompetitionsService {
       status: params.status ?? 'archived',
     });
   }
+
+  async update(id: string, dto: Partial<CreateCompetitionDto>) {
+    const updated = await this.competitionModel
+      .findByIdAndUpdate(id, { $set: dto }, { new: true })
+      .exec();
+    if (!updated) throw new NotFoundException('Competition not found');
+    return updated;
+  }
+
+  async delete(id: string) {
+    const deleted = await this.competitionModel.findByIdAndDelete(id).exec();
+    if (!deleted) throw new NotFoundException('Competition not found');
+    await this.submissionModel.deleteMany({ competitionId: new Types.ObjectId(id) }).exec();
+    return { ok: true as const };
+  }
 }

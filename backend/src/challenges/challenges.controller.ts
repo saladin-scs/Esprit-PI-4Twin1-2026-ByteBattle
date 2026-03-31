@@ -1,8 +1,8 @@
 /* eslint-disable prettier/prettier */
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChallengeService } from './challenges.service';
-import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
+import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto, UpdateChallengeDto } from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtOrApiKeyAuthGuard } from '../auth/guards/jwt-or-api-key.guard';
@@ -140,5 +140,23 @@ export class ChallengeController {
   @ApiOperation({ summary: 'Create a challenge (admin)' })
   async create(@Body() dto: CreateChallengeDto) {
     return this.challengeService.create(dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a challenge (admin)' })
+  async update(@Param('id') id: string, @Body() dto: UpdateChallengeDto) {
+    return this.challengeService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a challenge (admin)' })
+  async remove(@Param('id') id: string) {
+    return this.challengeService.remove(id);
   }
 }

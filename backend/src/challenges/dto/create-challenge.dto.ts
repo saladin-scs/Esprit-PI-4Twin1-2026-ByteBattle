@@ -1,6 +1,7 @@
 /* eslint-disable prettier/prettier */
 import { IsString, IsEnum, IsArray, IsOptional, IsNumber, IsBoolean, IsObject, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { PartialType } from '@nestjs/swagger';
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 export type Language = 'javascript' | 'python' | 'java' | 'cpp';
@@ -114,3 +115,5 @@ export class GetChallengesDto {
   @IsOptional()
   limit?: number;
 }
+
+export class UpdateChallengeDto extends PartialType(CreateChallengeDto) {}

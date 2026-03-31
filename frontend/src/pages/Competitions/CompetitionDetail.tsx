@@ -18,7 +18,6 @@ import {
   CompetitionRules,
   LeaderboardTable,
   SubmissionPanel,
-  ContestChallengePicker,
 } from './components';
 import { RootState } from '../../store/store';
 import { CollaborationChat } from '../../shared/components/CollaborationChat';
@@ -29,14 +28,12 @@ export default function CompetitionDetail() {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [leaderboardLang, setLeaderboardLang] = useState('');
+  const [leaderboardLimit, setLeaderboardLimit] = useState(25);
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
 
   const {
     competition,
     challenge,
-    challenges,
-    activeChallengeId,
-    setActiveChallengeId,
     loading,
     error,
     selectedLang,
@@ -53,6 +50,7 @@ export default function CompetitionDetail() {
     id,
     competition?.status,
     leaderboardLang,
+    leaderboardLimit,
   );
 
   useEffect(() => {
@@ -69,8 +67,6 @@ export default function CompetitionDetail() {
   }, [submitError]);
 
   const handleBack = () => navigate('/competitions');
-
-  const challengeTitles = challenges.map((c) => c.title);
 
   if (loading || !id) {
     return (
@@ -119,24 +115,15 @@ export default function CompetitionDetail() {
             <div className="flex items-start gap-2">
               <Sparkles className="mt-1 h-5 w-5 shrink-0 text-amber-500" aria-hidden />
               <div className="min-w-0 flex-1">
-                <CompetitionHero competition={competition} challengeCount={challenges.length} />
+                <CompetitionHero competition={competition} />
                 <div className="prose prose-sm max-w-none text-slate-600 dark:prose-invert dark:text-slate-300">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{competition.description}</ReactMarkdown>
                 </div>
               </div>
             </div>
 
-            <ContestChallengePicker
-              challenges={challenges}
-              activeId={activeChallengeId}
-              onSelect={setActiveChallengeId}
-              competitionType={competition.type}
-              className="mt-6"
-            />
-
             <CompetitionOverview
               competition={competition}
-              challengeTitles={challengeTitles}
               className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-700"
             />
             <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-700">
@@ -240,6 +227,8 @@ export default function CompetitionDetail() {
             loading={leaderboardLoading}
             languageFilter={leaderboardLang}
             onLanguageFilterChange={setLeaderboardLang}
+            limit={leaderboardLimit}
+            onLimitChange={setLeaderboardLimit}
             supportedLanguages={competition.supportedLanguages ?? []}
           />
           {isAuthed && (

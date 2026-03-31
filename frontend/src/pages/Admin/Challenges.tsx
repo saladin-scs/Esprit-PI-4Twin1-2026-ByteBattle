@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { challengesApi } from '../../services/api';
 import { PageContainer, Card, Button, Input, Spinner } from '../../shared/components';
 import { DifficultyBadge } from '../../components/Challenges';
@@ -50,6 +51,7 @@ function normalizeAiPayload(data: any): {
 }
 
 export default function AdminChallenges() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { confirm } = usePopup();
   const [challenges, setChallenges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,6 +118,22 @@ export default function AdminChallenges() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const ai = searchParams.get('ai');
+    const create = searchParams.get('create');
+    if (ai === '1' || create === '1') {
+      resetForm();
+      if (ai === '1') {
+        setFormData((prev) => ({ ...prev, topic: prev.topic || 'Two sum' }));
+      }
+      setShowModal(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('ai');
+      next.delete('create');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleGenerateAI = async () => {
     if (!formData.topic) {

@@ -9,6 +9,7 @@ import { ChallengeModule } from '../challenges/challenges.module';
 import { CodeExecutionModule } from '../code-execution/code-execution.module';
 import { GamificationModule } from '../gamification/gamification.module';
 import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UsersModule } from '../users/users.module';
     CodeExecutionModule,
     GamificationModule,
     UsersModule,
+    NotificationsModule,
   ],
   controllers: [CompetitionsController],
   providers: [CompetitionsService],
