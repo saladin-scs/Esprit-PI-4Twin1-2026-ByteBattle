@@ -4,8 +4,8 @@
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$dataDir = Join-Path $root 'piston-data'
 $containerName = 'bytebattle-piston'
+$volumeName = 'bytebattle-piston-packages'
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   Write-Host "Docker n'est pas dans le PATH." -ForegroundColor Red
@@ -14,10 +14,15 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
-New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
-
-# Chemin compatible Docker Desktop (WSL2) : préférer des slashes
-$vol = ($dataDir -replace '\\', '/')
+# Create persistent Docker volume for Piston packages (faster and safer than Windows bind mounts).
+$prevEap2 = $ErrorActionPreference
+$ErrorActionPreference = 'SilentlyContinue'
+& docker volume inspect $volumeName 2>&1 | Out-Null
+$volumeExists = ($LASTEXITCODE -eq 0)
+$ErrorActionPreference = $prevEap2
+if (-not $volumeExists) {
+  docker volume create $volumeName | Out-Null
+}
 
 # docker inspect écrit sur stderr si absent — éviter Stop sur cette erreur attendue
 $prevEap = $ErrorActionPreference
@@ -25,6 +30,17 @@ $ErrorActionPreference = 'SilentlyContinue'
 & docker inspect $containerName 2>&1 | Out-Null
 $containerExists = ($LASTEXITCODE -eq 0)
 $ErrorActionPreference = $prevEap
+
+if ($containerExists) {
+  $mountsJson = docker inspect -f '{{json .Mounts}}' $containerName 2>$null
+  $hasLegacyRootMount = $mountsJson -match '"Destination"\s*:\s*"/piston"'
+  $hasBindPackagesMount = ($mountsJson -match '"Destination"\s*:\s*"/piston/packages"') -and ($mountsJson -match '"Type"\s*:\s*"bind"')
+  if ($hasLegacyRootMount -or $hasBindPackagesMount) {
+    Write-Host "Ancienne config détectée. Recréation du conteneur avec volume Docker /piston/packages..." -ForegroundColor Yellow
+    docker rm -f $containerName
+    $containerExists = $false
+  }
+}
 
 if ($containerExists) {
   $running = docker inspect -f '{{.State.Running}}' $containerName 2>$null
@@ -39,7 +55,7 @@ if ($containerExists) {
   docker pull ghcr.io/engineer-man/piston:latest
   docker run `
     --privileged `
-    -v "${vol}:/piston" `
+    -v "${volumeName}:/piston/packages" `
     -dit `
     -p 2000:2000 `
     --name $containerName `
@@ -54,6 +70,6 @@ Write-Host ""
 Write-Host "Important : au premier lancement, aucun langage n'est installé." -ForegroundColor Yellow
 Write-Host "Clone https://github.com/engineer-man/piston puis :" -ForegroundColor Yellow
 Write-Host "  cd piston/cli && npm i" -ForegroundColor Gray
-Write-Host "  node index.js -u http://127.0.0.1:2000 ppman install javascript python java c++" -ForegroundColor Gray
+Write-Host "  node index.js -u http://127.0.0.1:2000 ppman install node python java gcc" -ForegroundColor Gray
 Write-Host "(Ajuste les versions si besoin : GET http://localhost:2000/api/v2/runtimes)" -ForegroundColor Gray
 Write-Host ""

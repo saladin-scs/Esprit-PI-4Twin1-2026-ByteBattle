@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { competitionsApi, challengesApi } from '../../services/api';
 import type { CompetitionDetail } from './types';
 import type { SubmitResult } from './types';
+import { getEditorPrefillCode } from '../../utils/testPrefill';
 
 export interface ChallengeInfo {
   _id: string;
@@ -70,7 +71,7 @@ export function useCompetitionDetail(id: string | undefined) {
             : first.languages ?? ['python', 'javascript'];
           const lang = langs.includes('python') ? 'python' : langs[0];
           setSelectedLang(lang);
-          setCode(first.starterCode?.[lang] ?? DEFAULT_STARTER[lang] ?? '');
+          setCode(getEditorPrefillCode(first.title, lang, first.starterCode?.[lang] ?? DEFAULT_STARTER[lang] ?? ''));
         }
       })
       .catch((err: unknown) => {
@@ -87,7 +88,7 @@ export function useCompetitionDetail(id: string | undefined) {
 
   useEffect(() => {
     if (!challenge || !selectedLang) return;
-    setCode(challenge.starterCode?.[selectedLang] ?? DEFAULT_STARTER[selectedLang] ?? '');
+    setCode(getEditorPrefillCode(challenge.title, selectedLang, challenge.starterCode?.[selectedLang] ?? DEFAULT_STARTER[selectedLang] ?? ''));
   }, [challenge?._id, selectedLang]);
 
   const setActiveChallengeIdSafe = useCallback(
@@ -100,7 +101,7 @@ export function useCompetitionDetail(id: string | undefined) {
           : ch.languages ?? ['python'];
         const lang = langs.includes(selectedLang) ? selectedLang : langs.includes('python') ? 'python' : langs[0];
         setSelectedLang(lang);
-        setCode(ch.starterCode?.[lang] ?? DEFAULT_STARTER[lang] ?? '');
+        setCode(getEditorPrefillCode(ch.title, lang, ch.starterCode?.[lang] ?? DEFAULT_STARTER[lang] ?? ''));
       }
     },
     [challenges, competition, selectedLang],

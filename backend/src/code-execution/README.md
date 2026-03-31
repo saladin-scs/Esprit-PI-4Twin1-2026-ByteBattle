@@ -21,7 +21,7 @@ Les données du conteneur sont dans `piston-data/` (ignoré par Git).
 
 ```bash
 cd piston/cli && npm i
-node index.js -u http://127.0.0.1:2000 ppman install javascript python java c++
+node index.js -u http://127.0.0.1:2000 ppman install node python java gcc
 ```
 
 Le backend interroge automatiquement `GET …/runtimes` (dérivé de `PISTON_ENDPOINT` en retirant `/execute`) et choisit une version compatible — par ex. **Node** pour JavaScript lorsque l’API publique expose aussi Deno. En secours si l’API est injoignable, `languageVersionMap` dans `code-execution.service.ts` sert de repli.

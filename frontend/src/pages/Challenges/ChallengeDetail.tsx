@@ -19,6 +19,7 @@ import CommunitySolutions from './CommunitySolutions';
 import { RootState } from '../../store/store';
 import { CollaborationChat } from '../../shared/components/CollaborationChat';
 import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
+import { getEditorPrefillCode } from '../../utils/testPrefill';
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -201,7 +202,7 @@ const ChallengeDetail = () => {
         const langs = data.languages ?? [];
         const preferred = langFromUrl && langs.includes(langFromUrl) ? langFromUrl : langs[0] || 'javascript';
         setSelectedLang(preferred);
-        setCode(data.starterCode?.[preferred] || '');
+        setCode(getEditorPrefillCode(data.title, preferred, data.starterCode?.[preferred] || ''));
       } catch {
         setStoreError('Challenge not found.');
       } finally {
@@ -229,19 +230,19 @@ const ChallengeDetail = () => {
     if (!challenge || !langFromUrl || !challenge.languages?.includes(langFromUrl)) return;
     setSelectedLang(langFromUrl);
     const starter = challenge.starterCode?.[langFromUrl];
-    if (starter != null) setCode(starter);
+    if (starter != null) setCode(getEditorPrefillCode(challenge.title, langFromUrl, starter));
   }, [langFromUrl, challenge, setSelectedLang, setCode]);
 
   const handleLangChange = (lang: string) => {
     setSearchParams({ lang });
     setSelectedLang(lang);
-    setCode(challenge?.starterCode?.[lang] || '');
+    setCode(getEditorPrefillCode(challenge?.title, lang, challenge?.starterCode?.[lang] || ''));
   };
 
   const handleSelectLanguage = (lang: string) => {
     setSearchParams({ lang });
     setSelectedLang(lang);
-    setCode(challenge?.starterCode?.[lang] || '');
+    setCode(getEditorPrefillCode(challenge?.title, lang, challenge?.starterCode?.[lang] || ''));
   };
 
   const handleRun = async () => {

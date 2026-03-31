@@ -4,8 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Sparkles, MessageCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { ArrowLeft, Sparkles, MessageCircle, X } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Button, Card } from '../../shared/components';
 import { DifficultyBadge } from '../../components/Challenges';
@@ -29,6 +28,7 @@ export default function CompetitionDetail() {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [leaderboardLang, setLeaderboardLang] = useState('');
+  const [centerNotice, setCenterNotice] = useState<{ kind: 'success' | 'error'; message: string } | null>(null);
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
 
   const {
@@ -58,15 +58,24 @@ export default function CompetitionDetail() {
   useEffect(() => {
     if (!submitResult) return;
     if (submitResult.status === 'accepted') {
-      toast.success(submitResult.isBest ? 'Accepted! New best submission.' : 'Accepted!');
+      setCenterNotice({
+        kind: 'success',
+        message: submitResult.isBest ? 'Accepted! New best submission.' : 'Accepted!',
+      });
     } else {
-      toast.error('Submission not accepted. Check your solution.');
+      setCenterNotice({ kind: 'error', message: 'Submission not accepted. Check your solution.' });
     }
   }, [submitResult]);
 
   useEffect(() => {
-    if (submitError) toast.error(submitError);
+    if (submitError) setCenterNotice({ kind: 'error', message: submitError });
   }, [submitError]);
+
+  useEffect(() => {
+    if (!centerNotice) return;
+    const t = setTimeout(() => setCenterNotice(null), 4500);
+    return () => clearTimeout(t);
+  }, [centerNotice]);
 
   const handleBack = () => navigate('/competitions');
 
@@ -98,6 +107,45 @@ export default function CompetitionDetail() {
 
   return (
     <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <AnimatePresence>
+        {centerNotice && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              onClick={() => setCenterNotice(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              className={`fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border p-5 shadow-2xl ${
+                centerNotice.kind === 'success'
+                  ? 'border-emerald-500/40 bg-white dark:bg-slate-900'
+                  : 'border-red-500/40 bg-white dark:bg-slate-900'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setCenterNotice(null)}
+                className="absolute right-3 top-3 rounded-md p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="Close notification"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <p
+                className={`pr-6 text-base font-semibold ${
+                  centerNotice.kind === 'success' ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'
+                }`}
+              >
+                {centerNotice.message}
+              </p>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       <div className="bb-hero-gradient-detail" aria-hidden />
       <Button
         variant="ghost"

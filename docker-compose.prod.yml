@@ -21,11 +21,15 @@ services:
       - mongodb
     ports:
       - "3001:3000"   # host 3001 → container 3000 (NestJS)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       NODE_ENV: ${NODE_ENV}
       PORT: 3000
       JWT_SECRET: ${JWT_SECRET}
       MONGODB_URI: ${MONGODB_URI}
+      # 127.0.0.1 inside the container is not the host — use host.docker.internal for Piston on the host (port 2000)
+      PISTON_ENDPOINT: ${PISTON_ENDPOINT:-http://host.docker.internal:2000/api/v2/execute}
     networks:
       - bytebattle
 
