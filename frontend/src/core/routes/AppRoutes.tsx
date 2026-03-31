@@ -24,6 +24,7 @@ const {
   CompetitionDetail,
   ProfileSettings,
   SecuritySettings,
+  DeveloperSettings,
   PublicProfile,
   AdminUsers,
   AdminGamificationStats,
@@ -61,6 +62,7 @@ export function AppRoutes() {
           <Route path="/competitions/:id" element={<ProtectedRoute><CompetitionDetail /></ProtectedRoute>} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/security" element={<SecuritySettings />} />
+          <Route path="/settings/developer" element={<DeveloperSettings />} />
           <Route path="/u/:username" element={<PublicProfile />} />
           <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
           <Route path="/admin/gamification" element={<AdminRoute><AdminGamificationStats /></AdminRoute>} />
