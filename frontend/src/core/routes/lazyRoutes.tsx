@@ -17,6 +17,7 @@ const Competitions = lazy(() => import('../../pages/Competitions/Competitions').
 const CompetitionDetail = lazy(() => import('../../pages/Competitions/CompetitionDetail').then((m) => ({ default: m.default })));
 const ProfileSettings = lazy(() => import('../../pages/Settings/Profile').then((m) => ({ default: m.default })));
 const SecuritySettings = lazy(() => import('../../pages/Settings/Security').then((m) => ({ default: m.default })));
+const DeveloperSettings = lazy(() => import('../../pages/Settings/Developer').then((m) => ({ default: m.default })));
 const AdminUsers = lazy(() => import('../../pages/Admin/Users').then((m) => ({ default: m.default })));
 const AdminGamificationStats = lazy(() => import('../../pages/Admin/GamificationStats').then((m) => ({ default: m.default })));
 const AdminCompetitions = lazy(() => import('../../pages/Admin/Competitions').then((m) => ({ default: m.default })));
@@ -44,6 +45,7 @@ export const LazyRoutes = {
   CompetitionDetail,
   ProfileSettings,
   SecuritySettings,
+  DeveloperSettings,
   PublicProfile,
   AdminUsers,
   AdminGamificationStats,
