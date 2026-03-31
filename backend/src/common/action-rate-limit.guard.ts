@@ -33,7 +33,7 @@ export class ActionRateLimitGuard implements CanActivate {
       await this.limits.consume(kind, key);
     } catch {
       throw new HttpException(
-        'Trop de requêtes sur cette action. Réessaie dans environ une minute.',
+        'Too many requests for this action. Try again in about a minute.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }

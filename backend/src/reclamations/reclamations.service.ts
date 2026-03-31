@@ -97,12 +97,12 @@ export class ReclamationsService {
   }
 
   async getMine(userId: string, id: string): Promise<ReclamationMineItem> {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Réclamation introuvable');
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Report not found');
     const doc = await this.reclamationModel
       .findOne({ _id: new Types.ObjectId(id), userId: new Types.ObjectId(userId) })
       .lean()
       .exec();
-    if (!doc) throw new NotFoundException('Réclamation introuvable');
+    if (!doc) throw new NotFoundException('Report not found');
     const base = toMineItem({
       _id: doc._id,
       category: doc.category,
@@ -171,9 +171,9 @@ export class ReclamationsService {
   }
 
   async getForAdmin(id: string): Promise<ReclamationAdminItem> {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Réclamation introuvable');
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Report not found');
     const doc = await this.reclamationModel.findById(id).lean().exec();
-    if (!doc) throw new NotFoundException('Réclamation introuvable');
+    if (!doc) throw new NotFoundException('Report not found');
     const base = toMineItem({
       _id: doc._id,
       category: doc.category,
@@ -191,23 +191,23 @@ export class ReclamationsService {
   }
 
   async updateStatusAdmin(id: string, status: 'open' | 'read' | 'resolved' | 'cancelled'): Promise<ReclamationAdminItem> {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Réclamation introuvable');
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Report not found');
     const doc = await this.reclamationModel.findById(id).exec();
-    if (!doc) throw new NotFoundException('Réclamation introuvable');
+    if (!doc) throw new NotFoundException('Report not found');
     doc.status = status;
     await doc.save();
     return this.getForAdmin(id);
   }
 
-  /** Annulation par l’utilisateur tant que le dossier n’est pas clos ou déjà annulé. */
+  /** User cancellation while the report is not yet resolved or already cancelled. */
   async cancelMine(userId: string, id: string): Promise<ReclamationMineItem> {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Réclamation introuvable');
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Report not found');
     const doc = await this.reclamationModel
       .findOne({ _id: new Types.ObjectId(id), userId: new Types.ObjectId(userId) })
       .exec();
-    if (!doc) throw new NotFoundException('Réclamation introuvable');
+    if (!doc) throw new NotFoundException('Report not found');
     if (doc.status === 'cancelled' || doc.status === 'resolved') {
-      throw new ConflictException('Cette réclamation ne peut plus être annulée.');
+      throw new ConflictException('This report can no longer be cancelled.');
     }
     doc.status = 'cancelled';
     await doc.save();

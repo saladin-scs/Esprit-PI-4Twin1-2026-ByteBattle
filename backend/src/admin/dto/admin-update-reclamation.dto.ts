@@ -1,11 +1,8 @@
-/* eslint-disable prettier/prettier */
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn } from 'class-validator';
 
-const STATUSES = ['open', 'read', 'resolved', 'cancelled'] as const;
-
 export class AdminUpdateReclamationDto {
-  @ApiProperty({ enum: STATUSES })
-  @IsIn([...STATUSES])
-  status: (typeof STATUSES)[number];
+  @ApiProperty({ enum: ['open', 'read', 'resolved', 'cancelled'] })
+  @IsIn(['open', 'read', 'resolved', 'cancelled'])
+  status!: 'open' | 'read' | 'resolved' | 'cancelled';
 }

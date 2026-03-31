@@ -1,10 +1,10 @@
 /**
- * Base URL HTTP pour l’API Nest (Axios, fetch OAuth, etc.).
+ * HTTP base URL for Nest API (Axios, OAuth fetch, etc.).
  *
- * - **Dev sans `VITE_API_URL`** : `/bb-api` → proxy Vite vers `localhost:3000` (évite CORS et le conflit
- *   SPA où un GET `/challenges` servirait le JSON au lieu de l’app).
- * - **Dev avec `VITE_API_URL`** : URL explicite (ex. tests contre un autre hôte).
- * - **Prod** : `VITE_API_URL` recommandé ; défaut `http://localhost:3000` si absent.
+ * - **Dev without `VITE_API_URL`**: `/bb-api` -> Vite proxy to `localhost:3000` (avoids CORS and SPA conflict
+ *   where GET `/challenges` could return JSON instead of the app).
+ * - **Dev with `VITE_API_URL`**: explicit URL (e.g. tests against another host).
+ * - **Prod**: `VITE_API_URL` recommended; default `http://localhost:3000` if missing.
  */
 function trimmedApiEnv(): string | undefined {
   const raw = import.meta.env.VITE_API_URL;
@@ -23,14 +23,14 @@ export function getHttpApiBaseUrl(): string {
   return 'http://localhost:3000';
 }
 
-/** Alias historique — même valeur que `getHttpApiBaseUrl`. */
+/** Historical alias - same value as `getHttpApiBaseUrl`. */
 export function getPublicApiUrl(): string {
   return getHttpApiBaseUrl();
 }
 
 /**
- * Pour Socket.IO : `undefined` = même origine que la page (dev + proxy `/socket.io`).
- * Sinon URL explicite du backend.
+ * For Socket.IO: `undefined` = same origin as page (dev + `/socket.io` proxy).
+ * Otherwise explicit backend URL.
  */
 export function getSocketIoServerUrl(): string | undefined {
   const explicit = trimmedApiEnv();

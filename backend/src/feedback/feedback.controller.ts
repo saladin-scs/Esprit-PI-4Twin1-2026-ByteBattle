@@ -15,7 +15,7 @@ export class FeedbackController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Analyse du code par le service IA (contexte exécution optionnel)',
+    summary: 'Code analysis by AI service (optional execution context)',
   })
   async analyzeCode(
     @Body() analyzeCodeDto: AnalyzeCodeDto,

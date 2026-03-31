@@ -175,20 +175,20 @@ export function CollaborationChat({
 
   const reportLine = async (line: ChatLine) => {
     if (!line.id || !room) return;
-    const reason = window.prompt('Raison du signalement (optionnel) :') ?? '';
+    const reason = window.prompt('Report reason (optional):') ?? '';
     try {
       await chatApi.reportMessage({
         messageId: line.id,
         room,
         reason: reason.trim() || undefined,
       });
-      toast.success('Signalement enregistré. Merci.');
+      toast.success('Report submitted. Thank you.');
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
           ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
           : undefined;
-      toast.error(typeof msg === 'string' ? msg : 'Signalement impossible pour le moment.');
+      toast.error(typeof msg === 'string' ? msg : 'Unable to submit report right now.');
     }
   };
 
@@ -255,8 +255,8 @@ export function CollaborationChat({
           className="border-b border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/35 dark:text-sky-100"
           role="status"
         >
-          {pendingOutboundCount} message{pendingOutboundCount > 1 ? 's' : ''} en attente d’envoi — ils
-          partiront à la reconnexion.
+          {pendingOutboundCount} message{pendingOutboundCount > 1 ? 's' : ''} waiting to be sent. They will be sent
+          once reconnected.
         </p>
       )}
 
@@ -267,7 +267,7 @@ export function CollaborationChat({
           messagesMaxHeightClass,
         )}
         role="log"
-        aria-label="Fil de messages"
+        aria-label="Message thread"
         aria-relevant="additions"
       >
         {hasMoreHistory && lines.length > 0 && (
@@ -283,14 +283,14 @@ export function CollaborationChat({
               ) : (
                 <ChevronUp className="h-3.5 w-3.5" aria-hidden />
               )}
-              Messages plus anciens
+              Older messages
             </button>
           </div>
         )}
 
         {lines.length === 0 && !historyLoading && (
           <p className="py-10 text-center text-xs text-slate-500">
-            Aucun message. Sois le premier à écrire.
+            No messages yet. Be the first to write.
           </p>
         )}
 
@@ -319,7 +319,7 @@ export function CollaborationChat({
                       mine ? 'text-primary-100' : 'text-primary-700 dark:text-primary-300',
                     )}
                   >
-                    {mine ? 'Moi' : line.user.username || 'Joueur'}
+                    {mine ? 'Me' : line.user.username || 'Player'}
                   </span>
                   <span
                     className={cn(
@@ -346,10 +346,10 @@ export function CollaborationChat({
                       void reportLine(line);
                     }}
                     className="mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:bg-slate-200/80 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                    title="Signaler ce message"
+                    title="Report this message"
                   >
                     <Flag className="h-3 w-3" aria-hidden />
-                    Signaler
+                    Report
                   </button>
                 )}
               </motion.div>
@@ -365,7 +365,7 @@ export function CollaborationChat({
             <span className="font-medium not-italic text-slate-600 dark:text-slate-300">
               {typingLabel}
             </span>
-            écrit…
+            is typing...
           </span>
         </p>
       ) : null}
@@ -373,7 +373,7 @@ export function CollaborationChat({
       <form
         onSubmit={onSubmit}
         className="border-t border-slate-200 p-2 dark:border-slate-700"
-        aria-label="Envoyer un message"
+        aria-label="Send a message"
       >
         <div className="flex gap-2">
           <input
@@ -383,8 +383,8 @@ export function CollaborationChat({
             onBlur={() => setTyping(false)}
             placeholder={
               connected
-                ? 'Écrire un message…'
-                : 'Hors ligne — le message sera mis en file pour envoi à la reconnexion'
+                ? 'Write a message...'
+                : 'Offline. The message will be queued and sent after reconnection'
             }
             maxLength={CHAT_MESSAGE_MAX_CHARS}
             className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
@@ -394,7 +394,7 @@ export function CollaborationChat({
             type="submit"
             disabled={!input.trim()}
             className="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary-600 px-4 py-2.5 text-white shadow-sm hover:bg-primary-700 disabled:opacity-40"
-            aria-label="Envoyer le message"
+            aria-label="Send message"
           >
             <Send className="h-4 w-4" />
           </button>

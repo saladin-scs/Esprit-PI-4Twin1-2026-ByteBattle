@@ -31,7 +31,7 @@ export class ChatService {
     }
   }
 
-  /** Valide la salle et l’identifiant Mongo dans le nom (competition|challenge:24hex). */
+  /** Validates room and Mongo identifier in name (competition|challenge:24hex). */
   async assertMembership(room: string, _userId: string): Promise<void> {
     this.assertRoom(room);
     const oid = parseObjectIdSuffix(room);
@@ -98,10 +98,10 @@ export class ChatService {
     this.assertRoom(dto.room);
     const msg = await this.messageModel.findById(dto.messageId).lean();
     if (!msg || msg.room !== dto.room) {
-      throw new BadRequestException('Message introuvable dans cette salle');
+      throw new BadRequestException('Message not found in this room');
     }
     if (String(msg.userId) === reporterId) {
-      throw new BadRequestException('Tu ne peux pas te signaler toi-même');
+      throw new BadRequestException('You cannot report yourself');
     }
     try {
       await this.reportModel.create({
@@ -115,7 +115,7 @@ export class ChatService {
       });
     } catch (e: any) {
       if (e?.code === 11000) {
-        throw new ConflictException('Tu as déjà signalé ce message');
+        throw new ConflictException('You already reported this message');
       }
       throw e;
     }

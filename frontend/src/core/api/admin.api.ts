@@ -2,14 +2,14 @@ import { apiClient } from './client';
 
 export type AdminReclamationRow = {
   id: string;
+  userId: string;
+  userEmail?: string;
+  username?: string;
   category: string;
   subject: string;
   message: string;
   status: 'open' | 'read' | 'resolved' | 'cancelled';
   createdAt: string;
-  userId: string;
-  userEmail?: string;
-  username?: string;
 };
 
 export const adminApi = {
@@ -20,9 +20,7 @@ export const adminApi = {
     apiClient.patch(`/admin/users/${id}/role`, { role }),
   getGamificationStats: () => apiClient.get('/admin/gamification/stats'),
   getChatReports: (params?: { page?: number; limit?: number; status?: 'open' | 'reviewed' }) =>
-    apiClient.get<{ total: number; items: Array<Record<string, unknown>> }>('/admin/chat-reports', {
-      params,
-    }),
+    apiClient.get('/admin/chat-reports', { params }),
   listReclamations: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
     apiClient.get<{
       items: AdminReclamationRow[];
@@ -31,8 +29,10 @@ export const adminApi = {
       limit: number;
       totalPages: number;
     }>('/admin/reclamations', { params }),
-  getReclamation: (id: string) => apiClient.get<AdminReclamationRow>(`/admin/reclamations/${id}`),
-  patchReclamationStatus: (id: string, status: AdminReclamationRow['status']) =>
+  patchReclamationStatus: (
+    id: string,
+    status: 'open' | 'read' | 'resolved' | 'cancelled',
+  ) =>
     apiClient.patch<{ ok: true; reclamation: AdminReclamationRow }>(`/admin/reclamations/${id}`, {
       status,
     }),

@@ -38,7 +38,7 @@ Thumbs.db
 # Docker
 .dockerignore
 
-# Piston (données locales du conteneur)
+# Piston (local container data)
 piston-data/
 
 # Backend specific

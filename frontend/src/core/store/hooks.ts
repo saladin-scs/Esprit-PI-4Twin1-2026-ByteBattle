@@ -1,5 +1,5 @@
 /**
- * Hooks Redux typés – à utiliser plutôt que useDispatch/useSelector bruts.
+ * Typed Redux hooks - use these instead of raw useDispatch/useSelector.
  */
 
 import { useDispatch, useSelector, type TypedUseSelectorHook } from 'react-redux';

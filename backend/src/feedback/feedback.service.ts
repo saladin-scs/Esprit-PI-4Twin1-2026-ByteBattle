@@ -32,7 +32,7 @@ interface CodeAnalysisRequest {
 @Injectable()
 export class FeedbackService {
   private readonly logger = new Logger(FeedbackService.name);
-  /** Limite abus : 40 requêtes / heure / utilisateur */
+  /** Abuse limit: 40 requests per hour per user. */
   private readonly userLimiter = new RateLimiterMemory({
     points: 40,
     duration: 3600,
@@ -50,7 +50,7 @@ export class FeedbackService {
       await this.userLimiter.consume(userId, 1);
     } catch {
       throw new HttpException(
-        'Limite d’analyses IA atteinte pour cette heure. Réessaie plus tard.',
+        'AI analysis limit reached for this hour. Please try again later.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }

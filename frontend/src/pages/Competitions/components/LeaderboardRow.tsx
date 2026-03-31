@@ -30,7 +30,7 @@ function LeaderboardRowComponent({ entry, type, index }: LeaderboardRowProps) {
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.2, delay: index * 0.03 }}
-      className="flex items-center gap-3 py-3 px-2 rounded-lg hover:bg-gray-700/50 text-sm border-b border-gray-700/50 last:border-0 transition-colors"
+      className="flex items-center gap-3 py-3 px-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 text-sm border-b border-gray-200 dark:border-gray-700/50 last:border-0 transition-colors"
     >
       <span className="w-8 shrink-0 flex items-center justify-center" aria-hidden>
         {isFirst && (
@@ -49,7 +49,7 @@ function LeaderboardRowComponent({ entry, type, index }: LeaderboardRowProps) {
           </span>
         )}
         {!isFirst && !isSecond && !isThird && (
-          <span className="text-gray-500 font-medium">#{entry.rank}</span>
+          <span className="text-gray-500 dark:text-gray-400 font-medium">#{entry.rank}</span>
         )}
       </span>
       <Avatar
@@ -58,11 +58,11 @@ function LeaderboardRowComponent({ entry, type, index }: LeaderboardRowProps) {
         className="shrink-0"
       />
       <div className="min-w-0 flex-1">
-        <div className="font-medium text-gray-200 truncate" title={entry.username ?? entry.userId}>
+        <div className="font-medium text-gray-800 dark:text-gray-200 truncate" title={entry.username ?? entry.userId}>
           {entry.username ?? entry.userId?.slice(-8) ?? '—'}
         </div>
-        <div className="text-xs text-gray-500">{scoreText}</div>
-        <div className="text-xs text-gray-600">Submitted: {formatDate(entry.submittedAt)}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">{scoreText}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-500">Submitted: {formatDate(entry.submittedAt)}</div>
       </div>
     </motion.div>
   );

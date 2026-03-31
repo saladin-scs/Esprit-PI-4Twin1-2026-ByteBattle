@@ -1,6 +1,6 @@
 /**
- * Hook avancé: useReducer + Context.
- * Crée un Provider et un hook qui expose state + dispatch.
+ * Advanced hook: useReducer + Context.
+ * Creates a Provider and a hook exposing state + dispatch.
  */
 import {
   createContext,
@@ -48,7 +48,7 @@ export function createReducerContext<S, A>(
 }
 
 /**
- * Variante: hook qui retourne [state, dispatch] et un Provider.
+ * Variant: hook returning [state, dispatch] and a Provider.
  */
 export function useReducerWithContext<S, A>(
   reducer: Reducer<S, A>,

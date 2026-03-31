@@ -1,5 +1,5 @@
 /**
- * Virtualisation avec windowing: ne rend que les éléments visibles + overscan.
+ * Virtualization with windowing: renders only visible items + overscan.
  */
 import { useVirtualList } from '../../hooks/useVirtualList';
 

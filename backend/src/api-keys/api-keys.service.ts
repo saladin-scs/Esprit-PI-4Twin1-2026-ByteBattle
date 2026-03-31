@@ -26,7 +26,7 @@ export class ApiKeysService {
     return createHash('sha256').update(secret, 'utf8').digest('hex');
   }
 
-  /** Authentifie une clé complète bb_live_... ; met à jour lastUsedAt. */
+  /** Authenticates full bb_live_... key and updates lastUsedAt. */
   async authenticateKey(fullSecret: string): Promise<ApiAuthUser | null> {
     if (!fullSecret || !fullSecret.startsWith('bb_live_')) return null;
     const keyHash = this.hashSecret(fullSecret);

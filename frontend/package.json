@@ -5,7 +5,6 @@
   "description": "ByteBattle Frontend - Real-Time Collaborative Coding Challenge Platform",
   "scripts": {
     "dev": "vite",
-    "dev:stack": "concurrently -n backend,web -c blue,magenta \"npm run start:dev --prefix ../backend\" \"vite\"",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
@@ -17,17 +16,13 @@
     "@icons-pack/react-simple-icons": "^13.11.1",
     "@monaco-editor/react": "^4.7.0",
     "@nestjs/swagger": "^11.2.6",
-    "@radix-ui/react-progress": "^1.1.8",
-    "@radix-ui/react-tabs": "^1.1.13",
-    "@radix-ui/react-tooltip": "^1.2.8",
     "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.13.3",
-    "clsx": "^2.1.1",
     "face-api.js": "^0.22.2",
     "framer-motion": "^12.34.3",
     "helmet": "^8.1.0",
-    "katex": "^0.16.37",
-    "lucide-react": "^0.460.0",
+    "katex": "^0.16.40",
+    "lucide-react": "^0.577.0",
     "monaco-editor": "^0.45.0",
     "monaco-vim": "^0.4.4",
     "rate-limiter-flexible": "^9.1.1",
@@ -40,13 +35,12 @@
     "react-markdown": "^10.1.0",
     "react-phone-input-2": "^2.15.1",
     "react-redux": "^9.2.0",
-    "react-resizable-panels": "^4.7.2",
+    "react-resizable-panels": "^4.7.5",
     "react-router-dom": "^6.21.1",
     "recharts": "^3.7.0",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "socket.io-client": "^4.8.3",
-    "tailwind-merge": "^3.5.0",
     "use-debounce": "^10.1.0",
     "yup": "^1.7.1",
     "zustand": "^5.0.11"
@@ -67,7 +61,6 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.3.3",
-    "vite": "^5.0.8",
-    "concurrently": "^9.1.2"
+    "vite": "^5.0.8"
   }
 }

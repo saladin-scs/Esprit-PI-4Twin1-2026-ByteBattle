@@ -13,19 +13,19 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // API REST via préfixe dédié (évite conflit avec la route SPA /challenges, etc.)
-      // 127.0.0.1 évite sur Windows les soucis où `localhost` résout en IPv6 (::1) sans listener
+      // REST API through dedicated prefix (avoids conflicts with SPA route /challenges, etc.)
+      // 127.0.0.1 avoids Windows cases where `localhost` resolves to IPv6 (::1) without a listener
       '/bb-api': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/bb-api/, ''),
       },
-      // Swagger sous /api côté Nest ; utile si tu appelles le doc via le dev server
+      // Swagger under /api on Nest side; useful when calling docs through dev server
       '/api': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
-      // Socket.IO — même cible que le backend
+      // Socket.IO - same target as backend
       '/socket.io': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,

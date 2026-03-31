@@ -19,7 +19,7 @@ interface PistonRuntimeEntry {
 export class CodeExecutionService {
   private readonly logger = new Logger(CodeExecutionService.name);
 
-  /** Default: Piston Docker local (scripts/start-piston.ps1). Production: set PISTON_ENDPOINT (e.g. emkc + clé si autorisé). */
+  /** Default: local Docker Piston (scripts/start-piston.ps1). Production: set PISTON_ENDPOINT (e.g. emkc + key if authorized). */
   private readonly pistonEndpoint =
     (process.env.PISTON_ENDPOINT || '').trim() || 'http://127.0.0.1:2000/api/v2/execute';
 
@@ -145,7 +145,7 @@ export class CodeExecutionService {
     return lang === 'c++' ? 'cpp' : lang;
   }
 
-  /** Run on server (Node / Python) first — matches judge0-style stdin; avoids Piston limits & readline gaps. */
+  /** Run on server (Node / Python) first - matches judge0-style stdin; avoids Piston limits & readline gaps. */
   private shouldRunLocallyFirst(lang: string): boolean {
     if (lang === 'javascript') return true;
     if (lang !== 'python') return false;
@@ -153,16 +153,14 @@ export class CodeExecutionService {
   }
 
   /**
-   * Par défaut : Piston d’abord (Docker local ou PISTON_ENDPOINT).
-   * CODE_EXECUTION_PREFER_LOCAL=true → Node / Python sur la machine si dispo (comportement dev « judge0 »).
-   * CODE_EXECUTION_PREFER_PISTON=true → forcer Piston. false → forcer logique locale dès que possible (legacy).
+   * Default: Piston first (local Docker or PISTON_ENDPOINT).
+   * CODE_EXECUTION_PREFER_LOCAL=true -> Node / Python on machine when available ("judge0-like" dev behavior).
+   * CODE_EXECUTION_PREFER_PISTON=true -> force Piston. false -> force local logic whenever possible (legacy).
    */
   private useLocalRunnerFirst(lang: string): boolean {
     if (process.env.CODE_EXECUTION_PREFER_PISTON === 'true') return false;
     if (process.env.CODE_EXECUTION_PREFER_PISTON === 'false') return this.shouldRunLocallyFirst(lang);
     if (process.env.CODE_EXECUTION_PREFER_LOCAL === 'true') return this.shouldRunLocallyFirst(lang);
-    // Dev: use local Node/Python when installed so Run/Submit work without ppman-installed Piston runtimes
-    if (process.env.NODE_ENV !== 'production' && this.shouldRunLocallyFirst(lang)) return true;
     return false;
   }
 
@@ -310,6 +308,7 @@ export class CodeExecutionService {
           version: pistonVersion,
           files: [{ name: this.getPistonFileName(lang), content: codeForPiston }],
           stdin,
+          run_timeout: Math.min(this.requestTimeoutMs, 15000),
         };
 
         const apiKey = process.env.PISTON_API_KEY?.trim();
@@ -335,16 +334,9 @@ export class CodeExecutionService {
           e.pistonHttpStatus = response.status;
           throw e;
         }
-        // Piston uses compile.code !== 0 for compile failure (piston/api/src/job.js). stderr may contain
-        // warnings even when code is 0 — do not treat stderr alone as failure.
-        const compileStage = response.data?.compile;
-        if (compileStage && typeof compileStage === 'object' && compileStage.code !== 0) {
-          const detail =
-            compileStage.stderr ||
-            compileStage.output ||
-            compileStage.stdout ||
-            'compile failed';
-          throw new Error(`PISTON_COMPILE: ${String(detail).slice(0, 400)}`);
+        const compileErr = response.data?.compile?.stderr || response.data?.compile?.output;
+        if (compileErr && String(compileErr).trim()) {
+          throw new Error(`PISTON_COMPILE: ${String(compileErr).slice(0, 200)}`);
         }
 
         const runPayload = response.data?.run ?? {};
@@ -412,11 +404,11 @@ export class CodeExecutionService {
             return this.allTestsFailed(testCases, msg);
           }
           const hint =
-            `Piston indisponible (${msg.slice(0, 240)}). ` +
-            `Démarre un exécuteur : depuis la racine du repo, .\\scripts\\start-piston.ps1 (Docker), ` +
-            `puis installe les langages (piston CLI : ppman install node python java gcc). ` +
-            `Vérifie PISTON_ENDPOINT dans backend/.env (défaut http://127.0.0.1:2000/api/v2/execute). ` +
-            `L’API publique emkc.org est soumise à liste blanche depuis 2026 — utilise une instance auto-hébergée ou une clé.`;
+            `Piston unavailable (${msg.slice(0, 240)}). ` +
+            `Start an executor: from repository root run .\\scripts\\start-piston.ps1 (Docker), ` +
+            `then install runtimes (piston CLI: ppman install javascript python java c++). ` +
+            `Check PISTON_ENDPOINT in backend/.env (default http://127.0.0.1:2000/api/v2/execute). ` +
+            `The public emkc.org API has been allowlist-only since 2026 - use a self-hosted instance or API key.`;
           return this.allTestsFailed(testCases, hint);
         }
         this.logger.error(`Execution error for test case ${index + 1}`, msg);

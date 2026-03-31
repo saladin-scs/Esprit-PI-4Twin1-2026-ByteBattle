@@ -1,32 +1,29 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
-
-export type ChatMessageReportDocument = ChatMessageReport & Document;
+import { HydratedDocument, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class ChatMessageReport {
-  @Prop({ type: Types.ObjectId, ref: 'ChatMessage', required: true, index: true })
-  messageId: Types.ObjectId;
+  @Prop({ required: true, type: Types.ObjectId })
+  messageId!: Types.ObjectId;
 
-  @Prop({ required: true, index: true })
-  room: string;
+  @Prop({ required: true })
+  room!: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  reporterUserId: Types.ObjectId;
+  @Prop({ required: true, type: Types.ObjectId })
+  reporterUserId!: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  reportedUserId: Types.ObjectId;
+  @Prop({ required: true, type: Types.ObjectId })
+  reportedUserId!: Types.ObjectId;
 
-  @Prop({ required: true, maxlength: 2000 })
-  bodySnapshot: string;
+  @Prop({ required: true })
+  bodySnapshot!: string;
 
-  @Prop({ maxlength: 500, trim: true })
+  @Prop()
   reason?: string;
 
-  @Prop({ enum: ['open', 'reviewed'], default: 'open', index: true })
-  status: 'open' | 'reviewed';
+  @Prop({ default: 'open' })
+  status!: 'open' | 'reviewed' | 'dismissed';
 }
 
+export type ChatMessageReportDocument = HydratedDocument<ChatMessageReport>;
 export const ChatMessageReportSchema = SchemaFactory.createForClass(ChatMessageReport);
-
-ChatMessageReportSchema.index({ reporterUserId: 1, messageId: 1 }, { unique: true });

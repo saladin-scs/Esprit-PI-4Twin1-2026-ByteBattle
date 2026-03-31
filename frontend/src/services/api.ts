@@ -1,6 +1,6 @@
 /**
- * Point d'entrée API – réexporte le client core et toutes les APIs domaine.
- * Les modules auth, users, admin sont dans core/api ; les autres restent ici jusqu'à migration.
+ * API entry point - re-exports core client and all domain APIs.
+ * auth/users/admin modules are in core/api; others stay here until migration.
  */
 import { apiClient } from '../core/api';
 import type { ExecuteTestCase } from '../types/challenge';
@@ -32,8 +32,10 @@ export const challengesApi = {
   upvoteSolution: (solutionId: string) =>
     apiClient.post(`/challenges/solutions/${solutionId}/upvote`, {}),
   create: (challenge: any) => apiClient.post('/challenges', challenge),
+  update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
+  delete: (id: string) => apiClient.delete(`/challenges/${id}`),
   generate: (data: { difficulty: string; topic: string }) =>
-    apiClient.post('/challenges/generate', data),
+    apiClient.post('/ai/generate-challenge', data),
 };
 
 
@@ -56,7 +58,7 @@ export const chatApi = {
     apiClient.post<{ ok: true }>('/chat/report', body),
 };
 
-/** Note site : 1 à 5 étoiles. */
+/** Site rating: 1 to 5 stars. */
 export const SITE_RATING_MAX_STARS = 5;
 
 export const siteRatingsApi = {

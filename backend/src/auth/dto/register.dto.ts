@@ -64,7 +64,7 @@ export class RegisterDto {
   @MaxLength(200)
   referralSource?: string;
 
-  // ✅ AJOUT : embedding facial optionnel (128 floats de face-api.js)
+  // Optional face embedding (128 floats from face-api.js)
   @ApiProperty({ required: false, description: 'Face embedding vector (128 floats)' })
   @IsOptional()
   @IsArray()

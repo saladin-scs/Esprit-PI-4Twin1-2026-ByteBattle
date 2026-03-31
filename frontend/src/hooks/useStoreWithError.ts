@@ -1,6 +1,6 @@
 /**
- * Hook de store avec gestion d'erreur centralisée.
- * Utilisable avec tout store Zustand exposant error et setError.
+ * Store hook with centralized error handling.
+ * Usable with any Zustand store exposing error and setError.
  */
 import { useCallback } from 'react';
 
@@ -10,8 +10,8 @@ export interface StoreWithError {
 }
 
 /**
- * Retourne error, clearError et withErrorHandling pour un store ayant error/setError.
- * withErrorHandling enveloppe une action async et appelle setError en cas d'échec.
+ * Returns error, clearError and withErrorHandling for stores with error/setError.
+ * withErrorHandling wraps an async action and calls setError on failure.
  */
 export function useStoreWithError<T extends StoreWithError>(
   useStore: () => T

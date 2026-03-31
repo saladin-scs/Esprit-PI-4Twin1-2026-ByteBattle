@@ -163,7 +163,7 @@ export class AuthService {
       userAgent: meta?.userAgent,
     });
 
-    // 2FA obligatoire à l'inscription : on ne délivre pas de tokens, seulement un setupToken
+    // 2FA mandatory at signup: do not issue tokens yet, only a setupToken.
     const setupToken = this.signSetupToken(user);
     return {
       twoFactorSetupRequired: true,
@@ -188,7 +188,7 @@ export class AuthService {
     try {
       await this.gamificationService.recordDailyLogin(userId);
     } catch {
-      // Ne pas faire échouer la connexion si la gamification échoue
+      // Do not fail login if gamification fails
     }
     const accessToken = this.signAccessToken(user);
     const refreshToken = await this.issueRefreshToken(user, meta);

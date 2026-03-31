@@ -1,18 +1,18 @@
 import type { ReclamationCategory, ReclamationStatus } from '../../services/api';
 
 export const RECLAMATION_CATEGORY_LABELS: Record<ReclamationCategory, string> = {
-  bug: 'Problème technique',
-  account: 'Compte ou accès',
-  content: 'Contenu (défi, cours…)',
-  harassment: 'Comportement ou harcèlement',
-  other: 'Autre',
+  bug: 'Technical issue',
+  account: 'Account or access',
+  content: 'Content (challenge, course...)',
+  harassment: 'Harassment or misconduct',
+  other: 'Other',
 };
 
 export const RECLAMATION_STATUS_LABELS: Record<ReclamationStatus, string> = {
-  open: 'En attente',
-  read: 'Prise en compte',
-  resolved: 'Résolue',
-  cancelled: 'Annulée',
+  open: 'Pending',
+  read: 'Under review',
+  resolved: 'Resolved',
+  cancelled: 'Cancelled',
 };
 
 export const RECLAMATION_CATEGORIES_SELECT: { value: ReclamationCategory; label: string }[] = [

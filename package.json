@@ -1,7 +1,7 @@
 {
   "name": "pidev-bytebattle",
   "private": true,
-  "description": "ByteBattle — `npm run dev` à la racine = API :3000 + Vite :5173 (sans double backend)",
+  "description": "Competitive programming learning platform",
   "scripts": {
     "dev": "concurrently -n backend,web -c blue,magenta \"npm run start:dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "dev:backend": "npm run start:dev --prefix backend",

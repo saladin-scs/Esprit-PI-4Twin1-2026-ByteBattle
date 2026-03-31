@@ -37,7 +37,7 @@ export default function Status() {
       setReady(r);
     } catch {
       setErr(
-        'Impossible de joindre l’API. En dev : lance le backend (port 3000) et, si tu utilises VITE_API_URL direct, vérifie l’URL ; sinon le proxy /bb-api est utilisé.',
+        'Unable to reach the API. In dev: start the backend (port 3000) and, if you use VITE_API_URL directly, verify the URL; otherwise the /bb-api proxy is used.',
       );
     } finally {
       setLoading(false);
@@ -53,23 +53,23 @@ export default function Status() {
       <div className="mb-8">
         <div className="bb-kicker mb-2">
           <Activity className="h-3.5 w-3.5" aria-hidden />
-          Statut
+          Status
         </div>
-        <h1 className="bb-page-heading mb-2">État des services</h1>
+        <h1 className="bb-page-heading mb-2">Service status</h1>
         <p className="bb-body-text max-w-xl text-sm">
-          HTTP <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">/health</code> et{' '}
-          <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">/health/ready</code>. Le chat temps réel
-          utilise Socket.IO sur la même origine que l’API (JWT dans <code className="text-xs">auth</code>).
+          HTTP <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">/health</code> and{' '}
+          <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">/health/ready</code>. Real-time chat uses
+          Socket.IO on the same origin as the API (JWT in <code className="text-xs">auth</code>).
         </p>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
         <Button type="button" variant="secondary" onClick={() => void load()}>
-          Actualiser
+          Refresh
         </Button>
         <Link to="/">
           <Button type="button" variant="ghost">
-            Accueil
+            Home
           </Button>
         </Link>
       </div>

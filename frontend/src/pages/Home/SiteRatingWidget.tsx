@@ -7,11 +7,11 @@ import { Button, Alert } from '../../shared/components';
 import type { RootState } from '../../store/store';
 
 const LABELS: Record<number, string> = {
-  1: 'Très insatisfait',
-  2: 'Peu satisfait',
-  3: 'Satisfait',
-  4: 'Très satisfait',
-  5: 'Excellent',
+  1: 'very satisfied',
+  2: 'somewhat satisfied',
+  3: 'neutral',
+  4: 'satisfied',
+  5: 'very satisfied',
 };
 
 export function SiteRatingWidget() {
@@ -82,8 +82,8 @@ export function SiteRatingWidget() {
       setDraftStars(null);
       setSuccess(
         prevSaved != null && prevSaved !== stars
-          ? 'Ta note a été mise à jour. Merci !'
-          : 'Merci pour ton avis !',
+          ? 'Rating updated successfully.'
+          : 'Rating saved successfully.',
       );
       await refreshStats();
     } catch (err: unknown) {
@@ -101,20 +101,20 @@ export function SiteRatingWidget() {
       aria-label="Note sur l’application"
     >
       <p className="bb-section-title text-center text-sm font-semibold tracking-wide text-amber-950/90 dark:text-amber-100">
-        Ton avis sur ByteBattle
+        your feedback matters! ⭐
       </p>
       <p className="bb-body-text mt-1 text-center text-sm text-gray-700 dark:text-gray-300">
-        Choisis de <strong>1 à 5 étoiles</strong> selon ton expérience sur la plateforme.
+        Choose between <strong>1 and 5 stars</strong> based on your experience on the platform.
       </p>
 
       {!loadingStats && stats && stats.count > 0 && (
         <p className="mt-3 text-center text-xs text-gray-600 dark:text-gray-400">
-          Moyenne communauté :{' '}
+          Community average:{' '}
           <span className="font-semibold text-amber-800 dark:text-amber-200">
             {stats.average.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} /{' '}
             {SITE_RATING_MAX_STARS}
           </span>{' '}
-          · {stats.count} avis
+          · {stats.count} reviews
         </p>
       )}
 
@@ -165,13 +165,13 @@ export function SiteRatingWidget() {
       {!isAuthenticated && (
         <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
           <Link to="/login" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-            Connecte-toi
+            Sign in
           </Link>{' '}
-          ou{' '}
+          or{' '}
           <Link to="/register" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-            crée un compte
+            create an account
           </Link>{' '}
-          pour enregistrer ta note.
+          to save your rating.
         </p>
       )}
 
@@ -186,11 +186,11 @@ export function SiteRatingWidget() {
             loading={submitting}
             onClick={() => void submit()}
           >
-            {savedStars != null ? 'Mettre à jour ma note' : 'Enregistrer ma note'}
+            {savedStars != null ? 'Update my rating' : 'Save my rating'}
           </Button>
           {savedStars != null && draftStars == null && (
             <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-              Ta note enregistrée : {savedStars} / {SITE_RATING_MAX_STARS}. Clique sur une étoile pour la modifier.
+             saved rating : {savedStars} / {SITE_RATING_MAX_STARS}. You can update your rating.
             </p>
           )}
         </div>

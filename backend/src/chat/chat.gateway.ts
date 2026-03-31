@@ -15,7 +15,7 @@ import { isValidChatRoom } from './chat-room.util';
 
 @WebSocketGateway({
   cors: {
-    // En dev, refléter l’origine (Vite sur n’importe quel port localhost) ; en prod liste stricte.
+    // In dev, reflect origin (Vite on any localhost port); in prod use strict allowlist.
     origin:
       (process.env.NODE_ENV || 'development') !== 'production'
         ? true
@@ -75,7 +75,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         username: payload.username || 'user',
       };
     } catch {
-      client.emit('error', { code: 'AUTH_INVALID', message: 'Token invalide ou expiré' });
+      client.emit('error', { code: 'AUTH_INVALID', message: 'Invalid or expired token' });
       client.disconnect(true);
     }
   }
@@ -117,8 +117,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() room: string,
   ): { ok: boolean; error?: string } {
-    if (!client.data.user) return { ok: false, error: 'Non authentifié' };
-    if (!isValidChatRoom(room)) return { ok: false, error: 'Salle invalide' };
+    if (!client.data.user) return { ok: false, error: 'Not authenticated' };
+    if (!isValidChatRoom(room)) return { ok: false, error: 'Invalid room' };
     client.join(room);
     this.server.to(room).emit('user-joined', {
       userId: client.data.user.userId,
@@ -132,8 +132,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() room: string,
   ): { ok: boolean; error?: string } {
-    if (!client.data.user) return { ok: false, error: 'Non authentifié' };
-    if (!isValidChatRoom(room)) return { ok: false, error: 'Salle invalide' };
+    if (!client.data.user) return { ok: false, error: 'Not authenticated' };
+    if (!isValidChatRoom(room)) return { ok: false, error: 'Invalid room' };
     client.leave(room);
     this.server.to(room).emit('user-left', {
       userId: client.data.user.userId,
@@ -148,23 +148,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() payload: { room: string; message: string },
   ): Promise<void> {
     if (!client.data.user) {
-      client.emit('error', { code: 'AUTH', message: 'Non authentifié' });
+      client.emit('error', { code: 'AUTH', message: 'Not authenticated' });
       return;
     }
     if (!payload?.room || !isValidChatRoom(payload.room)) return;
     if (!payload?.message || typeof payload.message !== 'string') {
-      client.emit('error', { code: 'EMPTY', message: 'Message vide.' });
+      client.emit('error', { code: 'EMPTY', message: 'Empty message.' });
       return;
     }
     const text = payload.message.trim();
     if (!text.length) {
-      client.emit('error', { code: 'EMPTY', message: 'Message vide.' });
+      client.emit('error', { code: 'EMPTY', message: 'Empty message.' });
       return;
     }
     if (text.length > this.maxMessageChars) {
       client.emit('error', {
         code: 'TOO_LONG',
-        message: `Message trop long (max ${this.maxMessageChars} caractères).`,
+        message: `Message too long (max ${this.maxMessageChars} characters).`,
       });
       return;
     }
@@ -172,7 +172,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const sec = Math.ceil(this.messageWindowMs / 1000);
       client.emit('error', {
         code: 'RATE_LIMIT',
-        message: `Trop de messages : max ${this.maxMessagesPerWindow} messages / ${sec}s. Réessaie dans quelques secondes.`,
+        message: `Too many messages: max ${this.maxMessagesPerWindow} messages / ${sec}s. Try again in a few seconds.`,
       });
       return;
     }
@@ -187,7 +187,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
     } catch (e: any) {
       this.logger.warn(`saveMessage failed: ${e?.message ?? e}`);
-      client.emit('error', { code: 'PERSIST', message: 'Impossible d’enregistrer le message' });
+      client.emit('error', { code: 'PERSIST', message: 'Unable to save message' });
       return;
     }
 

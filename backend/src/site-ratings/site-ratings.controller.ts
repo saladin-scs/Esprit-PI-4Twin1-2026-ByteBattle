@@ -12,7 +12,7 @@ export class SiteRatingsController {
   constructor(private readonly siteRatingsService: SiteRatingsService) {}
 
   @Get('stats')
-  @ApiOperation({ summary: 'Moyenne et nombre d’avis (public)' })
+  @ApiOperation({ summary: 'Average and number of reviews (public)' })
   getStats() {
     return this.siteRatingsService.getStats();
   }
@@ -20,7 +20,7 @@ export class SiteRatingsController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Ma note actuelle (1–5), ou null' })
+  @ApiOperation({ summary: 'My current rating (1-5), or null' })
   getMine(@Req() req: { user: { userId: string } }) {
     return this.siteRatingsService.getMine(req.user.userId);
   }
@@ -29,7 +29,7 @@ export class SiteRatingsController {
   @UseGuards(JwtAuthGuard, ActionRateLimitGuard)
   @RateLimitAction('site_rating_submit')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Enregistrer ou mettre à jour ma note (1 à 5 étoiles)' })
+  @ApiOperation({ summary: 'Save or update my rating (1 to 5 stars)' })
   async setRating(@Body() dto: SetSiteRatingDto, @Req() req: { user: { userId: string } }) {
     return this.siteRatingsService.setRating(req.user.userId, dto.stars);
   }

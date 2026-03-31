@@ -1,6 +1,6 @@
 /**
- * Client HTTP partagé – une seule instance Axios pour toute l'app.
- * Interceptors (auth, erreurs) centralisés ici.
+ * Shared HTTP client - single Axios instance for the whole app.
+ * Interceptors (auth, errors) are centralized here.
  */
 
 import axios, { type AxiosInstance } from 'axios';

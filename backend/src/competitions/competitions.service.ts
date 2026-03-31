@@ -226,8 +226,8 @@ export class CompetitionsService {
         .create({
           userId,
           type: 'competition_joined',
-          title: 'Inscription confirmée',
-          body: `Tu participes à la compétition « ${competition.name} ».`,
+          title: 'Registration confirmed',
+          body: `You joined the competition "${competition.name}".`,
           meta: { href: `/competitions/${competitionId}`, competitionId },
         })
         .catch(() => undefined);
@@ -470,8 +470,8 @@ export class CompetitionsService {
           .create({
             userId: uid,
             type: 'competition_active',
-            title: 'Compétition en cours',
-            body: `« ${name} » est maintenant active. Tu peux soumettre tes solutions.`,
+            title: 'Competition is live',
+            body: `"${name}" is now active. You can submit your solutions.`,
             meta: { href: `/competitions/${competitionId}`, competitionId },
           })
           .catch(() => undefined);
@@ -484,8 +484,8 @@ export class CompetitionsService {
           .create({
             userId: uid,
             type: 'competition_closed',
-            title: 'Compétition terminée',
-            body: `« ${name} » est close. Consulte le classement.`,
+            title: 'Competition ended',
+            body: `"${name}" is now closed. Check the leaderboard.`,
             meta: { href: `/competitions/${competitionId}`, competitionId },
           })
           .catch(() => undefined);
@@ -515,5 +515,20 @@ export class CompetitionsService {
       ...params,
       status: params.status ?? 'archived',
     });
+  }
+
+  async update(id: string, dto: Partial<CreateCompetitionDto>) {
+    const updated = await this.competitionModel
+      .findByIdAndUpdate(id, { $set: dto }, { new: true })
+      .exec();
+    if (!updated) throw new NotFoundException('Competition not found');
+    return updated;
+  }
+
+  async delete(id: string) {
+    const deleted = await this.competitionModel.findByIdAndDelete(id).exec();
+    if (!deleted) throw new NotFoundException('Competition not found');
+    await this.submissionModel.deleteMany({ competitionId: new Types.ObjectId(id) }).exec();
+    return { ok: true as const };
   }
 }

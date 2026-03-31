@@ -1,39 +1,22 @@
-/* eslint-disable prettier/prettier */
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { SITE_RATING_MAX_STARS, SiteRating, SiteRatingDocument } from './schemas/site-rating.schema';
 
 @Injectable()
 export class SiteRatingsService {
-  constructor(@InjectModel(SiteRating.name) private readonly siteRatingModel: Model<SiteRatingDocument>) {}
+  private readonly byUser = new Map<string, number>();
 
-  async getStats(): Promise<{ average: number; count: number; maxStars: number }> {
-    const [row] = await this.siteRatingModel
-      .aggregate<{ average: number | null; count: number }>([
-        { $group: { _id: null, average: { $avg: '$stars' }, count: { $sum: 1 } } },
-      ])
-      .exec();
-    const count = row?.count ?? 0;
-    const average = count > 0 && row?.average != null ? Math.round(row.average * 100) / 100 : 0;
-    return { average, count, maxStars: SITE_RATING_MAX_STARS };
+  async getStats() {
+    const values = [...this.byUser.values()];
+    const count = values.length;
+    const average = count ? values.reduce((a, b) => a + b, 0) / count : 0;
+    return { average, count, maxStars: 5 };
   }
 
-  async getMine(userId: string): Promise<{ stars: number | null }> {
-    const doc = await this.siteRatingModel
-      .findOne({ userId: new Types.ObjectId(userId) })
-      .select('stars')
-      .lean()
-      .exec();
-    return { stars: doc?.stars ?? null };
+  async getMine(userId: string) {
+    return { stars: this.byUser.get(userId) ?? null };
   }
 
-  async setRating(userId: string, stars: number): Promise<{ ok: true; stars: number }> {
-    await this.siteRatingModel.findOneAndUpdate(
-      { userId: new Types.ObjectId(userId) },
-      { $set: { stars } },
-      { upsert: true, new: true },
-    );
+  async setRating(userId: string, stars: number) {
+    this.byUser.set(userId, stars);
     return { ok: true as const, stars };
   }
 }

@@ -12,7 +12,7 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Liste des notifications (paginée)' })
+  @ApiOperation({ summary: 'List notifications (paginated)' })
   async list(
     @Req() req: { user: { userId: string } },
     @Query('page') page?: string,
@@ -26,14 +26,14 @@ export class NotificationsController {
   }
 
   @Patch('read-all')
-  @ApiOperation({ summary: 'Tout marquer comme lu' })
+  @ApiOperation({ summary: 'Mark all as read' })
   async markAllRead(@Req() req: { user: { userId: string } }) {
     await this.notificationsService.markAllRead(req.user.userId);
     return { ok: true as const };
   }
 
   @Patch(':id/read')
-  @ApiOperation({ summary: 'Marquer une notification comme lue' })
+  @ApiOperation({ summary: 'Mark one notification as read' })
   async markRead(@Param('id') id: string, @Req() req: { user: { userId: string } }) {
     await this.notificationsService.markRead(req.user.userId, id);
     return { ok: true as const };

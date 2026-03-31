@@ -1,6 +1,6 @@
 /**
- * Hook Undo/Redo générique pour un état local.
- * Conserve un historique limité et expose undo/redo/clearHistory.
+ * Generic Undo/Redo hook for local state.
+ * Keeps a limited history and exposes undo/redo/clearHistory.
  */
 import { useCallback, useRef, useState } from 'react';
 

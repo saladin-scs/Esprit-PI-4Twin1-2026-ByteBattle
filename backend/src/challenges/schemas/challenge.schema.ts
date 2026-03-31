@@ -15,14 +15,14 @@ export class Challenge {
   @Prop({ required: true })
   description: string;
 
-  // Exemples affichés à l'utilisateur
+  // Examples shown to the user
   @Prop({
     type: [{ input: String, output: String, explanation: String }],
     default: [],
   })
   examples: Array<{ input: string; output: string; explanation?: string }>;
 
-  // Tests cachés pour la correction automatique
+  // Hidden tests for automatic grading
   @Prop({
     type: [{ 
       input: String, 
@@ -31,7 +31,7 @@ export class Challenge {
       isPerformance: { type: Boolean, default: false }
     }],
     default: [],
-    select: false, // ← jamais exposé au frontend par défaut
+    select: false, // never exposed to frontend by default
   })
   testCases: Array<{ input: string; expectedOutput: string; isHidden?: boolean; isPerformance?: boolean }>;
 
@@ -41,7 +41,7 @@ export class Challenge {
   @Prop({ type: [String], enum: ['javascript', 'python', 'java', 'cpp'], default: ['javascript', 'python'] })
   languages: Language[];
 
-  // Code de départ pour chaque langage
+  // Starter code for each language
   @Prop({ type: Object, default: () => ({}) })
   starterCode: Record<Language, string>;
 
@@ -61,7 +61,7 @@ export class Challenge {
   @Prop({ default: true })
   isPublished: boolean;
 
-  // Contraintes affichées (ex: "1 <= n <= 10^5")
+  // Displayed constraints (e.g. "1 <= n <= 10^5")
   @Prop({ type: [String], default: [] })
   constraints: string[];
 
@@ -87,6 +87,6 @@ export class Challenge {
 
 export const ChallengeSchema = SchemaFactory.createForClass(Challenge);
 
-// Index pour recherche rapide
+// Index for fast lookup
 ChallengeSchema.index({ difficulty: 1, isPublished: 1 });
 ChallengeSchema.index({ tags: 1 });

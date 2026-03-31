@@ -41,4 +41,15 @@ export class CreateCompetitionDto {
   @IsOptional()
   @IsString()
   rules?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  prizes?: string[];
+
+  @ApiPropertyOptional({ enum: ['easy', 'medium', 'hard', 'expert'] })
+  @IsOptional()
+  @IsEnum(['easy', 'medium', 'hard', 'expert'])
+  difficulty?: 'easy' | 'medium' | 'hard' | 'expert';
 }

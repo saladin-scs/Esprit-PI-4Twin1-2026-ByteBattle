@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum } from 'class-validator';
+import { IsString, IsEnum, IsOptional } from 'class-validator';
 
 export class SubmitCompetitionDto {
   @ApiProperty()
@@ -13,6 +13,7 @@ export class SubmitCompetitionDto {
 
   /** For algorithmic competitions with multiple challenges */
   @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
   challengeId?: string;
 }

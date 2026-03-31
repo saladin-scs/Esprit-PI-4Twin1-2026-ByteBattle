@@ -51,21 +51,21 @@ export default function Explore() {
           <Search className="h-5 w-5" aria-hidden />
           <span className="text-sm font-semibold uppercase tracking-wide">Explore</span>
         </div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Recherche unifiée</h1>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Unified search</h1>
         <p className="mt-2 max-w-2xl text-slate-600 dark:text-slate-400">
-          Défis, compétitions et profils publics en une seule barre de recherche.
+          Challenges, competitions, and public profiles in one search bar.
         </p>
       </div>
 
       <Card className="mb-8 p-4">
         <label className="sr-only" htmlFor="explore-q">
-          Recherche
+          Search
         </label>
         <Input
           id="explore-q"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Titre, tag, compétition, pseudo…"
+          placeholder="Title, tag, competition, username..."
           className="w-full"
         />
       </Card>
@@ -77,7 +77,7 @@ export default function Explore() {
       )}
 
       {!loading && !debounced.trim() && (
-        <p className="text-center text-slate-500 dark:text-slate-400">Saisissez un terme pour lancer la recherche.</p>
+        <p className="text-center text-slate-500 dark:text-slate-400">Enter a term to start searching.</p>
       )}
 
       {!loading && debounced.trim() && data && (
@@ -85,11 +85,11 @@ export default function Explore() {
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
               <Code2 className="h-5 w-5 text-primary-500" aria-hidden />
-              Défis ({data.challenges.length})
+              Challenges ({data.challenges.length})
             </h2>
             <ul className="space-y-2">
               {data.challenges.length === 0 ? (
-                <li className="text-sm text-slate-500">Aucun résultat</li>
+                <li className="text-sm text-slate-500">No results</li>
               ) : (
                 data.challenges.map((c) => (
                   <li key={c.id}>
@@ -114,11 +114,11 @@ export default function Explore() {
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
               <Trophy className="h-5 w-5 text-amber-500" aria-hidden />
-              Compétitions ({data.competitions.length})
+              Competitions ({data.competitions.length})
             </h2>
             <ul className="space-y-2">
               {data.competitions.length === 0 ? (
-                <li className="text-sm text-slate-500">Aucun résultat</li>
+                <li className="text-sm text-slate-500">No results</li>
               ) : (
                 data.competitions.map((c) => (
                   <li key={c.id}>
@@ -138,11 +138,11 @@ export default function Explore() {
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
               <User className="h-5 w-5 text-slate-500" aria-hidden />
-              Utilisateurs ({data.users.length})
+              Users ({data.users.length})
             </h2>
             <ul className="space-y-2">
               {data.users.length === 0 ? (
-                <li className="text-sm text-slate-500">Aucun résultat</li>
+                <li className="text-sm text-slate-500">No results</li>
               ) : (
                 data.users.map((u) => (
                   <li key={u.id}>

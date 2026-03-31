@@ -53,7 +53,7 @@ export class AdminController {
   }
 
   @Patch('users/:id/role')
-  @ApiOperation({ summary: 'Changer le rôle d\'un utilisateur (ex: promouvoir en admin)' })
+  @ApiOperation({ summary: 'Change a user role (e.g. promote to admin)' })
   async setUserRole(
     @Param('id') id: string,
     @Body() dto: SetRoleDto,
@@ -63,13 +63,13 @@ export class AdminController {
   }
 
   @Get('gamification/stats')
-  @ApiOperation({ summary: 'Statistiques gamification (admin)' })
+  @ApiOperation({ summary: 'Gamification stats (admin)' })
   getGamificationStats() {
     return this.adminService.getGamificationStats();
   }
 
   @Get('dashboard')
-  @ApiOperation({ summary: 'Vue d’ensemble (users, challenges, competitions, soumissions)' })
+  @ApiOperation({ summary: 'Overview (users, challenges, competitions, submissions)' })
   getDashboardOverview() {
     return this.adminService.getDashboardOverview();
   }
@@ -83,7 +83,7 @@ export class AdminController {
   }
 
   @Get('chat-reports')
-  @ApiOperation({ summary: 'Signalements de messages chat (modération)' })
+  @ApiOperation({ summary: 'Chat message reports (moderation)' })
   async chatReports(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -97,7 +97,7 @@ export class AdminController {
   }
 
   @Get('reclamations')
-  @ApiOperation({ summary: 'Lister les réclamations (admin)' })
+  @ApiOperation({ summary: 'List reports (admin)' })
   async listReclamations(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -111,13 +111,13 @@ export class AdminController {
   }
 
   @Get('reclamations/:id')
-  @ApiOperation({ summary: 'Détail d’une réclamation (admin)' })
+  @ApiOperation({ summary: 'Get report details (admin)' })
   async getReclamation(@Param('id') id: string) {
     return this.reclamationsService.getForAdmin(id);
   }
 
   @Patch('reclamations/:id')
-  @ApiOperation({ summary: 'Mettre à jour le statut d’une réclamation (admin)' })
+  @ApiOperation({ summary: 'Update report status (admin)' })
   async patchReclamation(@Param('id') id: string, @Body() dto: AdminUpdateReclamationDto) {
     const reclamation = await this.reclamationsService.updateStatusAdmin(id, dto.status);
     return { ok: true as const, reclamation };

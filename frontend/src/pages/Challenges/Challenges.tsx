@@ -5,13 +5,13 @@ import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
 import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
 import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
-import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilityCallout';
+import { ChatAvailabilityCallout } from '../../shared/components';
 import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
 import { RootState } from '../../store/store';
 
 const PAGE_SIZE = 15;
 
-/** Jours : aligné avec CHALLENGE_NEW_DAYS côté backend par défaut (14). */
+/** Days aligned with backend CHALLENGE_NEW_DAYS default (14). */
 const NEW_CHALLENGE_DAYS = 14;
 
 function isNewFromCreatedAt(createdAt?: string): boolean {
@@ -24,6 +24,7 @@ function isNewFromCreatedAt(createdAt?: string): boolean {
 const Challenges = () => {
   const navigate = useNavigate();
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const isAdmin = useSelector((s: RootState) => Boolean(s.auth.user?.roles?.includes('admin')));
   const [reco, setReco] = useState<RecommendedChallengeItem[]>([]);
   const [recoLoading, setRecoLoading] = useState(false);
 
@@ -89,10 +90,15 @@ const Challenges = () => {
           <Sparkles className="h-8 w-8 shrink-0 text-amber-500" aria-hidden />
           <span className="bb-title-gradient text-3xl md:text-4xl">Challenges</span>
         </h1>
-        <p className="bb-body-text max-w-2xl">
+<p className="bb-body-text max-w-2xl" aria-live="polite" aria-atomic="true">
           {total} challenge{total !== 1 ? 's' : ''} available — <strong>newest first</strong>. Challenges from the last{' '}
-          {NEW_CHALLENGE_DAYS} days are marked <span className="font-medium text-emerald-600 dark:text-emerald-400">Nouveau</span>.
+          {NEW_CHALLENGE_DAYS} days are marked <span className="font-medium text-emerald-600 dark:text-emerald-400">New</span>.
         </p>
+        {isAdmin && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={() => navigate('/admin/challenges')}>+ Create Challenge</Button>
+          </div>
+        )}
       </header>
 
       <div className="relative mb-6">
@@ -100,20 +106,20 @@ const Challenges = () => {
       </div>
 
       {isAuthenticated && (
-        <section className="relative mb-8 bb-card p-4 sm:p-5" aria-label="Recommended challenges">
+        <section  className="relative mb-8 bb-card p-4 sm:p-5" aria-label="Recommended challenges">
           <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
             <Sparkles className="h-5 w-5 text-amber-500" aria-hidden />
-            Recommandés pour vous
+            Recommended for you
           </h2>
           <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
-            Suggestions simples selon tes derniers défis réussis (tags & difficulté).
+            Basic suggestions based on your most recently solved challenges (tags and difficulty).
           </p>
           {recoLoading ? (
             <div className="flex justify-center py-6">
               <Spinner />
             </div>
           ) : reco.length === 0 ? (
-            <p className="text-sm text-slate-500">Résous un défi pour affiner les recommandations.</p>
+            <p className="text-sm text-slate-500">Solve a challenge to improve recommendations.</p>
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-1">
               {reco.map((c) => (
@@ -202,11 +208,15 @@ const Challenges = () => {
                   </tr>
                 ) : (
                   challenges.map((c, i) => (
-                    <tr
-                      key={c._id}
-                      onClick={() => navigate(`/challenges/${c._id}`)}
-                      className="cursor-pointer transition-colors hover:bg-primary-500/5 dark:hover:bg-primary-500/10"
-                    >
+                   <tr
+  key={c._id}
+  onClick={() => navigate(`/challenges/${c._id}`)}
+  tabIndex={0}
+  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/challenges/${c._id}`); }}
+  onFocus={(e) => (e.currentTarget.style.outline = '2px solid #6366f1')}
+  onBlur={(e) => (e.currentTarget.style.outline = '')}
+  className="cursor-pointer transition-colors hover:bg-primary-500/5 dark:hover:bg-primary-500/10"
+>
                       <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                         {(page - 1) * PAGE_SIZE + i + 1}
                       </td>
@@ -216,9 +226,9 @@ const Challenges = () => {
                           {(c.isNew || isNewFromCreatedAt(c.createdAt)) && (
                             <span
                               className="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-400/35 dark:bg-emerald-500/20 dark:text-emerald-200"
-                              title={`Nouveau — créé il y a moins de ${NEW_CHALLENGE_DAYS} jours`}
+                              title={`New - created less than ${NEW_CHALLENGE_DAYS} days ago`}
                             >
-                              Nouveau
+                              New
                             </span>
                           )}
                         </div>
@@ -272,7 +282,7 @@ const Challenges = () => {
       </div>
 
       {totalPages > 1 && (
-        <div className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
+        <nav aria-label="Challenge pages navigation" className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button
             variant="secondary"
             disabled={page === 1}
@@ -292,7 +302,7 @@ const Challenges = () => {
           >
             Next <ChevronRight className="h-4 w-4" />
           </Button>
-        </div>
+        </nav>
       )}
     </PageContainer>
   );

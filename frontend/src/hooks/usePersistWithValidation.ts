@@ -1,6 +1,6 @@
 /**
- * Hook de persistance avec validation (Yup).
- * Charge / sauvegarde un état dans localStorage ou sessionStorage avec schéma de validation.
+ * Persistence hook with validation (Yup).
+ * Loads/saves state in localStorage or sessionStorage with validation schema.
  */
 import { useCallback, useEffect, useState } from 'react';
 import type { Schema } from 'yup';
@@ -12,7 +12,7 @@ export interface UsePersistWithValidationOptions<T extends object> {
   schema: Schema<T>;
   storage?: Storage;
   defaultState: T;
-  /** Si true, charge au montage et valide; sinon seulement save. */
+  /** If true, loads and validates on mount; otherwise save only. */
   loadOnMount?: boolean;
 }
 

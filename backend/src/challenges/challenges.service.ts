@@ -11,7 +11,7 @@ import { Model, Types } from 'mongoose';
 import { Challenge, ChallengeDocument, Language } from './schemas/challenge.schema';
 import { Submission, SubmissionDocument } from './schemas/Submission.schema';
 import { Solution, SolutionDocument } from './schemas/solution.schema';
-import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
+import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto, UpdateChallengeDto } from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { SEED_CHALLENGES } from './seed-challenges.data';
 import { DEV_TRIPLE_CHALLENGES } from './dev-triple-challenges.data';
@@ -57,15 +57,48 @@ public class Solution {
     cpp: '#include <iostream>\nusing namespace std;\nint sum(int a, int b) { return a + b; }\nint main() { int a, b; cin >> a >> b; cout << sum(a, b); return 0; }',
   };
 
-  // ─── XP par difficulté ───────────────────────────────────────────────────
+  // XP by difficulty
   private readonly XP_MAP = { easy: 50, medium: 100, hard: 200, expert: 400 };
 
-  // ─── Créer un challenge (admin) ──────────────────────────────────────────
+  // Create a challenge (admin)
   async create(dto: CreateChallengeDto): Promise<ChallengeDocument> {
     if (!dto.xpReward) {
       dto.xpReward = this.XP_MAP[dto.difficulty] ?? 50;
     }
     return new this.challengeModel(dto).save();
+  }
+
+  // Update a challenge (admin)
+  async update(id: string, dto: UpdateChallengeDto): Promise<ChallengeDocument> {
+    const payload: any = { ...dto };
+    if ((dto.difficulty && dto.xpReward == null) || payload.xpReward == null) {
+      const effectiveDifficulty = dto.difficulty;
+      if (effectiveDifficulty) {
+        payload.xpReward = this.XP_MAP[effectiveDifficulty] ?? 50;
+      }
+    }
+
+    const updated = await this.challengeModel
+      .findByIdAndUpdate(id, { $set: payload }, { new: true })
+      .exec();
+
+    if (!updated) throw new NotFoundException('Challenge not found');
+    return updated;
+  }
+
+  // Delete a challenge (admin)
+  async remove(id: string): Promise<{ ok: true }> {
+    const challenge = await this.challengeModel.findById(id).select('_id').lean().exec();
+    if (!challenge) throw new NotFoundException('Challenge not found');
+
+    const challengeId = new Types.ObjectId(id);
+    await Promise.all([
+      this.submissionModel.deleteMany({ challengeId }).exec(),
+      this.solutionModel.deleteMany({ challengeId }).exec(),
+      this.challengeModel.deleteOne({ _id: challengeId }).exec(),
+    ]);
+
+    return { ok: true as const };
   }
 
   /** Seed 2 easy + 2 medium + 2 hard challenges (idempotent: skip if title exists). */
@@ -127,7 +160,7 @@ public class Solution {
     return { created, skipped };
   }
 
-  // ─── Liste des challenges (publique) ────────────────────────────────────
+  // ─── Challenge list (public) ────────────────────────────────────────────
   async findAll(query: GetChallengesDto) {
     const { difficulty, language, tag, search, page = 1, limit = 20 } = query;
     const filter: any = { isPublished: true };
@@ -142,7 +175,7 @@ public class Solution {
     const [rawList, total] = await Promise.all([
       this.challengeModel
         .find(filter)
-        .select('-testCases') // ← ne jamais envoyer les tests au frontend
+        .select('-testCases') // never send test cases to the frontend
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
@@ -175,18 +208,18 @@ public class Solution {
       .select('+testCases')
       .lean()
       .exec();
-    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    if (!challenge) throw new NotFoundException('Challenge not found');
     return challenge;
   }
 
-  // ─── Détail d'un challenge ───────────────────────────────────────────────
+  // Challenge details
   async findOne(id: string): Promise<ChallengeDocument> {
     const challenge = await this.challengeModel
       .findById(id)
-      .select('-testCases') // ← ne jamais exposer les tests
+      .select('-testCases') // never expose tests
       .lean()
       .exec();
-    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    if (!challenge) throw new NotFoundException('Challenge not found');
     const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
     const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
     const source = seedMatch?.starterCode ?? (challenge as any).starterCode;
@@ -201,13 +234,13 @@ public class Solution {
   // ─── Run (examples only) — single code-execution service (Piston + local fallback) ─
   async run(challengeId: string, dto: SubmitChallengeDto) {
     const challenge = await this.challengeModel.findById(challengeId).exec();
-    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    if (!challenge) throw new NotFoundException('Challenge not found');
     if (!challenge.languages.includes(dto.language as any)) {
-      throw new BadRequestException(`Le langage ${dto.language} n'est pas supporté`);
+      throw new BadRequestException(`Language ${dto.language} is not supported`);
     }
     const examples = (challenge as any).examples || [];
     if (!examples.length) {
-      return { results: [], overall: { passed: 0, total: 0 }, message: 'Aucun exemple pour ce challenge' };
+      return { results: [], overall: { passed: 0, total: 0 }, message: 'No examples configured for this challenge' };
     }
     const testCases = examples.map((ex: any) => ({
       input: ex.input ?? '',
@@ -236,29 +269,29 @@ public class Solution {
     };
   }
 
-  // ─── Soumettre une solution ──────────────────────────────────────────────
+  // ─── Submit a solution ──────────────────────────────────────────────────
   async submit(challengeId: string, userId: string, dto: SubmitChallengeDto) {
-    // 1. Charger le challenge AVEC les testCases (select: false dans le schema)
+    // 1. Load the challenge WITH testCases (select: false in schema)
     const challenge = await this.challengeModel
       .findById(challengeId)
       .select('+testCases')
       .lean()
       .exec();
-    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    if (!challenge) throw new NotFoundException('Challenge not found');
 
     const languages = (challenge as any).languages as string[] | undefined;
     if (!languages?.includes(dto.language)) {
-      throw new BadRequestException(`Le langage ${dto.language} n'est pas supporté pour ce challenge`);
+      throw new BadRequestException(`Language ${dto.language} is not supported for this challenge`);
     }
 
     const rawTestCases = (challenge as any).testCases as
       | Array<{ input?: string; expectedOutput?: string; isHidden?: boolean }>
       | undefined;
     if (!rawTestCases?.length) {
-      throw new BadRequestException('Ce challenge n\'a pas de tests configurés');
+      throw new BadRequestException('This challenge has no configured test cases');
     }
 
-    // 2. Exécuter le code (code-execution module: Piston + fallback local)
+    // 2. Execute code (code-execution module: Piston + local fallback)
     const testCases = rawTestCases.map((tc: any) => ({
       input: String(tc?.input ?? '').trim(),
       expectedOutput: String(tc?.expectedOutput ?? '').trim(),
@@ -283,7 +316,7 @@ public class Solution {
     const allPassed = passedTests === totalTests;
     const status = allPassed ? 'accepted' : testResults.some(r => r.error) ? 'runtime_error' : 'wrong_answer';
 
-    // 3. Première acceptation pour ce user+challenge ? (pour gamification)
+    // 3. First acceptance for this user+challenge? (for gamification)
     const alreadyAccepted = allPassed
       ? await this.submissionModel.findOne({
           userId: new Types.ObjectId(userId),
@@ -303,7 +336,7 @@ public class Solution {
     }).exec();
     const isFirstSolver = allPassed && acceptedBeforeCount === 0;
 
-    // 4. Sauvegarder la soumission
+    // 4. Save the submission
     let xpEarned = 0;
     const submission = await new this.submissionModel({
       userId: new Types.ObjectId(userId),
@@ -318,7 +351,7 @@ public class Solution {
       executionTimeMs: Math.round(totalTimeMs / totalTests),
     }).save();
 
-    // 5. Mettre à jour les stats du challenge
+    // 5. Update challenge stats
     await this.challengeModel.findByIdAndUpdate(challengeId, {
       $inc: {
         totalSubmissions: 1,
@@ -326,7 +359,7 @@ public class Solution {
       },
     });
 
-    // 6. Gamification: XP, badges, streaks (première acceptation uniquement)
+    // 6. Gamification: XP, badges, streaks (first acceptance only)
     let badgesUnlocked: string[] = [];
     if (isFirstAcceptance) {
       const difficulty = ((challenge as any).difficulty || 'easy') as 'easy' | 'medium' | 'hard' | 'expert';
@@ -343,19 +376,19 @@ public class Solution {
     await this.submissionModel.findByIdAndUpdate(submission._id, { $set: { xpEarned } }).exec();
 
     if (isFirstAcceptance) {
-      const title = String((challenge as any).title || 'Défi');
+      const title = String((challenge as any).title || 'Challenge');
       void this.notificationsService
         .create({
           userId,
           type: 'challenge_solved',
-          title: 'Défi résolu',
-          body: `Tu as validé « ${title} »${xpEarned ? ` (+${xpEarned} XP)` : ''}.`,
+          title: 'Challenge solved',
+          body: `You solved "${title}"${xpEarned ? ` (+${xpEarned} XP)` : ''}.`,
           meta: { href: `/challenges/${challengeId}`, challengeId },
         })
         .catch(() => undefined);
     }
 
-    /** Anti-triche : ne jamais renvoyer entrée / sortie attendue / sortie réelle pour les tests cachés (isHidden !== false). */
+    /** Anti-cheat: never return input / expected / actual output for hidden tests (isHidden !== false). */
     const clientTestResults = testResults.map((r, i) => {
       const testNumber = i + 1;
       if (r.passed) {
@@ -369,8 +402,8 @@ public class Solution {
           passed: false as const,
           isHiddenCase: true as const,
           message: hasErr
-            ? 'Erreur sur un cas de test confidentiel (détails non affichés).'
-            : 'Réponse incorrecte sur un cas de test confidentiel (entrée et sortie attendue non affichées).',
+            ? 'Error on a hidden test case (details are not displayed).'
+            : 'Wrong answer on a hidden test case (input and expected output are hidden).',
         };
       }
       return {
@@ -394,7 +427,7 @@ public class Solution {
     };
   }
 
-  // ─── Historique des soumissions d'un user ───────────────────────────────
+  // Submission history for a user
   async getUserSubmissions(userId: string, challengeId?: string) {
     const filter: any = { userId: new Types.ObjectId(userId) };
     if (challengeId) filter.challengeId = new Types.ObjectId(challengeId);
@@ -409,7 +442,7 @@ public class Solution {
       .exec();
   }
 
-  /** Langages dans lesquels l'utilisateur a résolu ce challenge (status accepted). */
+  /** Languages in which the user solved this challenge (status accepted). */
   async getMyCompletion(challengeId: string, userId: string): Promise<{ completedLanguages: string[] }> {
     const list = await this.submissionModel
       .distinct('language', {
@@ -421,20 +454,20 @@ public class Solution {
     return { completedLanguages: (list || []).map(String) };
   }
 
-  // ─── Stats d'un challenge ────────────────────────────────────────────────
+  // Challenge stats
   async getStats(challengeId: string) {
     const challenge = await this.challengeModel.findById(challengeId).select('totalSubmissions totalAccepted difficulty xpReward').lean().exec();
-    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    if (!challenge) throw new NotFoundException('Challenge not found');
     const acceptanceRate = challenge.totalSubmissions > 0
       ? Math.round((challenge.totalAccepted / challenge.totalSubmissions) * 100)
       : 0;
     return { ...challenge, acceptanceRate };
   }
 
-  // ─── Communauté : Solutions ──────────────────────────────────────────────
+  // Community: Solutions
   async createSolution(userId: string, challengeId: string, dto: CreateSolutionDto) {
     const challenge = await this.challengeModel.findById(challengeId).select('_id').exec();
-    if (!challenge) throw new NotFoundException('Challenge non trouvé');
+    if (!challenge) throw new NotFoundException('Challenge not found');
 
     return new this.solutionModel({
       userId: new Types.ObjectId(userId),
@@ -469,7 +502,7 @@ public class Solution {
 
   async upvoteSolution(userId: string, solutionId: string) {
     const solution = await this.solutionModel.findById(solutionId).exec();
-    if (!solution) throw new NotFoundException('Solution non trouvée');
+    if (!solution) throw new NotFoundException('Solution not found');
 
     const uid = new Types.ObjectId(userId);
     const hasUpvoted = solution.upvotedBy.some(id => id.equals(uid));
@@ -500,14 +533,14 @@ public class Solution {
         this.challengeModel.findById(solution.challengeId).select('title').lean().exec(),
         this.usersService.findOne(userId),
       ]);
-      const title = (ch as { title?: string } | null)?.title || 'Défi';
-      const voterName = (voter as { username?: string } | null)?.username || 'Un utilisateur';
+      const title = (ch as { title?: string } | null)?.title || 'Challenge';
+      const voterName = (voter as { username?: string } | null)?.username || 'A user';
       void this.notificationsService
         .create({
           userId: ownerId,
           type: 'solution_upvote',
-          title: 'Nouveau vote sur ta solution',
-          body: `${voterName} a upvoté ta solution sur « ${title} ».`,
+          title: 'New vote on your solution',
+          body: `${voterName} upvoted your solution on "${title}".`,
           meta: { href: `/challenges/${challengeIdStr}`, challengeId: challengeIdStr },
         })
         .catch(() => undefined);
@@ -516,7 +549,7 @@ public class Solution {
     return updated;
   }
 
-  /** Recommandations simples : défis non résolus, biais tags / difficulté des derniers AC. */
+  /** Simple recommendations: unsolved challenges, weighted by recent accepted tags/difficulty. */
   async recommendForUser(userId: string, limit = 12) {
     const lim = Math.min(24, Math.max(1, limit));
     const oid = new Types.ObjectId(userId);

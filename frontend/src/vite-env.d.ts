@@ -2,7 +2,7 @@
 
 interface ImportMetaEnv {
   /**
-   * URL absolue du backend (ex. http://localhost:3000). En dev, si non défini : proxy Vite `/bb-api`.
+    * Absolute backend URL (e.g. http://localhost:3000). In dev, if undefined: Vite `/bb-api` proxy.
    */
   readonly VITE_API_URL?: string;
 }

@@ -26,7 +26,7 @@ export function ReclamationForm({ onSuccess }: Props) {
         subject: subject.trim(),
         message: message.trim(),
       });
-      setSuccess('Réclamation envoyée. Tu la retrouveras dans l’onglet « Mes réclamations ».');
+      setSuccess('Report sent. You can find it in the "My reports" tab.');
       setSubject('');
       setMessage('');
       setCategory('other');
@@ -35,7 +35,7 @@ export function ReclamationForm({ onSuccess }: Props) {
       const ax = err as { response?: { data?: { message?: string | string[] } }; message?: string };
       const msg = ax?.response?.data?.message;
       setError(
-        Array.isArray(msg) ? msg.join(', ') : msg || ax?.message || 'Impossible d’envoyer la réclamation.',
+        Array.isArray(msg) ? msg.join(', ') : msg || ax?.message || 'Unable to send report.',
       );
     } finally {
       setLoading(false);
@@ -51,7 +51,7 @@ export function ReclamationForm({ onSuccess }: Props) {
           htmlFor="reclamation-category"
           className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
         >
-          Catégorie
+          Category
         </label>
         <select
           id="reclamation-category"
@@ -67,13 +67,13 @@ export function ReclamationForm({ onSuccess }: Props) {
         </select>
       </div>
       <Input
-        label="Sujet"
+        label="Subject"
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
         required
         minLength={3}
         maxLength={200}
-        placeholder="Résumé court"
+        placeholder="Short summary"
       />
       <Textarea
         label="Message"
@@ -83,10 +83,10 @@ export function ReclamationForm({ onSuccess }: Props) {
         minLength={10}
         maxLength={5000}
         rows={8}
-        placeholder="Décris la situation avec le plus de précision possible…"
+        placeholder="Describe the situation with as much detail as possible..."
       />
       <Button type="submit" fullWidth loading={loading}>
-        Envoyer la réclamation
+        Send report
       </Button>
     </form>
   );

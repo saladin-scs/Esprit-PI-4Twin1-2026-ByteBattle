@@ -15,7 +15,7 @@ export class ReclamationsController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Lister mes réclamations (paginé)' })
+  @ApiOperation({ summary: 'List my reports (paginated)' })
   async listMine(@Query() query: ListMineReclamationsDto, @Req() req: { user: { userId: string } }) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -25,7 +25,7 @@ export class ReclamationsController {
   @Get('me/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Détail d’une de mes réclamations' })
+  @ApiOperation({ summary: 'Get one of my reports' })
   async getMine(@Param('id') id: string, @Req() req: { user: { userId: string } }) {
     return this.reclamationsService.getMine(req.user.userId, id);
   }
@@ -33,7 +33,7 @@ export class ReclamationsController {
   @Patch('me/:id/cancel')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Annuler une réclamation (tant qu’elle n’est pas résolue)' })
+  @ApiOperation({ summary: 'Cancel a report (while not resolved)' })
   async cancelMine(@Param('id') id: string, @Req() req: { user: { userId: string } }) {
     const item = await this.reclamationsService.cancelMine(req.user.userId, id);
     return { ok: true as const, reclamation: item };
@@ -43,7 +43,7 @@ export class ReclamationsController {
   @UseGuards(JwtAuthGuard, ActionRateLimitGuard)
   @RateLimitAction('reclamation_submit')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Envoyer une réclamation (utilisateur connecté)' })
+  @ApiOperation({ summary: 'Submit a report (authenticated user)' })
   async create(@Body() dto: CreateReclamationDto, @Req() req: { user: { userId: string } }) {
     const { id } = await this.reclamationsService.create(req.user.userId, dto);
     return { ok: true as const, id };

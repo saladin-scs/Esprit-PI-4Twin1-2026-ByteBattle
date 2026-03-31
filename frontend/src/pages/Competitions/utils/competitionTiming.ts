@@ -1,5 +1,5 @@
 /**
- * Libellés relatifs pour la liste / fiche compétition (fuseau local).
+ * Relative labels for competition list/detail views (local timezone).
  */
 export function getCompetitionTimeHint(
   startIso: string,
@@ -17,20 +17,20 @@ export function getCompetitionTimeHint(
     const diff = start - now;
     const h = Math.floor(diff / 3_600_000);
     const d = Math.floor(h / 24);
-    if (d >= 1) return `Commence dans ${d} jour${d > 1 ? 's' : ''}`;
-    if (h >= 1) return `Commence dans ${h} h`;
+    if (d >= 1) return `Starts in ${d} day${d > 1 ? 's' : ''}`;
+    if (h >= 1) return `Starts in ${h} h`;
     const m = Math.max(1, Math.ceil(diff / 60_000));
-    return `Commence dans ${m} min`;
+    return `Starts in ${m} min`;
   }
 
   if (!finished && now >= start && now < end) {
     const untilEnd = end - now;
     if (untilEnd <= 0) return null;
     const h = Math.floor(untilEnd / 3_600_000);
-    if (h < 1) return `Se termine dans ${Math.max(1, Math.ceil(untilEnd / 60_000))} min`;
-    if (untilEnd <= 72 * 3_600_000) return `Se termine dans ${h} h`;
+    if (h < 1) return `Ends in ${Math.max(1, Math.ceil(untilEnd / 60_000))} min`;
+    if (untilEnd <= 72 * 3_600_000) return `Ends in ${h} h`;
     const days = Math.round(untilEnd / 86_400_000);
-    if (days <= 7) return `Se termine dans ${days} jour${days > 1 ? 's' : ''}`;
+    if (days <= 7) return `Ends in ${days} day${days > 1 ? 's' : ''}`;
   }
 
   return null;

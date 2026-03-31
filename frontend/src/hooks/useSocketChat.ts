@@ -24,13 +24,13 @@ export interface UseSocketChatReturn {
   error: string | null;
   transport: 'websocket' | 'polling' | 'unknown';
   reconnect: () => void;
-  /** Messages en file d’attente (hors connexion temps réel). */
+  /** Queued messages while real-time connection is unavailable. */
   pendingOutboundCount: number;
 }
 
 /**
- * Socket.IO — aligné sur ChatGateway Nest.
- * Filtre les messages par `room` si le serveur envoie le champ (multi-instance future).
+ * Socket.IO hook aligned with the Nest ChatGateway.
+ * Filters messages by `room` if the server provides it (future multi-instance support).
  */
 export function useSocketChat(
   room: string | null,
@@ -80,7 +80,7 @@ export function useSocketChat(
 
     const token = localStorage.getItem('token');
     if (!token) {
-      setError('Connexion requise pour le chat');
+      setError('Authentication required for chat');
       setLines([]);
       setTypingUsers({});
       pendingOutboundRef.current = [];
@@ -163,7 +163,7 @@ export function useSocketChat(
     });
 
     socket.on('connect_error', (err: Error) => {
-      setError(err?.message || 'Connexion temps réel impossible');
+      setError(err?.message || 'Real-time connection failed');
     });
 
     socket.on('error', (payload: { message?: string; code?: string }) => {

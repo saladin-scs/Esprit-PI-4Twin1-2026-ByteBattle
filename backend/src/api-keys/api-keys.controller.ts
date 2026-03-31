@@ -13,20 +13,20 @@ export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Créer une clé (secret affiché une seule fois)' })
+  @ApiOperation({ summary: 'Create key (secret shown only once)' })
   async create(@Body() dto: CreateApiKeyDto, @Req() req: { user: { userId: string } }) {
     return this.apiKeysService.create(req.user.userId, dto.name);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lister mes clés (sans secret)' })
+  @ApiOperation({ summary: 'List my keys (without secret)' })
   async list(@Req() req: { user: { userId: string } }) {
     const keys = await this.apiKeysService.list(req.user.userId);
     return { keys };
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Révoquer une clé' })
+  @ApiOperation({ summary: 'Revoke a key' })
   async revoke(@Param('id') id: string, @Req() req: { user: { userId: string } }) {
     await this.apiKeysService.revoke(req.user.userId, id);
     return { ok: true as const };

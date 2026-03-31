@@ -1,19 +1,23 @@
 import type { ReclamationStatus } from '../../../services/api';
-import { RECLAMATION_STATUS_LABELS } from '../constants';
 
-const STYLES: Record<ReclamationStatus, string> = {
-  open: 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100',
-  read: 'bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100',
-  resolved: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100',
-  cancelled: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
+type Props = {
+  status: ReclamationStatus;
 };
 
-export function ReclamationStatusBadge({ status }: { status: ReclamationStatus }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STYLES[status]}`}
-    >
-      {RECLAMATION_STATUS_LABELS[status]}
-    </span>
-  );
+const LABEL: Record<ReclamationStatus, string> = {
+  open: 'Open',
+  read: 'Read',
+  resolved: 'Resolved',
+  cancelled: 'Cancelled',
+};
+
+const CLASS: Record<ReclamationStatus, string> = {
+  open: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  read: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+  resolved: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
+  cancelled: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
+};
+
+export function ReclamationStatusBadge({ status }: Props) {
+  return <span className={`rounded-full px-2 py-1 text-xs font-medium ${CLASS[status]}`}>{LABEL[status]}</span>;
 }

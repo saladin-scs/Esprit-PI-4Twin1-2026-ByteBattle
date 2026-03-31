@@ -10,7 +10,7 @@ import type { FullProfile } from '../../types/profile';
 import { RANK_TIER_COLORS as RANK_COLORS, BADGE_CATALOG } from '../../types/profile';
 import EditProfileModal from '../../components/Profile/EditProfileModal';
 import toast from 'react-hot-toast';
-import { Button, Alert, PageContainer, Spinner } from '../../shared/components';
+import { Button, Spinner, Alert, PageContainer } from '../../shared/components';
 
 interface ActivityData {
   heatmap: Array<{ date: string; count: number }>;
@@ -23,11 +23,6 @@ interface SkillTreeItem {
 }
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
-
-function normalizeCountryCode(code?: string) {
-  const cc = String(code || '').trim().toUpperCase();
-  return /^[A-Z]{2}$/.test(cc) ? cc : '';
-}
 
 function PublicProfile() {
   const { username } = useParams();
@@ -136,10 +131,10 @@ function PublicProfile() {
       const response = await usersApi.uploadAvatar(formData);
       setProfile(prev => prev ? { ...prev, avatarUrl: response.data.avatarUrl } : null);
       
-      toast.success('Avatar mis à jour');
+      toast.success('Avatar updated');
       dispatch(fetchMe());
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Échec de la mise à jour de l\'avatar';
+      const message = err?.response?.data?.message || 'Failed to update avatar';
       toast.error(message);
     } finally {
       setUploadingAvatar(false);
@@ -162,10 +157,10 @@ function PublicProfile() {
       formData.append('file', file);
       const response = await usersApi.uploadCover(formData);
       setProfile(prev => prev ? { ...prev, coverImage: response.data.coverImage || response.data.coverUrl } : null);
-      toast.success('Image de couverture mise à jour');
+      toast.success('Cover image updated');
       dispatch(fetchMe());
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Échec de la mise à jour de la couverture';
+      const message = err?.response?.data?.message || 'Failed to update cover image';
       toast.error(message);
     } finally {
       setUploadingCover(false);
@@ -177,41 +172,8 @@ function PublicProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-20 dark:bg-gray-900">
-        <section className="relative">
-          <div className="h-48 w-full animate-pulse bg-slate-200 dark:bg-slate-800 sm:h-64" />
-        </section>
-        <section className="relative z-10 mx-auto -mt-12 max-w-4xl px-4 sm:px-6">
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-gray-700/50 dark:bg-gray-800/80">
-            <div className="flex flex-col items-start gap-6 sm:flex-row">
-              <div className="h-24 w-24 animate-pulse rounded-2xl bg-slate-200 sm:h-32 sm:w-32 dark:bg-slate-700" />
-              <div className="w-full min-w-0 flex-1 space-y-3">
-                <div className="h-8 w-60 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-                <div className="h-5 w-36 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-                <div className="h-4 w-full max-w-xl animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-              </div>
-            </div>
-          </div>
-        </section>
-        <div className="mx-auto mt-8 max-w-4xl space-y-6 px-4 sm:px-6">
-          <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-gray-700/50 dark:bg-gray-800/80">
-            <div className="mb-4 h-6 w-48 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div className="h-20 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
-              <div className="h-20 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
-              <div className="h-20 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
-              <div className="h-20 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
-            </div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-gray-700/50 dark:bg-gray-800/80">
-            <div className="mb-4 h-6 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-            <div className="space-y-2">
-              <div className="h-4 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-              <div className="h-4 w-10/12 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-              <div className="h-4 w-8/12 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
-            </div>
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -225,13 +187,6 @@ function PublicProfile() {
   }
 
   if (!profile) return null;
-
-  const profileDisplayName =
-    profile.displayName?.trim() ||
-    [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() ||
-    profile.username;
-  const countryCode = normalizeCountryCode(profile.country);
-  const countryFlagUrl = countryCode ? `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png` : '';
 
   const rankProgress = profile.rankProgress || {
     currentTier: profile.rankTier || 'F',
@@ -307,7 +262,7 @@ function PublicProfile() {
                 <Spinner size="sm" />
               ) : (
                 <span className="text-white bg-gray-800/80 px-3 py-1 rounded-full text-sm">
-                  Changer la couverture
+                  Change cover image
                 </span>
               )}
             </div>
@@ -320,13 +275,13 @@ function PublicProfile() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-slate-200 bg-white/95 p-6 shadow-xl backdrop-blur-sm dark:border-gray-700/50 dark:bg-gray-800/80"
+          className="bg-white/90 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-gray-700/50 p-6 shadow-xl"
         >
-          <div className="flex flex-col items-start gap-6 sm:flex-row">
+          <div className="flex flex-col sm:flex-row items-start gap-6">
             {/* Avatar */}
             <div className="relative -mt-16 sm:-mt-20">
               <div
-                className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-slate-100 sm:h-32 sm:w-32 dark:border-gray-800 dark:bg-gray-800 ${isOwner ? 'cursor-pointer group' : ''}`}
+                className={`w-24 h-24 sm:w-32 sm:h-32 rounded-2xl border-4 border-white dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden flex-shrink-0 relative group ${isOwner ? 'cursor-pointer' : ''}`}
                 onClick={handleAvatarClick}
               >
                 {(avatarPreview || profile.avatarUrl) ? (
@@ -334,11 +289,11 @@ function PublicProfile() {
                     key={profile.avatarUrl}
                     src={avatarPreview || profile.avatarUrl + '?t=' + Date.now()}
                     alt=""
-                    className="h-full w-full object-cover"
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-slate-500 dark:text-gray-500">
-                    {profileDisplayName.charAt(0).toUpperCase()}
+                  <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-gray-500">
+                    {(profile.displayName || profile.username).charAt(0).toUpperCase()}
                   </div>
                 )}
                 {isOwner && (
@@ -354,27 +309,18 @@ function PublicProfile() {
             </div>
 
             {/* User details */}
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
-                      {profileDisplayName}
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                      {profile.displayName || profile.username}
                     </h1>
-                    {countryFlagUrl && (
-                      <img
-                        src={countryFlagUrl}
-                        alt={countryCode}
-                        title={countryCode}
-                        className="h-5 w-7 rounded-sm object-cover ring-1 ring-black/10 dark:ring-white/20"
-                        loading="lazy"
-                      />
-                    )}
                     {profile.emailVerifiedAt && (
-                      <span className="text-blue-600 dark:text-blue-400" title="Email verified">✓</span>
+                      <span className="text-blue-500 dark:text-blue-400" title="Email verified">✓</span>
                     )}
                   </div>
-                  <p className="text-slate-600 dark:text-gray-400">@{profile.username}</p>
+                  <p className="text-gray-500 dark:text-gray-400">@{profile.username}</p>
                 </div>
                 {isOwner && (
                   <Button type="button" onClick={() => setShowEditModal(true)} className="!py-2 text-sm">
@@ -384,23 +330,15 @@ function PublicProfile() {
               </div>
 
               {profile.bio && (
-                <p className="mt-2 max-w-2xl whitespace-pre-wrap text-slate-700 dark:text-gray-300">{profile.bio}</p>
+                <p className="mt-2 text-gray-600 dark:text-gray-300 whitespace-pre-wrap max-w-2xl">{profile.bio}</p>
               )}
 
-              <div className="mt-2 flex flex-wrap gap-3">
-                {countryFlagUrl && (
-                  <span className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-gray-400">
-                    <img
-                      src={countryFlagUrl}
-                      alt={countryCode}
-                      className="h-4 w-6 rounded-[2px] object-cover ring-1 ring-black/10 dark:ring-white/20"
-                      loading="lazy"
-                    />
-                    {countryCode}
-                  </span>
+              <div className="flex flex-wrap gap-3 mt-2">
+                {profile.country && (
+                  <span className="text-gray-500 dark:text-gray-400 text-sm">📍 {profile.country}</span>
                 )}
                 {profile.memberSince && (
-                  <span className="text-sm text-slate-600 dark:text-gray-400">
+                  <span className="text-gray-500 dark:text-gray-400 text-sm">
                     Joined {new Date(profile.memberSince).toLocaleDateString()}
                   </span>
                 )}
@@ -585,8 +523,8 @@ function PublicProfile() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={[
-                    { name: 'Accepté', value: profile.totalAccepted ?? 0, fill: '#10b981' },
-                    { name: 'Refusé', value: (profile.totalSubmissions ?? 0) - (profile.totalAccepted ?? 0), fill: '#ef4444' },
+                    { name: 'Accepted', value: profile.totalAccepted ?? 0, fill: '#10b981' },
+                    { name: 'Rejected', value: (profile.totalSubmissions ?? 0) - (profile.totalAccepted ?? 0), fill: '#ef4444' },
                   ].filter((d) => d.value > 0)}
                   margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                 >
@@ -596,7 +534,7 @@ function PublicProfile() {
                     contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
                     labelStyle={{ color: '#e5e7eb' }}
                   />
-                  <Bar dataKey="value" name="Soumissions" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="value" name="Submissions" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

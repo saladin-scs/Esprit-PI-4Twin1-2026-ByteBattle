@@ -19,7 +19,7 @@ function formatAdminApiError(err: unknown, fallback: string): string {
   if (res?.status === 403) {
     return (
       res.data?.message ||
-      'Accès refusé (admin requis). Vérifie que ton compte est promu : `npm run make-admin -- ton@email.com` dans backend/, puis rafraîchis.'
+      'Access denied (admin required). Make sure your account was promoted: `npm run make-admin -- your@email.com` in backend/, then refresh.'
     );
   }
   return res?.data?.message || (err instanceof Error ? err.message : fallback);
@@ -89,10 +89,10 @@ function AdminGamificationStats() {
         </div>
         <div className="flex flex-wrap gap-4 text-sm font-medium">
           <Link to="/admin/users" className="text-indigo-500 dark:text-indigo-400 hover:underline">
-            ← Utilisateurs
+            ← Users
           </Link>
           <Link to="/admin/reclamations" className="text-indigo-500 dark:text-indigo-400 hover:underline">
-            Réclamations
+            Reports
           </Link>
         </div>
       </div>
@@ -131,7 +131,7 @@ function AdminGamificationStats() {
       <Card className="p-6 mt-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Chat reports (open)</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Signalements utilisateurs — API <code className="text-xs">GET /admin/chat-reports</code>
+          User reports - API <code className="text-xs">GET /admin/chat-reports</code>
         </p>
         {reportsError && (
           <p className="text-sm text-red-600 dark:text-red-400 mb-2">{reportsError}</p>
@@ -139,16 +139,16 @@ function AdminGamificationStats() {
         {reportsLoading ? (
           <Spinner size="sm" />
         ) : reports.length === 0 ? (
-          <p className="text-sm text-gray-600 dark:text-gray-300">Aucun signalement ouvert.</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">No open reports.</p>
         ) : (
           <div className="overflow-x-auto">
-            <p className="text-xs text-gray-500 mb-2">Total ouverts (toutes pages) : {reportsTotal}</p>
+            <p className="text-xs text-gray-500 mb-2">Total open (all pages): {reportsTotal}</p>
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-600 text-gray-500">
                   <th className="py-2 pr-2">Room</th>
-                  <th className="py-2 pr-2">Extrait</th>
-                  <th className="py-2 pr-2">Raison</th>
+                  <th className="py-2 pr-2">Excerpt</th>
+                  <th className="py-2 pr-2">Reason</th>
                   <th className="py-2">Date</th>
                 </tr>
               </thead>

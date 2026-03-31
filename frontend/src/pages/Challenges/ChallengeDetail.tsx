@@ -19,8 +19,6 @@ import CommunitySolutions from './CommunitySolutions';
 import { RootState } from '../../store/store';
 import { CollaborationChat } from '../../shared/components/CollaborationChat';
 import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
-import { Breadcrumbs, EmptyState } from '../../shared/components';
-import { getEditorPrefillCode } from '../../utils/testPrefill';
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -30,9 +28,9 @@ const MONACO_LANG: Record<string, string> = {
 };
 
 const HINT_TIER_LABEL: Record<string, string> = {
-  basic: 'Indice léger',
-  detailed: 'Indice détaillé',
-  premium: 'Indice avancé',
+  basic: 'Light hint',
+  detailed: 'Detailed hint',
+  premium: 'Advanced hint',
 };
 
 interface Challenge {
@@ -73,7 +71,7 @@ interface SubmissionResult {
   testResults: Array<{
     testNumber: number;
     passed: boolean;
-    /** Soumission : cas caché — pas d’entrée/sortie exposées (anti-triche serveur). */
+    /** Submission hidden case: input/output not exposed (server anti-cheat). */
     isHiddenCase?: boolean;
     message?: string;
     input?: string;
@@ -89,7 +87,7 @@ const ChallengeDetail = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { theme, setTheme } = useTheme();
   const langFromUrl = searchParams.get('lang');
-  /** Thème global avant d’ouvrir l’IDE (restauré en quittant l’URL avec ?lang=). */
+  /** Global theme before opening IDE (restored when leaving URL with ?lang=). */
   const challengeIdeThemeRef = useRef<Theme | null>(null);
 
   const {
@@ -109,7 +107,6 @@ const ChallengeDetail = () => {
     setError: setStoreError,
     reset: resetStore,
   } = useChallengeDetailStore();
-
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
@@ -138,13 +135,13 @@ const ChallengeDetail = () => {
   const prevChallengeIdRef = useRef<string | undefined>(undefined);
   const prevLangParamRef = useRef<string | null>(null);
 
-  /** `vs` = thème clair Monaco plus lisible que `light` (meilleur contraste syntaxe) */
+  /** `vs` is a clearer Monaco light theme than `light` (better syntax contrast). */
   const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs';
   const loading = loadingChallenge;
   const error = storeError;
 
-  // À l’ouverture de l’IDE (?lang=), bascule en sombre pour coller au rendu type LeetCode ; restaure le thème à la sortie.
-  /* eslint-disable react-hooks/exhaustive-deps -- ne pas dépendre de `theme` pour permettre le toggle manuel sur la page */
+  // On IDE open (?lang=), switch to dark theme for LeetCode-like rendering; restore on exit.
+  /* eslint-disable react-hooks/exhaustive-deps -- do not depend on `theme` to allow manual page toggle */
   useEffect(() => {
     if (!langFromUrl) {
       if (challengeIdeThemeRef.current !== null) {
@@ -160,7 +157,7 @@ const ChallengeDetail = () => {
   }, [langFromUrl, setTheme]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
-  // Toujours afficher l’onglet Description à l’ouverture d’un défi ou quand on passe du choix de langue à l’éditeur (?lang=).
+  // Always show Description tab when opening a challenge or moving from language picker to editor (?lang=).
   useEffect(() => {
     const idChanged = id !== prevChallengeIdRef.current;
     const langJustOpened = Boolean(langFromUrl) && prevLangParamRef.current === null;
@@ -204,7 +201,7 @@ const ChallengeDetail = () => {
         const langs = data.languages ?? [];
         const preferred = langFromUrl && langs.includes(langFromUrl) ? langFromUrl : langs[0] || 'javascript';
         setSelectedLang(preferred);
-        setCode(getEditorPrefillCode(data.title, preferred, data.starterCode?.[preferred] || ''));
+        setCode(data.starterCode?.[preferred] || '');
       } catch {
         setStoreError('Challenge not found.');
       } finally {
@@ -232,19 +229,19 @@ const ChallengeDetail = () => {
     if (!challenge || !langFromUrl || !challenge.languages?.includes(langFromUrl)) return;
     setSelectedLang(langFromUrl);
     const starter = challenge.starterCode?.[langFromUrl];
-    if (starter != null) setCode(getEditorPrefillCode(challenge.title, langFromUrl, starter));
+    if (starter != null) setCode(starter);
   }, [langFromUrl, challenge, setSelectedLang, setCode]);
 
   const handleLangChange = (lang: string) => {
     setSearchParams({ lang });
     setSelectedLang(lang);
-    setCode(getEditorPrefillCode(challenge?.title, lang, challenge?.starterCode?.[lang] || ''));
+    setCode(challenge?.starterCode?.[lang] || '');
   };
 
   const handleSelectLanguage = (lang: string) => {
     setSearchParams({ lang });
     setSelectedLang(lang);
-    setCode(getEditorPrefillCode(challenge?.title, lang, challenge?.starterCode?.[lang] || ''));
+    setCode(challenge?.starterCode?.[lang] || '');
   };
 
   const handleRun = async () => {
@@ -314,51 +311,8 @@ const ChallengeDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 dark:bg-[#010409]">
-        <div className="flex h-full w-[38%] min-w-[320px] flex-col border-r border-slate-200 bg-white p-4 dark:border-[#30363d] dark:bg-[#0d1117]">
-          <div className="mb-4 flex gap-3">
-            <div className="h-9 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            <div className="h-9 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            <div className="h-9 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-          </div>
-          <div className="mb-3 h-8 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-          <div className="space-y-2">
-            <div className="h-4 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            <div className="h-4 w-11/12 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            <div className="h-4 w-9/12 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-          </div>
-          <div className="mt-6 space-y-2">
-            <div className="h-4 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            <div className="h-16 w-full animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
-            <div className="h-16 w-full animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
-          </div>
-        </div>
-        <div className="flex h-full min-w-0 flex-1 flex-col">
-          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-[#30363d] dark:bg-[#0d1117]">
-            <div className="flex gap-2">
-              <div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-              <div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-              <div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            </div>
-            <div className="flex gap-2">
-              <div className="h-9 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-              <div className="h-9 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            </div>
-          </div>
-          <div className="flex min-h-0 flex-1">
-            <div className="min-w-0 flex-1 bg-white p-4 dark:bg-[#0d1117]">
-              <div className="h-full w-full animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-[#30363d] dark:bg-slate-900/50" />
-            </div>
-            <div className="w-[320px] border-l border-slate-200 bg-white p-4 dark:border-[#30363d] dark:bg-[#0d1117]">
-              <div className="mb-3 h-8 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-              <div className="space-y-3">
-                <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
-                <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
-                <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh] text-gray-500 dark:text-gray-400">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary-500 border-t-transparent" />
       </div>
     );
   }
@@ -370,12 +324,11 @@ const ChallengeDetail = () => {
     );
   }
 
-  // Page "Choix du langage": no lang in URL → show grid with Unsolved/Solved per language
+  // Language selection page: no lang in URL -> show grid with Unsolved/Solved per language
   if (!langFromUrl) {
     return (
       <div className="relative mx-auto max-w-3xl px-4 py-8 sm:px-6 md:py-12">
         <div className="bb-hero-gradient-tall" aria-hidden />
-        <Breadcrumbs items={[{ label: 'Challenges', to: '/challenges' }, { label: challenge.title }]} className="relative mb-4" />
         <button
           type="button"
           onClick={() => navigate('/challenges')}
@@ -433,46 +386,43 @@ const ChallengeDetail = () => {
       <Group {...({ direction: 'horizontal' } as any)}>
         <Panel defaultSize={38} minSize={28}>
           <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
-            <div className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]" role="tablist" aria-label="Challenge panels">
-              <button
-                type="button"
-                onClick={() => setActiveTab('description')}
-                role="tab"
-                aria-selected={activeTab === 'description'}
-                tabIndex={activeTab === 'description' ? 0 : -1}
-                className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'description'
-                    ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                    : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
-                }`}
-              >
-                Description
-              </button>
+           <div role="tablist" aria-label="Challenge sections" className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
+            <button
+  role="tab"
+  aria-selected={activeTab === 'description'}
+  type="button"
+  onClick={() => setActiveTab('description')}
+  className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
+    activeTab === 'description'
+      ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+      : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+  }`}
+>
+  Description
+</button>
               {challenge.hints && challenge.hints.length > 0 && (
                 <button
+                role="tab"
+aria-selected={activeTab === 'hints'}
                   type="button"
                   onClick={() => setActiveTab('hints')}
-                  role="tab"
-                  aria-selected={activeTab === 'hints'}
-                  tabIndex={activeTab === 'hints' ? 0 : -1}
                   className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'hints'
                       ? 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
                       : 'border-transparent text-slate-700 hover:text-amber-800 dark:text-[#8b949e] dark:hover:text-amber-200/90'
                   }`}
-                  aria-label="Indices et aide"
+                  aria-label="Hints and help"
                 >
                   <Lightbulb className="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" aria-hidden />
-                  Indices
+                  Hints
                 </button>
               )}
               {(displayResult?.status === 'accepted' || (completedLanguages?.length ?? 0) > 0) && (
                 <button
+                role="tab"
+aria-selected={activeTab === 'solutions'}
                   type="button"
                   onClick={() => setActiveTab('solutions')}
-                  role="tab"
-                  aria-selected={activeTab === 'solutions'}
-                  tabIndex={activeTab === 'solutions' ? 0 : -1}
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'solutions'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
@@ -484,11 +434,11 @@ const ChallengeDetail = () => {
               )}
               {(displayResult || submitError) && (
                 <button
+                role="tab"
+aria-selected={activeTab === 'result'}
+                
                   type="button"
                   onClick={() => setActiveTab('result')}
-                  role="tab"
-                  aria-selected={activeTab === 'result'}
-                  tabIndex={activeTab === 'result' ? 0 : -1}
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'result'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
@@ -501,11 +451,10 @@ const ChallengeDetail = () => {
               {isAuthed && (
                 <>
                   <button
+                  role="tab"
+aria-selected={activeTab === 'chat'}
                     type="button"
                     onClick={() => setActiveTab('chat')}
-                    role="tab"
-                    aria-selected={activeTab === 'chat'}
-                    tabIndex={activeTab === 'chat' ? 0 : -1}
                     className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                       activeTab === 'chat'
                         ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
@@ -516,11 +465,10 @@ const ChallengeDetail = () => {
                     Chat
                   </button>
                   <button
+                  role="tab"
+aria-selected={activeTab === 'coach'}
                     type="button"
                     onClick={() => setActiveTab('coach')}
-                    role="tab"
-                    aria-selected={activeTab === 'coach'}
-                    tabIndex={activeTab === 'coach' ? 0 : -1}
                     className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                       activeTab === 'coach'
                         ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
@@ -528,7 +476,7 @@ const ChallengeDetail = () => {
                     }`}
                   >
                     <Sparkles className="h-4 w-4" aria-hidden />
-                    Coach IA
+                    AI coach
                   </button>
                 </>
               )}
@@ -537,14 +485,14 @@ const ChallengeDetail = () => {
             {isAuthed && activeTab !== 'chat' && (
               <div className="flex shrink-0 items-center justify-between gap-2 border-b border-emerald-500/25 bg-emerald-500/5 px-4 py-2.5 text-xs text-emerald-900 dark:border-emerald-500/20 dark:bg-[#0c1412] dark:text-emerald-100/95">
                 <span>
-                  <span className="font-semibold">Chat en direct</span> — discutez avec les autres sur ce défi.
+                  <span className="font-semibold">Live chat</span> - discuss this challenge with others.
                 </span>
                 <button
                   type="button"
                   onClick={() => setActiveTab('chat')}
                   className="shrink-0 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 dark:bg-[#238636] dark:hover:bg-[#2ea043]"
                 >
-                  Ouvrir le chat
+                  Open chat
                 </button>
               </div>
             )}
@@ -578,12 +526,11 @@ const ChallengeDetail = () => {
                       </span>
                       <span className="min-w-0 pt-0.5">
                         <span className="block text-sm font-semibold text-amber-950 dark:text-amber-100">
-                          Besoin d&apos;un coup de pouce ?
+                          Need a hint?
                         </span>
                         <span className="mt-0.5 block text-sm text-amber-950 dark:text-amber-200/80">
-                          {challenge.hints.length} indice{challenge.hints.length > 1 ? 's' : ''} disponible
-                          {challenge.hints.length > 1 ? 's' : ''} — ouvre l&apos;onglet{' '}
-                          <strong className="font-semibold">Indices</strong> (icône ampoule).
+                          {challenge.hints.length} hint{challenge.hints.length > 1 ? 's' : ''} available - open the{' '}
+                          <strong className="font-semibold">Hints</strong> tab (lightbulb icon).
                         </span>
                       </span>
                     </button>
@@ -591,9 +538,9 @@ const ChallengeDetail = () => {
                     <div className="mb-5 flex items-start gap-3 rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-[#30363d] dark:bg-[#161b22]">
                       <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80 dark:text-amber-400/90" aria-hidden />
                       <p className="text-sm leading-relaxed text-slate-800 dark:text-[#8b949e]">
-                        <span className="font-semibold text-slate-900 dark:text-[#c9d1d9]">Petit rappel :</span> lis bien
-                        l&apos;énoncé et les exemples, utilise <strong>Run</strong> sur les cas visibles, puis{' '}
-                        <strong>Submit</strong> quand tu es prêt.
+                        <span className="font-semibold text-slate-900 dark:text-[#c9d1d9]">Quick reminder:</span>{' '}
+                        read the statement and examples carefully, use <strong>Run</strong> on visible tests, then{' '}
+                        <strong>Submit</strong> when ready.
                       </p>
                     </div>
                   )}
@@ -654,8 +601,7 @@ const ChallengeDetail = () => {
                       <div>
                         <h2 className="text-lg font-bold text-amber-950 dark:text-amber-50">Indices</h2>
                         <p className="mt-1 text-sm text-amber-900/85 dark:text-amber-100/75">
-                          Révèle les indices un par un. Ils sont là pour t&apos;orienter sans donner la solution toute
-                          faite.
+                          Reveal hints one by one. They guide you without giving away the full solution.
                         </p>
                       </div>
                     </div>
@@ -677,11 +623,11 @@ const ChallengeDetail = () => {
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
                                 <Lightbulb className="h-3.5 w-3.5" aria-hidden />
-                                Indice {i + 1} · {tierLabel}
+                                Hint {i + 1} · {tierLabel}
                               </span>
                               {hint.cost > 0 && (
                                 <span className="text-xs text-amber-800/70 dark:text-amber-200/60">
-                                  Coût : {hint.cost} XP
+                                  Cost: {hint.cost} XP
                                 </span>
                               )}
                             </div>
@@ -699,10 +645,10 @@ const ChallengeDetail = () => {
                                 aria-hidden
                               />
                               <div>
-                                <p className="font-medium text-slate-800 dark:text-[#c9d1d9]">Indice {i + 1}</p>
+                                <p className="font-medium text-slate-800 dark:text-[#c9d1d9]">Hint {i + 1}</p>
                                 <p className="text-sm text-slate-700 dark:text-[#8b949e]">
                                   {tierLabel}
-                                  {hint.cost > 0 ? ` · ${hint.cost} XP` : ''} — masqué pour l&apos;instant.
+                                  {hint.cost > 0 ? ` · ${hint.cost} XP` : ''} - hidden for now.
                                 </p>
                               </div>
                             </div>
@@ -711,7 +657,7 @@ const ChallengeDetail = () => {
                               onClick={() => setRevealedHints([...revealedHints, i])}
                               className="shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-amber-950 shadow-sm hover:bg-amber-400 dark:bg-amber-600 dark:text-white dark:hover:bg-amber-500"
                             >
-                              Afficher l&apos;indice
+                              Show hint
                             </button>
                           </div>
                         )}
@@ -771,7 +717,7 @@ const ChallengeDetail = () => {
                             <div className="mt-2 space-y-1 text-xs">
                               {t.isHiddenCase ? (
                                 <p className="rounded-md border border-amber-500/25 bg-amber-500/5 px-2 py-1.5 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100/90">
-                                  🔒 {t.message || 'Cas de test confidentiel — détails non affichés pour éviter la triche.'}
+                                  🔒 {t.message || 'Hidden test case - details are not shown to prevent cheating.'}
                                 </p>
                               ) : (
                                 <>
@@ -815,7 +761,7 @@ const ChallengeDetail = () => {
               {activeTab === 'chat' && isAuthed && id && (
                 <CollaborationChat
                   room={`challenge:${id}`}
-                  title="Chat du défi"
+                  title="Challenge chat"
                   className="h-[min(420px,calc(100vh-12rem))]"
                   enabled
                 />
@@ -848,7 +794,7 @@ const ChallengeDetail = () => {
           <Group {...({ direction: 'vertical' } as any)}>
             <Panel defaultSize={68} minSize={22}>
               <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
-                <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
+                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
                   <div className="flex flex-wrap items-center gap-2">
                     {challenge.languages.map((lang) => (
                       <button
@@ -923,6 +869,7 @@ const ChallengeDetail = () => {
                       fontSize: 14,
                       minimap: { enabled: false },
                       scrollBeyondLastLine: false,
+                      accessibilitySupport: 'on',
                       tabSize: 2,
                       wordWrap: 'on',
                       automaticLayout: true,
@@ -982,11 +929,7 @@ const ChallengeDetail = () => {
                       )}
                     </>
                   ) : (
-                    <EmptyState
-                      title="No execution results yet"
-                      description="Run visible examples or submit your solution to get detailed feedback."
-                      className="py-8"
-                    />
+                    <p className="text-slate-700 dark:text-[#8b949e]">No examples. Run or submit to see results.</p>
                   )}
                 </div>
               </div>

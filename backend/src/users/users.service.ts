@@ -161,48 +161,6 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     return { success: true };
   }
 
-  private async assertCurrentPasswordIfRequired(user: UserDocument, currentPassword?: string) {
-    const hasLocalPassword = !!(user as any).password;
-    if (!hasLocalPassword) return;
-    if (!currentPassword) throw new UnauthorizedException('Current password is required');
-    const ok = await bcrypt.compare(currentPassword, (user as any).password);
-    if (!ok) throw new UnauthorizedException('Invalid password');
-  }
-
-  async deactivateMyAccount(userId: string, currentPassword?: string) {
-    const user = await this.userModel.findById(userId).select('+password +refreshTokens').exec();
-    if (!user) throw new NotFoundException('User not found');
-    await this.assertCurrentPasswordIfRequired(user, currentPassword);
-
-    user.isActive = false;
-    user.refreshTokens = [];
-    await user.save();
-
-    await this.securityEvents.record({ type: 'user.deactivate_account', userId: String(user._id) });
-    return { success: true };
-  }
-
-  async deleteMyAccount(userId: string, currentPassword?: string) {
-    const oid = new Types.ObjectId(userId);
-    const user = await this.userModel.findById(userId).select('+password +refreshTokens').exec();
-    if (!user) throw new NotFoundException('User not found');
-    await this.assertCurrentPasswordIfRequired(user, currentPassword);
-
-    await Promise.all([
-      this.submissionModel.deleteMany({ userId: oid }).exec(),
-      this.solutionModel.deleteMany({ userId: oid }).exec(),
-      this.competitionSubmissionModel.deleteMany({ userId: oid }).exec(),
-      this.reclamationModel.deleteMany({ userId: oid }).exec(),
-      this.siteRatingModel.deleteMany({ userId: oid }).exec(),
-      this.notificationModel.deleteMany({ userId: oid }).exec(),
-      this.apiKeyModel.deleteMany({ userId: oid }).exec(),
-    ]);
-
-    await this.userModel.deleteOne({ _id: oid }).exec();
-    await this.securityEvents.record({ type: 'user.delete_account', userId: String(oid) });
-    return { success: true };
-  }
-
   static readonly RANK_XP = { F: 0, E: 100, D: 300, C: 600, B: 1000, A: 2000, S: 4000 };
   static readonly RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'S'] as const;
 
@@ -341,8 +299,8 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
   }
 
   /**
-   * Copie structurée des données personnelles (RGPD art. 20 / bonnes pratiques écoles).
-   * Ne contient pas les secrets (mot de passe, hash de clés API, jetons).
+   * Structured copy of personal data (GDPR Art. 20 / school best practices).
+   * Excludes secrets (password, API key hashes, tokens).
    */
   async buildPersonalDataExport(userId: string) {
     const oid = new Types.ObjectId(userId);
@@ -397,7 +355,7 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     await this.userModel.findByIdAndUpdate(userId, { lastUnlockedBadge: { badgeId, name }, $addToSet: { badgeIds: badgeId } }).exec();
   }
 
-  // ─── Reconnaissance faciale ──────────────────────────────────────────────
+  // ─── Facial recognition ─────────────────────────────────────────────────
 
   private euclideanDistance(a: number[], b: number[]): number {
     let sum = 0;
@@ -405,29 +363,29 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     return Math.sqrt(sum);
   }
 
-  /** Sauvegarde l'embedding facial sur le user */
+  /** Saves the face embedding on the user */
   async registerFace(userId: string, embedding: number[]) {
     return this.userModel.findByIdAndUpdate(userId, { faceEmbedding: embedding }, { new: true }).exec();
   }
 
-  /** Vérifie le visage par userId */
+  /** Verifies face embedding by userId. */
   async verifyFace(userId: string, embedding: number[]): Promise<boolean> {
-    // ✅ FIX : +faceEmbedding obligatoire car select:false dans le schema
+    // +faceEmbedding is required because select:false is set in schema
     const user = await this.userModel.findById(userId).select('+faceEmbedding').exec();
     if (!user || !(user as any).faceEmbedding?.length) return false;
     return this.euclideanDistance((user as any).faceEmbedding, embedding) < 0.6;
   }
 
-  // ✅ NOUVEAU : vérifie le visage par email (utilisé par POST /users/verify-face)
+  // NEW: verifies face by email (used by POST /users/verify-face)
   async verifyFaceByEmail(email: string, embedding: number[]): Promise<boolean> {
     const user = await this.userModel
       .findOne({ email: String(email || '').toLowerCase().trim() })
       .select('+faceEmbedding')
       .exec();
 
-    if (!user) throw new UnauthorizedException('Utilisateur non trouvé');
+    if (!user) throw new UnauthorizedException('User not found');
     if (!(user as any).faceEmbedding?.length) {
-      throw new UnauthorizedException('Aucun visage enregistré pour ce compte. Inscrivez-vous avec la reconnaissance faciale.');
+      throw new UnauthorizedException('No face is registered for this account. Sign up with face recognition first.');
     }
 
     return this.euclideanDistance((user as any).faceEmbedding, embedding) < 0.6;
@@ -440,9 +398,9 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
       .select('+faceEmbedding')
       .exec();
 
-    if (!user) throw new UnauthorizedException('Utilisateur non trouvé');
+    if (!user) throw new UnauthorizedException('User not found');
     if (!(user as any).faceEmbedding?.length) {
-      throw new UnauthorizedException('Aucun visage enregistré pour ce compte. Inscrivez-vous avec la reconnaissance faciale.');
+      throw new UnauthorizedException('No face is registered for this account. Sign up with face recognition first.');
     }
 
     const match = this.euclideanDistance((user as any).faceEmbedding, embedding) < 0.6;

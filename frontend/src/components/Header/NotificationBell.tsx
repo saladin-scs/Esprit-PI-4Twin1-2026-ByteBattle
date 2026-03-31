@@ -76,8 +76,6 @@ export function NotificationBell() {
       type="button"
       className="relative rounded-lg p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
       aria-label="Notifications"
-      aria-haspopup="menu"
-      aria-expanded={open}
     >
       <Bell className="h-5 w-5" aria-hidden />
       {unreadCount > 0 && (
@@ -85,9 +83,6 @@ export function NotificationBell() {
           {unreadCount > 9 ? '9+' : unreadCount}
         </span>
       )}
-      <span className="sr-only">
-        {unreadCount > 0 ? `${unreadCount} unread notifications` : 'No unread notifications'}
-      </span>
     </button>
   );
 
@@ -97,25 +92,24 @@ export function NotificationBell() {
         <span className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</span>
         {unreadCount > 0 && (
           <Button type="button" variant="ghost" className="!h-auto !py-1 !px-2 text-xs" onClick={() => void onMarkAll()}>
-            Tout lu
+            Mark all read
           </Button>
         )}
       </div>
       <div className="max-h-[min(60vh,340px)] overflow-y-auto py-1">
         {loading && items.length === 0 ? (
-          <p className="px-3 py-6 text-center text-sm text-gray-500">Chargement…</p>
+          <p className="px-3 py-6 text-center text-sm text-gray-500">Loading...</p>
         ) : items.length === 0 ? (
-          <p className="px-3 py-6 text-center text-sm text-gray-500">Aucune notification</p>
+          <p className="px-3 py-6 text-center text-sm text-gray-500">No notifications</p>
         ) : (
           items.map((n) => (
             <button
               key={n.id}
               type="button"
               onClick={() => void onOpenItem(n)}
-              className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-gray-700/80 ${
+              className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/80 ${
                 n.read ? 'opacity-80' : 'bg-blue-50/80 dark:bg-blue-950/30'
               }`}
-              aria-label={`${n.title}. ${n.body}`}
             >
               <span className="font-medium text-gray-900 dark:text-white">{n.title}</span>
               <span className="line-clamp-2 text-xs text-gray-600 dark:text-gray-400">{n.body}</span>
@@ -125,7 +119,7 @@ export function NotificationBell() {
         )}
       </div>
       <DropdownMenuSeparator />
-      <DropdownMenuItem to="/challenges">Voir les défis</DropdownMenuItem>
+      <DropdownMenuItem to="/challenges">View challenges</DropdownMenuItem>
     </DropdownMenu>
   );
 }

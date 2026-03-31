@@ -44,7 +44,7 @@ import { JwtOrApiKeyAuthGuard } from './guards/jwt-or-api-key.guard';
     MailService,
     JwtOrApiKeyAuthGuard,
   ],
-  /** Réexporte Users + ApiKeys pour que JwtOrApiKeyAuthGuard soit résolvable dans CodeExecution, Challenges, etc. */
+  /** Re-export Users + ApiKeys so JwtOrApiKeyAuthGuard is resolvable in CodeExecution, Challenges, etc. */
   exports: [AuthService, JwtModule, JwtOrApiKeyAuthGuard, UsersModule, forwardRef(() => ApiKeysModule)],
 })
 export class AuthModule {}

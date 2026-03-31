@@ -29,7 +29,7 @@ async function main() {
     process.exit(1);
   }
   console.log(`OK — ${email} is now admin (modified: ${res.modifiedCount})`);
-  console.log('Le backend recharge les rôles depuis Mongo à chaque requête JWT : pas besoin de se reconnecter.');
+  console.log('Backend reloads roles from Mongo on every JWT request: no need to log in again.');
   await mongoose.disconnect();
 }
 

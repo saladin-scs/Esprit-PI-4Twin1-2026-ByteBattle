@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { adminApi } from '../../services/api';
-import { Button, Input, Card, Alert, PageContainer, Spinner, Modal, Breadcrumbs } from '../../shared/components';
+import { Button, Input, Card, Alert, PageContainer, Spinner, Modal } from '../../shared/components';
 import type { RootState } from '../../store/store';
 
 type Role = 'user' | 'moderator' | 'admin';
@@ -33,7 +33,7 @@ interface ListResponse {
 
 const ROLES: Role[] = ['user', 'moderator', 'admin'];
 
-/** Libellés affichés pour les 3 rôles assignables par l’admin. */
+/** Display labels for the 3 roles assignable by admin users. */
 const ROLE_LABELS: Record<Role, string> = {
   user: 'User',
   moderator: 'Moderator',
@@ -83,7 +83,7 @@ function AdminUsers() {
       if (res?.status === 403) {
         setError(
           msg ||
-            'Accès refusé : compte non administrateur ou rôles pas encore pris en compte. Lance `npm run make-admin -- ton@email.com` depuis backend/, puis rafraîchis la page.',
+            'Access denied: non-admin account or roles not yet synced. Run `npm run make-admin -- your@email.com` in backend/, then refresh the page.',
         );
       } else {
         setError(msg || (err instanceof Error ? err.message : 'Failed to load users'));
@@ -173,7 +173,6 @@ function AdminUsers() {
 
   return (
     <PageContainer maxWidth="7xl" className="py-8">
-      <Breadcrumbs className="mb-4" items={[{ label: 'Admin' }, { label: 'Users' }]} />
       <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">User Management</h1>
@@ -183,7 +182,7 @@ function AdminUsers() {
         </div>
         <div className="flex flex-wrap gap-4 text-sm font-medium">
           <Link to="/admin/reclamations" className="text-indigo-500 dark:text-indigo-400 hover:underline">
-            Réclamations →
+            Reports →
           </Link>
           <Link to="/admin/gamification" className="text-indigo-500 dark:text-indigo-400 hover:underline">
             Gamification stats →

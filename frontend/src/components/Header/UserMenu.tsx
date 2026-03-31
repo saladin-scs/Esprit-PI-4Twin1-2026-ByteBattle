@@ -87,10 +87,19 @@ export function UserMenu() {
           {isAdmin && (
             <>
               <DropdownMenuItem to="/admin/users" icon={<IconShield />}>
-                Admin — Utilisateurs
+                Admin - Users
+              </DropdownMenuItem>
+              <DropdownMenuItem to="/admin/challenges" icon={<IconShield />}>
+                Admin - Challenges
+              </DropdownMenuItem>
+              <DropdownMenuItem to="/admin/competitions" icon={<IconShield />}>
+                Admin - Competitions
+              </DropdownMenuItem>
+              <DropdownMenuItem to="/admin/gamification" icon={<IconShield />}>
+                Admin - Gamification
               </DropdownMenuItem>
               <DropdownMenuItem to="/admin/reclamations" icon={<IconShield />}>
-                Admin — Réclamations
+                Admin - Reports
               </DropdownMenuItem>
             </>
           )}

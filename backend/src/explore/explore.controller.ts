@@ -9,7 +9,7 @@ export class ExploreController {
   constructor(private readonly exploreService: ExploreService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Recherche unifiée : défis, compétitions, utilisateurs' })
+  @ApiOperation({ summary: 'Unified search: challenges, competitions, users' })
   async search(@Query('q') q?: string, @Query('limit') limit?: string) {
     const lim = limit ? parseInt(limit, 10) : 8;
     return this.exploreService.search(q || '', Number.isFinite(lim) ? lim : 8);

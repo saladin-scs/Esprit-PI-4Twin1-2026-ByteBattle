@@ -107,7 +107,7 @@ export function AiCodeFeedbackPanel({
 
   const analyze = async () => {
     if (!code.trim()) {
-      setErr('Écris du code avant de lancer l’analyse.');
+      setErr('Write some code before starting analysis.');
       return;
     }
     setLoading(true);
@@ -127,9 +127,9 @@ export function AiCodeFeedbackPanel({
     } catch (e: unknown) {
       const ax = e as { response?: { status?: number; data?: { message?: string } } };
       if (ax.response?.status === 429) {
-        setErr('Trop de requêtes — réessaie dans un moment.');
+        setErr('Too many requests. Please try again shortly.');
       } else {
-        setErr(ax.response?.data?.message ?? 'Analyse indisponible.');
+        setErr(ax.response?.data?.message ?? 'Analysis unavailable.');
       }
     } finally {
       setLoading(false);
@@ -150,10 +150,10 @@ export function AiCodeFeedbackPanel({
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      toast.success('Rapport copié');
+      toast.success('Report copied');
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Copie impossible');
+      toast.error('Unable to copy report');
     }
   };
 
@@ -167,7 +167,7 @@ export function AiCodeFeedbackPanel({
         className,
       )}
       role="region"
-      aria-label="Coach IA — analyse de code"
+      aria-label="AI coach - code analysis"
     >
       <div className="border-b border-violet-200/60 px-4 py-3 dark:border-violet-900/30">
         <div className="flex flex-wrap items-start gap-3">
@@ -176,9 +176,9 @@ export function AiCodeFeedbackPanel({
               <Sparkles className="h-4 w-4" aria-hidden />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Coach IA</h3>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">AI coach</h3>
               <p className="text-xs text-slate-600 dark:text-slate-400">
-                Analyse qualité, risques et pistes (service Python / LLM).
+                Quality, risk, and improvement analysis (Python/LLM service).
               </p>
             </div>
           </div>
@@ -190,7 +190,7 @@ export function AiCodeFeedbackPanel({
               className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-700 disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              {loading ? 'Analyse en cours…' : 'Analyser mon code'}
+              {loading ? 'Analyzing...' : 'Analyze my code'}
             </button>
             {feedback && (
               <button
@@ -199,27 +199,27 @@ export function AiCodeFeedbackPanel({
                 className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-medium text-violet-800 hover:bg-violet-50 dark:border-violet-800 dark:bg-slate-800 dark:text-violet-200 dark:hover:bg-slate-700"
               >
                 {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
-                {copied ? 'Copié' : 'Copier le rapport'}
+                {copied ? 'Copied' : 'Copy report'}
               </button>
             )}
           </div>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <ContextChip icon={Code2} label="Langage" value={language || '—'} />
+          <ContextChip icon={Code2} label="Language" value={language || '-'} />
           <ContextChip
             icon={FlaskConical}
             label="Tests"
             value={
-              testsPassed === true ? 'OK' : testsPassed === false ? 'Échec / partiel' : 'Non exécuté'
+              testsPassed === true ? 'OK' : testsPassed === false ? 'Failed / partial' : 'Not run'
             }
             variant={testVariant}
           />
           {runtimeMs != null && Number.isFinite(runtimeMs) && (
-            <ContextChip icon={Timer} label="Temps" value={`${Math.round(runtimeMs)} ms`} />
+            <ContextChip icon={Timer} label="Time" value={`${Math.round(runtimeMs)} ms`} />
           )}
           {executionError && (
-            <ContextChip icon={AlertTriangle} label="Erreur exec." value={executionError.slice(0, 40) + (executionError.length > 40 ? '…' : '')} variant="warn" />
+            <ContextChip icon={AlertTriangle} label="Exec error" value={executionError.slice(0, 40) + (executionError.length > 40 ? '...' : '')} variant="warn" />
           )}
         </div>
       </div>
@@ -231,7 +231,7 @@ export function AiCodeFeedbackPanel({
             role="status"
           >
             <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-            Le code ou le contexte a changé depuis la dernière analyse. Relance pour un rapport à jour.
+            Code or context changed since the last analysis. Run again for an up-to-date report.
           </p>
         )}
 
@@ -247,7 +247,7 @@ export function AiCodeFeedbackPanel({
         {loading && (
           <div className="flex flex-col items-center justify-center gap-3 py-10" aria-busy="true">
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600 dark:border-violet-900 dark:border-t-violet-400" />
-            <p className="text-sm text-slate-700 dark:text-slate-400">Envoi au modèle d’analyse…</p>
+            <p className="text-sm text-slate-700 dark:text-slate-400">Sending to analysis model...</p>
           </div>
         )}
 
@@ -264,7 +264,7 @@ export function AiCodeFeedbackPanel({
               <div className="flex flex-wrap items-end gap-3">
                 <div>
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-400">
-                    Score global
+                    Overall score
                   </span>
                   <div className="flex items-baseline gap-1">
                     <span className="text-3xl font-bold tabular-nums text-violet-700 dark:text-violet-300">

@@ -1,18 +1,18 @@
 /**
- * Configuration du store pour production vs développement.
- * - Dev: logging activé, analytics optionnel.
- * - Prod: pas de log, analytics si fourni.
+ * Store configuration for production vs development.
+ * - Dev: logging enabled, analytics optional.
+ * - Prod: no logging, analytics if provided.
  */
 
 export const isProduction = import.meta.env.PROD;
 export const isDev = import.meta.env.DEV;
 
 export interface StoreConfig {
-  /** Activer le middleware de logging (défaut: !isProduction) */
+  /** Enable logging middleware (default: !isProduction) */
   enableLogging: boolean;
-  /** Activer l'analytics (callback appelé à chaque changement) */
+  /** Enable analytics (callback called on each change) */
   enableAnalytics: boolean;
-  /** Nom du store pour les logs / analytics */
+  /** Store name for logs / analytics */
   storeName: string;
 }
 

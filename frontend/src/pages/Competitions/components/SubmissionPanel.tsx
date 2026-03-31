@@ -5,7 +5,6 @@ import { Button } from '../../../shared/components';
 import type { CompetitionDetail } from '../types';
 import type { SubmitResult } from '../types';
 import { COMPETITION_TYPE_CONFIG } from '../types';
-import { cn } from '../../../lib/utils';
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -57,28 +56,20 @@ function SubmissionPanelComponent({
     ? competition.supportedLanguages
     : challenge.languages || ['python', 'javascript'];
 
-  const isDark = theme === 'dark';
-
   return (
-    <section
-      className={cn('bb-submission-shell', className)}
-      aria-labelledby="submission-heading"
-    >
-      <h2 id="submission-heading" className="bb-section-title mb-4">
+    <section className={`bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5 ${className}`} aria-labelledby="submission-heading">
+      <h2 id="submission-heading" className="text-lg font-semibold text-emerald-400 mb-4">
         Submission
       </h2>
       <div className="mb-3">
-        <label
-          htmlFor="submission-lang"
-          className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-        >
+        <label htmlFor="submission-lang" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Language
         </label>
         <select
           id="submission-lang"
           value={selectedLang}
           onChange={(e) => onLanguageChange(e.target.value)}
-          className="bb-select"
+          className="w-full max-w-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
           aria-label="Select programming language"
         >
           {languages.map((l) => (
@@ -88,11 +79,11 @@ function SubmissionPanelComponent({
           ))}
         </select>
       </div>
-      <div className="bb-editor-ring mb-3 overflow-hidden">
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden mb-3 focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-emerald-500 transition-shadow">
         <Editor
           height="320px"
           language={MONACO_LANG[selectedLang] ?? selectedLang}
-          theme={isDark ? 'vs-dark' : 'light'}
+          theme={theme === 'dark' ? 'vs-dark' : 'light'}
           value={code}
           onChange={(v) => onCodeChange(v ?? '')}
           options={{ minimap: { enabled: false }, fontSize: 14 }}
@@ -100,7 +91,7 @@ function SubmissionPanelComponent({
         />
       </div>
       {!isActive && (
-        <p className="mb-3 text-sm text-amber-600 dark:text-amber-400" role="status">
+        <p className="text-amber-400 text-sm mb-3" role="status">
           Submissions are closed for this contest.
         </p>
       )}
@@ -108,37 +99,34 @@ function SubmissionPanelComponent({
         onClick={handleSubmit}
         disabled={submitting || !isActive}
         loading={submitting}
-        className="inline-flex items-center gap-2 border-0 bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500"
+        className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white border-0 focus:ring-emerald-500"
         aria-busy={submitting}
       >
-        <Send className="h-4 w-4" aria-hidden />
+        <Send className="w-4 h-4" aria-hidden />
         {submitting ? 'Submitting…' : 'Submit'}
       </Button>
       {error && (
-        <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
+        <p className="mt-2 text-sm text-red-400" role="alert">
           {error}
         </p>
       )}
       {result && (
         <div
-          className={cn(
-            'mt-3 rounded-lg border p-3 text-sm',
+          className={`mt-3 p-3 rounded-lg text-sm ${
             result.status === 'accepted'
-              ? 'border-primary-500/40 bg-primary-500/10 text-primary-900 dark:text-primary-200'
-              : 'border-red-500/40 bg-red-500/10 text-red-800 dark:text-red-300',
-          )}
+              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+              : 'bg-red-500/20 text-red-300 border border-red-500/40'
+          }`}
           role="status"
         >
           <strong>{result.status === 'accepted' ? '✅ Accepted' : '❌ Not accepted'}</strong>
-          <div className="mt-1">
-            Tests: {result.passedTests}/{result.totalTests}
-          </div>
+          <div className="mt-1">Tests: {result.passedTests}/{result.totalTests}</div>
           <div>
             {scoreLabel}: {result.score}
             {competition.type === 'speed' && ` (${result.executionTimeMs} ms)`}
           </div>
           {result.isBest && (
-            <div className="mt-1 font-semibold text-amber-600 dark:text-amber-400">New best submission!</div>
+            <div className="font-semibold text-amber-400 mt-1">New best submission!</div>
           )}
         </div>
       )}

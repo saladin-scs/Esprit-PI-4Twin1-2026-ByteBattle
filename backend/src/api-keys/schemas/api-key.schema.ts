@@ -14,7 +14,7 @@ export class ApiKey {
   @Prop({ type: String, required: true })
   keyHash: string;
 
-  /** Premiers caractères pour affichage (ex. bb_live_a1b2) */
+  /** First characters for display (e.g. bb_live_a1b2) */
   @Prop({ type: String, required: true })
   keyPrefix: string;
 

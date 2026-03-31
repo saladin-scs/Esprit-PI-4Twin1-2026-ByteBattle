@@ -46,8 +46,16 @@ export class AiService {
         title: 'API Key Missing',
         description: 'Please configure OPENROUTER_API_KEY to generate challenges.',
         difficulty: 'medium',
-        testCases: [],
-        starterCode: '',
+        examples: [{ input: '1 2', output: '3', explanation: 'Add the two numbers.' }],
+        testCases: [{ input: '1 2', expectedOutput: '3', isHidden: false }],
+        starterCode: {
+          javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\\nconsole.log(a + b);',
+          python: 'a, b = map(int, input().split())\\nprint(a + b)',
+          java:
+            'import java.io.*;\\nimport java.util.*;\\n\\npublic class Solution {\\n  public static void main(String[] args) throws Exception {\\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\\n    StringTokenizer st = new StringTokenizer(br.readLine());\\n    long a = Long.parseLong(st.nextToken());\\n    long b = Long.parseLong(st.nextToken());\\n    System.out.println(a + b);\\n  }\\n}\\n',
+          cpp:
+            '#include <bits/stdc++.h>\\nusing namespace std;\\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\\n',
+        },
         tags: [],
       });
     }
@@ -145,9 +153,10 @@ export class AiService {
 - title
 - description
 - difficulty
+- examples (array with {input, output, explanation?})
 - testCases (array with {input, expectedOutput, isHidden})
 - tags
-- starterCode
+- starterCode (object mapping languages to code. Use keys: javascript, python, java, cpp)
 Return ONLY valid JSON.`;
 
     let resultText = await this.callOpenRouter(prompt);

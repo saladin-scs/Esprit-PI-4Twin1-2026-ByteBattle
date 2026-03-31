@@ -124,7 +124,7 @@ export class User {
   @Prop({ default: null, select: false }) passwordResetTokenHash?: string | null;
   @Prop({ default: null }) passwordResetExpiresAt?: Date | null;
 
-  // ✅ FIX : ajout de select:false — l'embedding ne sera jamais retourné par défaut
+  // FIX: added select:false so embedding is never returned by default.
   @Prop({ type: [Number], default: null, select: false })
   faceEmbedding?: number[] | null;
 
@@ -152,7 +152,7 @@ UserSchema.set('toJSON', {
     delete ret.emailVerificationTokenHash;
     delete ret.passwordResetTokenHash;
     delete ret.refreshTokens;
-    delete ret.faceEmbedding; // ✅ FIX : ne jamais exposer l'embedding dans les réponses JSON
+    delete ret.faceEmbedding; // FIX: never expose embedding in JSON responses.
     return ret;
   },
 });

@@ -1,11 +1,10 @@
-/* eslint-disable prettier/prettier */
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class CreateApiKeyDto {
-  @ApiProperty({ example: 'CI classroom' })
+  @ApiProperty({ example: 'My integration key' })
   @IsString()
-  @MinLength(1)
-  @MaxLength(120)
-  name: string;
+  @IsNotEmpty()
+  @MaxLength(80)
+  name!: string;
 }

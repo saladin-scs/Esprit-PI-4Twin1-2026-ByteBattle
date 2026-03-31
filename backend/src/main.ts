@@ -1,4 +1,4 @@
-/* eslint-disable prettier/prettier */
+/* eslint-disable prettier/prettier */ // restart
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -54,7 +54,10 @@ async function bootstrap() {
   );
 
   // Enable CORS
-  const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  const corsOrigins = (
+    process.env.CORS_ORIGIN ||
+    'http://localhost:5173,http://localhost:5174,http://localhost:5175'
+  )
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);

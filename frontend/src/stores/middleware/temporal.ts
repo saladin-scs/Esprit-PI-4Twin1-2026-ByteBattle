@@ -1,7 +1,7 @@
 /**
- * Middleware Undo/Redo pour Zustand (version simplifiée).
- * Pour un store avec undo/redo intégré, utiliser le hook useUndoRedo ou
- * un store dédié avec historique (voir storeConfig).
+ * Undo/Redo middleware for Zustand (simplified version).
+ * For a store with integrated undo/redo, use the useUndoRedo hook or
+ * a dedicated store with history (see storeConfig).
  */
 
 export interface TemporalActions {

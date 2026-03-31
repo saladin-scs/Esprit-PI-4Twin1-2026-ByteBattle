@@ -27,6 +27,8 @@ function applyThemeToDocument(next: Theme) {
   } else {
     root.classList.remove('dark');
   }
+  // Ensure native UI (scrollbars/form controls) matches current theme.
+  root.style.colorScheme = next;
   try {
     localStorage.setItem(STORAGE_KEY, next);
   } catch {

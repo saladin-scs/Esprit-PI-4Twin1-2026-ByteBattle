@@ -1,6 +1,6 @@
 /**
- * Middleware de logging pour Zustand.
- * En dev, log les changements d'état (nom du store + diff).
+ * Logging middleware for Zustand.
+ * In dev, logs state changes (store name + diff).
  */
 type SetState<T> = (partial: T | Partial<T> | ((state: T) => T | Partial<T>)) => void;
 type GetState<T> = () => T;

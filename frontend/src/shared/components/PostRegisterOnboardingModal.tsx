@@ -34,19 +34,19 @@ export function PostRegisterOnboardingModal({ open, onDismiss }: PostRegisterOnb
     >
       <Card className="bb-card relative max-h-[90vh] w-full max-w-lg overflow-y-auto p-6 shadow-2xl">
         <h2 id="bb-onboarding-title" className="bb-section-title mb-1 text-lg">
-          Bienvenue sur ByteBattle
+          Welcome to ByteBattle
         </h2>
-        <p className="bb-body-text mb-5 text-sm">Trois étapes pour bien démarrer :</p>
+        <p className="bb-body-text mb-5 text-sm">Three steps to get started:</p>
         <ol className="space-y-4">
           <li className="flex gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-500/15 text-primary-600 dark:text-primary-400">
               <Zap className="h-4 w-4" aria-hidden />
             </span>
             <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-100">1. Premier challenge</p>
-              <p className="bb-body-text text-sm">Ouvre un défi et envoie une solution.</p>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">1. First challenge</p>
+              <p className="bb-body-text text-sm">Open a challenge and submit a solution.</p>
               <Link to="/challenges" className="mt-1 inline-block text-sm font-medium text-primary-600 hover:underline dark:text-primary-400">
-                Voir les challenges →
+                View challenges →
               </Link>
             </div>
           </li>
@@ -55,8 +55,8 @@ export function PostRegisterOnboardingModal({ open, onDismiss }: PostRegisterOnb
               <MessageCircle className="h-4 w-4" aria-hidden />
             </span>
             <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-100">2. Premier chat</p>
-              <p className="bb-body-text text-sm">Dans un défi, onglet Chat ; en contest, colonne à droite.</p>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">2. First chat</p>
+              <p className="bb-body-text text-sm">In a challenge, use the Chat tab; in a contest, use the right column.</p>
             </div>
           </li>
           <li className="flex gap-3">
@@ -64,21 +64,21 @@ export function PostRegisterOnboardingModal({ open, onDismiss }: PostRegisterOnb
               <Trophy className="h-4 w-4" aria-hidden />
             </span>
             <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-100">3. Premier contest</p>
-              <p className="bb-body-text text-sm">Rejoins une compétition chronométrée.</p>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">3. First contest</p>
+              <p className="bb-body-text text-sm">Join a timed competition.</p>
               <Link to="/competitions" className="mt-1 inline-block text-sm font-medium text-primary-600 hover:underline dark:text-primary-400">
-                Voir les contests →
+                View contests →
               </Link>
             </div>
           </li>
         </ol>
         <div className="mt-6 flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onDismiss}>
-            Fermer
+            Close
           </Button>
           <Link to="/dashboard">
             <Button type="button" onClick={onDismiss}>
-              Tableau de bord
+              Dashboard
             </Button>
           </Link>
         </div>

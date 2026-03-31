@@ -1,6 +1,6 @@
 /**
- * Seed data: défis stdin → stdout (easy / medium / hard).
- * Used by npm run seed:challenges — idempotent sur le titre.
+ * Seed data: stdin -> stdout challenges (easy / medium / hard).
+ * Used by npm run seed:challenges - idempotent on title.
  */
 export const SEED_CHALLENGES = [
   // ─── Easy ───────────────────────────────────────────────────────────────
@@ -88,12 +88,12 @@ public class Solution {
     },
     hints: [
       {
-        text: 'Parcours le tableau avec une boucle (`for` ou `while`) et **ajoute** chaque élément à une variable `sum` initialisée à 0.',
+        text: 'Iterate through the array with a loop (`for` or `while`) and **add** each element to a `sum` variable initialized to 0.',
         tier: 'basic' as const,
         cost: 0,
       },
       {
-        text: 'En Python, une fois `arr` correctement lu avec `list(map(int, input().split()))`, tu peux utiliser la fonction **`sum(arr)`**.',
+        text: 'In Python, once `arr` is read correctly with `list(map(int, input().split()))`, you can use the **`sum(arr)`** function.',
         tier: 'detailed' as const,
         cost: 0,
       },
@@ -317,7 +317,7 @@ public class Solution {
     },
     hints: [
       {
-        text: 'Compare deux à deux, ou utilise une fonction **max** fournie par le langage.',
+        text: 'Compare values pairwise, or use a built-in **max** function from the language.',
         tier: 'basic' as const,
         cost: 0,
       },
@@ -408,7 +408,7 @@ public class Solution {
     },
     hints: [
       {
-        text: 'Trie les caractères des deux mots (ou compte chaque lettre avec une table) puis compare.',
+        text: 'Sort characters of both words (or count each letter with a map), then compare.',
         tier: 'basic' as const,
         cost: 0,
       },
@@ -457,7 +457,7 @@ public class Solution {
     },
     hints: [
       {
-        text: 'Si **A** et **B** ont la même longueur, vérifie si **B** est une sous-chaîne de **A+A**.',
+        text: 'If **A** and **B** have the same length, check whether **B** is a substring of **A+A**.',
         tier: 'detailed' as const,
         cost: 0,
       },
@@ -509,12 +509,12 @@ public class Solution {
     },
     hints: [
       {
-        text: 'Les puissances de 2 en binaire n\'ont qu\'**un seul bit** à 1 (ex. 8 = 1000).',
+        text: 'Powers of 2 in binary have only **one bit** set to 1 (e.g. 8 = 1000).',
         tier: 'basic' as const,
         cost: 0,
       },
       {
-        text: 'Tu peux aussi diviser **n** par 2 tant que c\'est pair et voir si tu arrives à 1.',
+        text: 'You can also keep dividing **n** by 2 while it is even and check whether you reach 1.',
         tier: 'detailed' as const,
         cost: 0,
       },

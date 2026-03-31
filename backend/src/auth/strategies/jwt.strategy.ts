@@ -6,9 +6,9 @@ import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service';
 
 /**
- * Recharge l’utilisateur en base à chaque requête authentifiée pour que les rôles
- * (ex. promotion admin via make-admin) s’appliquent sans exiger un nouveau login :
- * le JWT peut encore contenir d’anciennes claims `roles`.
+ * Reloads the user from DB on each authenticated request so role changes
+ * (e.g. admin promotion via make-admin) apply without requiring a new login.
+ * JWT may still contain stale `roles` claims.
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {

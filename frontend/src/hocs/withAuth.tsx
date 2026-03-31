@@ -1,5 +1,5 @@
 /**
- * HOC: injecte la condition d'authentification et redirige si non connecté.
+ * HOC: injects authentication condition and redirects when not logged in.
  */
 import { ComponentType } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';

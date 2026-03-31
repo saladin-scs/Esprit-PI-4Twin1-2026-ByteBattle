@@ -1,10 +1,10 @@
 /**
- * Gestion des réclamations utilisateurs (admin).
+ * Admin management for user reports.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi, type AdminReclamationRow } from '../../core/api';
-import { Button, Input, Card, Alert, PageContainer, Spinner, Breadcrumbs, EmptyState } from '../../shared/components';
+import { Button, Input, Card, Alert, PageContainer, Spinner } from '../../shared/components';
 import {
   RECLAMATION_CATEGORY_LABELS,
   RECLAMATION_STATUS_LABELS,
@@ -14,16 +14,16 @@ import { ReclamationStatusBadge } from '../../modules/reclamation/components/Rec
 
 const PAGE_SIZE = 15;
 
-function formatDateFr(iso: string) {
+function formatDateEn(iso: string) {
   try {
-    return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' });
+    return new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
   } catch {
     return iso;
   }
 }
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
-  { value: '', label: 'Tous les statuts' },
+  { value: '', label: 'All statuses' },
   { value: 'open', label: RECLAMATION_STATUS_LABELS.open },
   { value: 'read', label: RECLAMATION_STATUS_LABELS.read },
   { value: 'resolved', label: RECLAMATION_STATUS_LABELS.resolved },
@@ -76,9 +76,9 @@ function AdminReclamations() {
           : undefined;
       const msg = res?.data?.message;
       if (res?.status === 403) {
-        setError(msg || 'Accès refusé : droits administrateur requis.');
+        setError(msg || 'Access denied: admin rights required.');
       } else {
-        setError(msg || (err instanceof Error ? err.message : 'Chargement impossible.'));
+        setError(msg || (err instanceof Error ? err.message : 'Unable to load data.'));
       }
       setData(null);
     } finally {
@@ -109,7 +109,7 @@ function AdminReclamations() {
     setError('');
     try {
       const res = await adminApi.patchReclamationStatus(selected.id, statusDraft);
-      setSuccess('Statut mis à jour.');
+      setSuccess('Status updated.');
       setSelected(res.data.reclamation);
       setData((prev) => {
         if (!prev) return prev;
@@ -121,7 +121,7 @@ function AdminReclamations() {
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string | string[] } }; message?: string };
       const msg = ax?.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(', ') : msg || ax?.message || 'Enregistrement impossible.');
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || ax?.message || 'Unable to save changes.');
     } finally {
       setSaving(false);
     }
@@ -135,13 +135,11 @@ function AdminReclamations() {
 
   return (
     <PageContainer maxWidth="7xl" className="py-8">
-      <Breadcrumbs className="mb-4" items={[{ label: 'Admin' }, { label: 'Réclamations' }]} />
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Réclamations</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Reports</h1>
           <p className="text-gray-500 dark:text-gray-400 max-w-xl">
-            Consulter les demandes des utilisateurs, filtrer par statut et mettre à jour le suivi (en attente, prise en
-            compte, résolu).
+            Review user reports, filter by status, and update tracking (pending, under review, resolved).
           </p>
         </div>
         <div className="flex flex-wrap gap-3 text-sm">
@@ -149,7 +147,7 @@ function AdminReclamations() {
             to="/admin/users"
             className="text-indigo-500 dark:text-indigo-400 hover:underline font-medium"
           >
-            ← Utilisateurs
+            ← Users
           </Link>
           <Link
             to="/admin/gamification"
@@ -164,7 +162,7 @@ function AdminReclamations() {
         <Input
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
-          placeholder="Recherche (sujet, message, e-mail, pseudo…)"
+          placeholder="Search (subject, message, email, username...)"
           className="flex-1 min-w-[220px]"
         />
         <select
@@ -182,7 +180,7 @@ function AdminReclamations() {
           ))}
         </select>
         <Button type="submit" variant="secondary">
-          Rechercher
+          Search
         </Button>
       </form>
 
@@ -202,7 +200,7 @@ function AdminReclamations() {
           <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50/80 dark:bg-gray-800/80 flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-900 dark:text-white">Liste</span>
             {data && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">{data.total} au total</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{data.total} total</span>
             )}
           </div>
           <div className="min-h-[200px] max-h-[min(70vh,560px)] overflow-y-auto relative">
@@ -212,12 +210,9 @@ function AdminReclamations() {
               </div>
             )}
             {!loading && data && data.items.length === 0 && (
-              <div className="p-4">
-                <EmptyState
-                  title="Aucun résultat"
-                  description="Aucune réclamation ne correspond aux critères. Essaie d'élargir les filtres."
-                />
-              </div>
+              <p className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                No reports match these criteria.
+              </p>
             )}
             {data?.items.map((row) => (
               <button
@@ -245,13 +240,13 @@ function AdminReclamations() {
                         @{row.username}
                       </Link>
                     ) : (
-                      <span>Utilisateur</span>
+                      <span>User</span>
                     )}
                     {row.userEmail && <span className="ml-2 opacity-90">{row.userEmail}</span>}
                   </div>
                   <div>
                     {RECLAMATION_CATEGORY_LABELS[row.category as ReclamationCategory] ?? row.category} ·{' '}
-                    {formatDateFr(row.createdAt)}
+                    {formatDateEn(row.createdAt)}
                   </div>
                 </div>
               </button>
@@ -265,7 +260,7 @@ function AdminReclamations() {
                 disabled={page <= 1 || loading}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                Précédent
+                Previous
               </Button>
               <span className="text-gray-600 dark:text-gray-400">
                 Page {data.page} / {data.totalPages}
@@ -276,7 +271,7 @@ function AdminReclamations() {
                 disabled={page >= data.totalPages || loading}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Suivant
+                Next
               </Button>
             </div>
           )}
@@ -285,7 +280,7 @@ function AdminReclamations() {
         <Card className="lg:col-span-7 min-h-[320px]">
           {!selected && (
             <div className="flex h-full min-h-[280px] flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400 text-sm px-4">
-              Sélectionne une réclamation dans la liste pour afficher le message et modifier le statut.
+              Select a report from the list to view its message and update status.
             </div>
           )}
           {selected && (
@@ -299,7 +294,7 @@ function AdminReclamations() {
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{selected.subject}</h2>
               <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
                 <p>
-                  <span className="text-gray-500 dark:text-gray-400">Utilisateur : </span>
+                  <span className="text-gray-500 dark:text-gray-400">User: </span>
                   {selected.username ? (
                     <Link to={`/u/${selected.username}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
                       @{selected.username}
@@ -310,12 +305,12 @@ function AdminReclamations() {
                 </p>
                 {selected.userEmail && (
                   <p>
-                    <span className="text-gray-500 dark:text-gray-400">E-mail : </span>
+                    <span className="text-gray-500 dark:text-gray-400">Email: </span>
                     {selected.userEmail}
                   </p>
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Reçue le {formatDateFr(selected.createdAt)} · id {selected.id}
+                  Received on {formatDateEn(selected.createdAt)} · id {selected.id}
                 </p>
               </div>
               <div className="rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 p-4">
@@ -326,7 +321,7 @@ function AdminReclamations() {
               </div>
               <div>
                 <label htmlFor="admin-reclamation-status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Statut
+                  Status
                 </label>
                 <select
                   id="admin-reclamation-status"
@@ -341,8 +336,8 @@ function AdminReclamations() {
                   ))}
                 </select>
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  « Prise en compte » lorsque tu as lu le dossier ; « Résolue » une fois le problème traité. « Annulée » si
-                  l’utilisateur a retiré sa demande (tu peux aussi l’indiquer manuellement).
+                  Use "Under review" once you start investigating; mark as "Resolved" when fixed. Use "Cancelled" if
+                  the user withdrew the report (you can also set it manually).
                 </p>
               </div>
               <Button
@@ -351,7 +346,7 @@ function AdminReclamations() {
                 disabled={statusDraft === selected.status}
                 onClick={() => void saveStatus()}
               >
-                Enregistrer le statut
+                Save status
               </Button>
             </div>
           )}

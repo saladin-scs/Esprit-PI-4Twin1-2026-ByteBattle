@@ -2,10 +2,12 @@
 
 import { useRef } from "react";
 import * as faceapi from "face-api.js";
+import { usePopup } from "../contexts/PopupContext";
 
 export default function FaceLogin({ userId }) {
 
   const videoRef = useRef();
+  const { alert } = usePopup();
 
   const verifyFace = async () => {
 
@@ -33,9 +35,19 @@ export default function FaceLogin({ userId }) {
     const data = await res.json();
 
     if(data.match){
-      alert("Login Success");
+      await alert({
+        title: "Face login",
+        message: "Login Success",
+        confirmText: "OK",
+        variant: "success",
+      });
     } else {
-      alert("Face Not Recognized");
+      await alert({
+        title: "Face login",
+        message: "Face Not Recognized",
+        confirmText: "OK",
+        variant: "danger",
+      });
     }
   };
 

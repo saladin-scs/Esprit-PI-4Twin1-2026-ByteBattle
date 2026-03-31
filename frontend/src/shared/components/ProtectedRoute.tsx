@@ -1,6 +1,6 @@
 /**
- * Route protégée – affiche les enfants uniquement si l'utilisateur est authentifié.
- * Sinon redirige vers /login (avec returnUrl optionnel).
+ * Protected route: renders children only when the user is authenticated.
+ * Otherwise redirects to /login (with optional returnUrl).
  */
 
 import { Navigate, useLocation } from 'react-router-dom';
@@ -9,7 +9,7 @@ import type { RootState } from '../../store/store';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  /** Redirection si non authentifié (défaut: /login) */
+  /** Redirect target when unauthenticated (default: /login) */
   loginPath?: string;
 }
 

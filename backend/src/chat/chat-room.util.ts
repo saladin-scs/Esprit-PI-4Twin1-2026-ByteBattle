@@ -1,4 +1,4 @@
-/** Salles autorisées : competition:<mongoId> | challenge:<mongoId> */
+/** Allowed rooms: competition:<mongoId> | challenge:<mongoId> */
 export function isValidChatRoom(room: string): boolean {
   if (!room || typeof room !== 'string') return false;
   if (room.length > 120) return false;

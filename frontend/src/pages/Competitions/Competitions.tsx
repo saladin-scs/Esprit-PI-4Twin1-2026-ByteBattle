@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Search } from 'lucide-react';
 import { PageContainer } from '../../shared/components';
 import { Alert } from '../../shared/components';
-import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilityCallout';
-import { Trophy, Sparkles, Filter } from 'lucide-react';
 import { useCompetitionsStore } from './useCompetitionsStore';
 import {
   CompetitionCard,
@@ -10,67 +9,187 @@ import {
   CompetitionTabs,
   CompetitionEmptyState,
 } from './components';
-import type { CompetitionType } from './types';
 
 export default function Competitions() {
-  const { tab, setTab, competitions, total, loading, error, fetchCompetitions } = useCompetitionsStore();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'' | CompetitionType>('');
-  const [languageFilter, setLanguageFilter] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const {
+    tab,
+    setTab,
+    competitions,
+    total,
+    page,
+    totalPages,
+    loading,
+    error,
+    fetchCompetitions,
+  } = useCompetitionsStore();
+  const [query, setQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'speed' | 'code_golf' | 'algorithmic'>('all');
+  const [difficultyFilter, setDifficultyFilter] = useState<'all' | 'easy' | 'medium' | 'hard' | 'expert'>('all');
+  const [languageFilter, setLanguageFilter] = useState<'all' | 'javascript' | 'python' | 'java' | 'cpp'>('all');
+  const [sortBy, setSortBy] = useState<'start-desc' | 'start-asc' | 'subs-desc'>('start-desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
 
   useEffect(() => {
-    fetchCompetitions();
-  }, [tab, fetchCompetitions]);
+    setCurrentPage(1);
+  }, [tab]);
 
-  const languageOptions = useMemo(() => {
-    const set = new Set<string>();
-    competitions.forEach((c) => (c.supportedLanguages || []).forEach((l) => set.add(String(l))));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [competitions]);
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const sortConfig =
+        sortBy === 'subs-desc'
+          ? { sortBy: 'submissions' as const, sortOrder: 'desc' as const }
+          : sortBy === 'start-asc'
+            ? { sortBy: 'startTime' as const, sortOrder: 'asc' as const }
+            : { sortBy: 'startTime' as const, sortOrder: 'desc' as const };
 
-  const filteredCompetitions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return competitions.filter((c) => {
-      if (typeFilter && c.type !== typeFilter) return false;
-      if (languageFilter && !(c.supportedLanguages || []).includes(languageFilter)) return false;
-      if (!q) return true;
-      return (
-        c.name?.toLowerCase().includes(q) ||
-        c.description?.toLowerCase().includes(q)
-      );
-    });
-  }, [competitions, searchQuery, typeFilter, languageFilter]);
+      fetchCompetitions({
+        page: currentPage,
+        limit: pageSize,
+        search: query.trim() || undefined,
+        type: typeFilter === 'all' ? undefined : typeFilter,
+        difficulty: difficultyFilter === 'all' ? undefined : difficultyFilter,
+        language: languageFilter === 'all' ? undefined : languageFilter,
+        ...sortConfig,
+      });
+    }, 250);
 
-  const resetFilters = () => {
-    setSearchQuery('');
-    setTypeFilter('');
-    setLanguageFilter('');
-  };
+    return () => clearTimeout(timeout);
+  }, [
+    tab,
+    query,
+    typeFilter,
+    difficultyFilter,
+    languageFilter,
+    sortBy,
+    currentPage,
+    fetchCompetitions,
+  ]);
+
+  const hasActiveFilters =
+    query.trim().length > 0 ||
+    typeFilter !== 'all' ||
+    difficultyFilter !== 'all' ||
+    languageFilter !== 'all' ||
+    sortBy !== 'start-desc';
 
   return (
-    <PageContainer maxWidth="7xl" className="relative py-8 md:py-12">
-      <div className="bb-hero-gradient-tall" aria-hidden />
-
-      <header className="relative mb-10">
-        <div className="bb-kicker">
-          <Trophy className="h-3.5 w-3.5" aria-hidden />
-          Contests
-        </div>
-        <h1 className="bb-page-heading mb-3 flex flex-wrap items-center gap-2">
-          <Sparkles className="h-8 w-8 shrink-0 text-amber-500" aria-hidden />
-          <span className="bb-title-gradient text-3xl md:text-4xl">ByteBattle contests</span>
-        </h1>
-        <p className="bb-body-text max-w-2xl">
-          Time-limited programming contests. Submit solutions, climb live leaderboards, earn XP and badges.
+    <PageContainer maxWidth="7xl" className="py-8 md:py-12">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-emerald-400 mb-2">Contests</h1>
+        <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
+          Compete in time-limited programming contests. Submit solutions, climb the leaderboard, and earn XP and badges.
         </p>
+        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden />
+          Advanced competitions mode enabled
+        </div>
       </header>
 
-      <div className="relative mb-8">
-        <ChatAvailabilityCallout variant="banner" />
-      </div>
-
       <CompetitionTabs activeTab={tab} onTabChange={setTab} disabled={loading} />
+
+      <section className="mt-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 p-4 sm:p-5">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+          <div className="lg:col-span-2 relative">
+            <label htmlFor="contest-search" className="sr-only">Search contests</label>
+            <Search className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
+            <input
+              id="contest-search"
+              value={query}
+              onChange={(e) => {
+                setCurrentPage(1);
+                setQuery(e.target.value);
+              }}
+              placeholder="Search by title or description"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/80 text-gray-900 dark:text-gray-100 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <select
+            value={typeFilter}
+            onChange={(e) => {
+              setCurrentPage(1);
+              setTypeFilter(e.target.value as typeof typeFilter);
+            }}
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/80 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Filter by contest type"
+          >
+            <option value="all">All types</option>
+            <option value="speed">Speed</option>
+            <option value="algorithmic">Algorithmic</option>
+            <option value="code_golf">Code Golf</option>
+          </select>
+
+          <select
+            value={difficultyFilter}
+            onChange={(e) => {
+              setCurrentPage(1);
+              setDifficultyFilter(e.target.value as typeof difficultyFilter);
+            }}
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/80 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Filter by difficulty"
+          >
+            <option value="all">All difficulties</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+            <option value="expert">Expert</option>
+          </select>
+
+          <select
+            value={languageFilter}
+            onChange={(e) => {
+              setCurrentPage(1);
+              setLanguageFilter(e.target.value as typeof languageFilter);
+            }}
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/80 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Filter by language"
+          >
+            <option value="all">All languages</option>
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="cpp">C++</option>
+          </select>
+        </div>
+
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <select
+            value={sortBy}
+            onChange={(e) => {
+              setCurrentPage(1);
+              setSortBy(e.target.value as typeof sortBy);
+            }}
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900/80 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 sm:w-64"
+            aria-label="Sort competitions"
+          >
+            <option value="start-desc">Sort: newest start date</option>
+            <option value="start-asc">Sort: oldest start date</option>
+            <option value="subs-desc">Sort: most submissions</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentPage(1);
+                setQuery('');
+                setTypeFilter('all');
+                setDifficultyFilter('all');
+                setLanguageFilter('all');
+                setSortBy('start-desc');
+              }}
+              className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+            >
+              Reset filters
+            </button>
+          )}
+        </div>
+
+        <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          Server query: {query.trim() || 'none'} | type: {typeFilter} | difficulty: {difficultyFilter} | language: {languageFilter} | sort: {sortBy} | page: {currentPage}
+        </div>
+      </section>
 
       <div id="panel-active" role="tabpanel" aria-labelledby="tab-active" className="mt-6">
         {tab === 'scheduled' && <div id="panel-scheduled" role="tabpanel" aria-labelledby="tab-scheduled" />}
@@ -83,86 +202,46 @@ export default function Competitions() {
         </Alert>
       )}
 
-      <div className="mt-6 space-y-3">
-        <button
-          onClick={() => setShowFilters((v) => !v)}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-        >
-          <Filter className="h-4 w-4" />
-          {showFilters ? 'Hide Filters' : 'Show Filters'}
-        </button>
-        {showFilters && (
-          <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-4 dark:border-slate-700 dark:bg-slate-800/50">
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Search</label>
-              <input
-                type="text"
-                placeholder="Name or description..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Type</label>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as '' | CompetitionType)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
-              >
-                <option value="">All types</option>
-                <option value="algorithmic">Algorithmic</option>
-                <option value="speed">Speed</option>
-                <option value="code_golf">Code Golf</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Language</label>
-              <select
-                value={languageFilter}
-                onChange={(e) => setLanguageFilter(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
-              >
-                <option value="">All languages</option>
-                {languageOptions.map((lang) => (
-                  <option key={lang} value={lang}>{lang}</option>
-                ))}
-              </select>
-            </div>
-            <div className="md:col-span-4">
-              <button
-                onClick={resetFilters}
-                className="w-full rounded-lg bg-slate-300 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-400 dark:bg-slate-600 dark:text-white dark:hover:bg-slate-500"
-              >
-                Reset Filters
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
       {loading ? (
         <div className="mt-6 space-y-4" aria-busy="true" aria-label="Loading contests">
           {[1, 2, 3].map((i) => (
             <CompetitionCardSkeleton key={i} />
           ))}
         </div>
-      ) : filteredCompetitions.length === 0 ? (
+      ) : competitions.length === 0 ? (
         <CompetitionEmptyState tab={tab} className="mt-6" />
       ) : (
         <div className="mt-6 space-y-4">
-          {filteredCompetitions.map((c, i) => (
+          {competitions.map((c, i) => (
             <CompetitionCard key={c._id} competition={c} index={i} />
           ))}
         </div>
       )}
 
       {!loading && total > 0 && (
-        <p className="bb-body-text mt-8 text-center text-sm" role="status">
-          Showing <strong className="text-slate-800 dark:text-slate-200">{filteredCompetitions.length}</strong> of{' '}
-          <strong className="text-slate-800 dark:text-slate-200">{total}</strong> contest
-          {total !== 1 ? 's' : ''}
-        </p>
+        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p className="text-sm text-gray-500 dark:text-gray-400" role="status">
+            Showing {competitions.length} of {total} contest{total !== 1 ? 's' : ''} · page {page} / {Math.max(1, totalPages)}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage <= 1 || loading}
+              className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:border-emerald-500"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(Math.max(1, totalPages), p + 1))}
+              disabled={currentPage >= Math.max(1, totalPages) || loading}
+              className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:border-emerald-500"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       )}
     </PageContainer>
   );

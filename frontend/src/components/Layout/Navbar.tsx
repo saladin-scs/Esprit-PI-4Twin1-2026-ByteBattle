@@ -44,7 +44,7 @@ function Navbar() {
                   Leaderboard
                 </Link>
                 <Link to="/reclamation" className={linkClass}>
-                  Réclamation
+                  Reports
                 </Link>
               </div>
             )}
@@ -58,7 +58,7 @@ function Navbar() {
                 {isAdmin && (
                   <>
                     <Link to="/admin/users" className={linkClass}>Admin</Link>
-                    <Link to="/admin/reclamations" className={linkClass}>Réclamations</Link>
+                    <Link to="/admin/reclamations" className={linkClass}>Reports</Link>
                   </>
                 )}
                 <Link to={`/u/${user?.username}`} className={linkClass}>{user?.username}</Link>

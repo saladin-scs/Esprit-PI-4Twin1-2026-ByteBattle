@@ -14,10 +14,10 @@ export class ChatController {
   @Get('history')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Historique des messages pour une salle (competition:id ou challenge:id)' })
+  @ApiOperation({ summary: 'Message history for a room (competition:id or challenge:id)' })
   @ApiQuery({ name: 'room', example: 'competition:507f1f77bcf86cd799439011' })
   @ApiQuery({ name: 'limit', required: false })
-  @ApiQuery({ name: 'before', required: false, description: 'ObjectId du message — pagination' })
+  @ApiQuery({ name: 'before', required: false, description: 'Message ObjectId - pagination' })
   async history(
     @Query('room') room: string,
     @Query('limit') limitStr?: string,
@@ -36,7 +36,7 @@ export class ChatController {
   @Post('report')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Signaler un message (modération)' })
+  @ApiOperation({ summary: 'Report a message (moderation)' })
   async report(@Body() dto: ReportChatMessageDto, @Req() req: { user: { userId: string } }) {
     await this.chatService.assertMembership(dto.room, req.user.userId);
     return this.chatService.reportMessage(req.user.userId, dto);

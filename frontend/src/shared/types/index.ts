@@ -1,5 +1,5 @@
 /**
- * Types partagés – un seul point d'entrée pour les types utilisés par plusieurs features.
+ * Shared types - single entry point for types used by multiple features.
  */
 
 export * from '../../types/profile';

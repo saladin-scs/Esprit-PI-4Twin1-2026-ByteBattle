@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { reclamationsApi, type ReclamationMineItem, type ReclamationStatus } from '../../services/api';
-import { Button, Card, PageContainer, Alert, Modal, EmptyState } from '../../shared/components';
+import { Button, Card, PageContainer, Alert, Modal } from '../../shared/components';
 import { RECLAMATION_CATEGORY_LABELS } from './constants';
 import { ReclamationForm } from './components/ReclamationForm';
 import { ReclamationStatusBadge } from './components/ReclamationStatusBadge';
 
 type Tab = 'mine' | 'new';
 
-function formatDateFr(iso: string) {
+function formatDateEn(iso: string) {
   try {
     const d = new Date(iso);
-    return d.toLocaleString('fr-FR', {
+    return d.toLocaleString('en-US', {
       dateStyle: 'medium',
       timeStyle: 'short',
     });
@@ -52,7 +52,7 @@ export function ReclamationScreen() {
       });
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string } }; message?: string };
-      setListError(ax?.response?.data?.message || ax?.message || 'Impossible de charger tes réclamations.');
+      setListError(ax?.response?.data?.message || ax?.message || 'Unable to load your reports.');
       setItems([]);
     } finally {
       setListLoading(false);
@@ -82,7 +82,7 @@ export function ReclamationScreen() {
       const ax = err as { response?: { data?: { message?: string | string[] } }; message?: string };
       const msg = ax?.response?.data?.message;
       setCancelError(
-        Array.isArray(msg) ? msg.join(', ') : msg || ax?.message || 'Annulation impossible.',
+        Array.isArray(msg) ? msg.join(', ') : msg || ax?.message || 'Cancellation failed.',
       );
     } finally {
       setCancelLoading(false);
@@ -100,21 +100,21 @@ export function ReclamationScreen() {
     <PageContainer maxWidth="xl" className="mt-6 mb-12">
       <div className="rounded-2xl border border-indigo-200/80 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950/40 px-4 py-6 sm:px-8 sm:py-8 mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-          Réclamations
+          Reports
         </h1>
         <p className="mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400 max-w-2xl">
-          Consulte l’état de tes demandes, annule celles encore en cours si besoin, ou envoie une nouvelle réclamation.
-          L’équipe peut te recontacter sur l’e-mail de ton compte.
+          Review your report status, cancel open ones if needed, or submit a new report.
+          The team may contact you using your account email.
         </p>
-        <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Sections réclamations">
+        <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Report sections">
           <button type="button" role="tab" aria-selected={tab === 'mine'} className={tabClass('mine')} onClick={() => setTab('mine')}>
-            Mes réclamations
+            My reports
             {total > 0 && (
               <span className="ml-1.5 rounded-full bg-white/20 px-2 py-0.5 text-xs">{total}</span>
             )}
           </button>
           <button type="button" role="tab" aria-selected={tab === 'new'} className={tabClass('new')} onClick={() => setTab('new')}>
-            Nouvelle réclamation
+            New report
           </button>
         </div>
       </div>
@@ -124,7 +124,7 @@ export function ReclamationScreen() {
           <Card className="lg:col-span-5 !p-0 overflow-hidden border-gray-200 dark:border-gray-700">
             <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50/80 dark:bg-gray-800/80">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Liste</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Sélectionne une ligne pour voir le détail</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Select an item to view details</p>
             </div>
             <div className="max-h-[min(70vh,520px)] overflow-y-auto">
               {listLoading && (
@@ -138,11 +138,8 @@ export function ReclamationScreen() {
                 </div>
               )}
               {!listLoading && !listError && items.length === 0 && (
-                <div className="p-4">
-                  <EmptyState
-                    title="Aucune réclamation pour l'instant"
-                    description="Passe à l'onglet « Nouvelle réclamation » pour en créer une."
-                  />
+                <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No reports yet. Go to the "New report" tab to create one.
                 </div>
               )}
               {!listLoading &&
@@ -167,7 +164,7 @@ export function ReclamationScreen() {
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                       <span>{RECLAMATION_CATEGORY_LABELS[item.category]}</span>
                       <span aria-hidden>·</span>
-                      <time dateTime={item.createdAt}>{formatDateFr(item.createdAt)}</time>
+                      <time dateTime={item.createdAt}>{formatDateEn(item.createdAt)}</time>
                     </div>
                   </button>
                 ))}
@@ -180,10 +177,10 @@ export function ReclamationScreen() {
                   disabled={page <= 1 || listLoading}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  Précédent
+                  Previous
                 </Button>
                 <span className="text-gray-600 dark:text-gray-400">
-                  Page {page} sur {totalPages}
+                  Page {page} of {totalPages}
                 </span>
                 <Button
                   type="button"
@@ -191,7 +188,7 @@ export function ReclamationScreen() {
                   disabled={page >= totalPages || listLoading}
                   onClick={() => setPage((p) => p + 1)}
                 >
-                  Suivant
+                  Next
                 </Button>
               </div>
             )}
@@ -200,7 +197,7 @@ export function ReclamationScreen() {
           <Card className="lg:col-span-7 min-h-[280px]">
             {!selected && (
               <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400 text-sm px-4">
-                <p>Sélectionne une réclamation dans la liste pour afficher le message complet et les actions possibles.</p>
+                <p>Select a report from the list to view the full message and available actions.</p>
               </div>
             )}
             {selected && (
@@ -213,7 +210,7 @@ export function ReclamationScreen() {
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{selected.subject}</h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Envoyée le <time dateTime={selected.createdAt}>{formatDateFr(selected.createdAt)}</time>
+                  Sent on <time dateTime={selected.createdAt}>{formatDateEn(selected.createdAt)}</time>
                 </p>
                 <div className="rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 p-4">
                   <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Message</p>
@@ -232,14 +229,14 @@ export function ReclamationScreen() {
                       setCancelModalOpen(true);
                     }}
                   >
-                    Annuler cette réclamation
+                    Cancel this report
                   </Button>
                 )}
                 {(selected.status === 'resolved' || selected.status === 'cancelled') && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {selected.status === 'resolved'
-                      ? 'Cette demande est marquée comme résolue. Pour un nouveau sujet, crée une autre réclamation.'
-                      : 'Tu as annulé cette réclamation.'}
+                      ? 'This report is marked as resolved. For a new issue, create a new report.'
+                      : 'You cancelled this report.'}
                   </p>
                 )}
               </div>
@@ -251,7 +248,7 @@ export function ReclamationScreen() {
       {tab === 'new' && (
         <div className="mx-auto max-w-lg">
           <Card>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Nouvelle réclamation</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">New report</h2>
             <ReclamationForm
               onSuccess={() => {
                 setSelected(null);
@@ -266,17 +263,16 @@ export function ReclamationScreen() {
       <Modal
         isOpen={cancelModalOpen && selected != null && canUserCancel(selected.status)}
         onClose={() => !cancelLoading && setCancelModalOpen(false)}
-        title="Annuler la réclamation ?"
+        title="Cancel report?"
       >
         <div className="space-y-4">
           <p className="text-gray-600 dark:text-gray-300">
-            Cette action est définitive. L’équipe ne traitera plus cette demande. Tu pourras en créer une nouvelle si
-            besoin.
+            This action is permanent. The team will no longer process this report. You can create a new one if needed.
           </p>
           {cancelError && <Alert variant="error">{cancelError}</Alert>}
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="secondary" onClick={() => setCancelModalOpen(false)} disabled={cancelLoading}>
-              Retour
+              Back
             </Button>
             <Button
               type="button"
@@ -286,7 +282,7 @@ export function ReclamationScreen() {
               disabled={cancelLoading}
               className="bg-red-600 text-white hover:bg-red-700"
             >
-              Annuler la réclamation
+              Cancel report
             </Button>
           </div>
         </div>

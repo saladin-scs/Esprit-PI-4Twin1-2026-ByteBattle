@@ -10,27 +10,30 @@ interface CompetitionEmptyStateProps {
 const MESSAGES: Record<CompetitionTab, { title: string; description: string }> = {
   active: {
     title: 'No active contests',
-    description: 'There are no contests running right now. Check scheduled or past contests.',
+    description: 'There are no contests running right now. Check back later or look at scheduled and past contests.',
   },
   scheduled: {
     title: 'No scheduled contests',
-    description: 'No upcoming contests yet. Stay tuned.',
+    description: 'No upcoming contests are scheduled yet. Stay tuned for new challenges.',
   },
   past: {
     title: 'No past contests',
-    description: 'No finished contests to show yet.',
+    description: 'No finished contests to show yet. Participate in active contests to see history here.',
   },
 };
 
 function CompetitionEmptyStateComponent({ tab, className = '' }: CompetitionEmptyStateProps) {
   const { title, description } = MESSAGES[tab];
   return (
-    <div className={`bb-empty-state ${className}`} role="status">
-      <div className="mb-4 rounded-full bg-primary-500/10 p-4 dark:bg-primary-500/15" aria-hidden>
-        <Trophy className="h-12 w-12 text-primary-500 dark:text-primary-400" />
+    <div
+      className={`flex flex-col items-center justify-center py-16 px-6 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/30 ${className}`}
+      role="status"
+    >
+      <div className="rounded-full bg-gray-200 dark:bg-gray-700/50 p-4 mb-4" aria-hidden>
+        <Trophy className="w-12 h-12 text-gray-500 dark:text-gray-400" />
       </div>
-      <h3 className="mb-2 text-lg font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
-      <p className="bb-body-text max-w-sm text-center text-sm">{description}</p>
+      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-300 mb-2">{title}</h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm">{description}</p>
     </div>
   );
 }

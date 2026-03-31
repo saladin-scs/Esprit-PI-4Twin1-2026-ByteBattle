@@ -1,30 +1,30 @@
 /**
- * ByteBattle Gamification – Barème XP par action et constantes.
+ * ByteBattle Gamification - XP scale per action and constants.
  */
 
 export const XP_BY_ACTION = {
-  /** Résoudre un problème par difficulté */
+  /** Solve a problem by difficulty */
   solveEasy: 50,
   solveMedium: 100,
   solveHard: 200,
   solveExpert: 300,
   /** Bonus solution parfaite (premier coup) */
   perfectSolveBonus: 25,
-  /** Première solution du jour */
+  /** First solution of the day */
   firstSolveOfDay: 50,
-  /** Connexion quotidienne */
+  /** Daily login */
   dailyLogin: 10,
-  /** Bonus de streak (par jour de streak) */
+  /** Streak bonus (per streak day) */
   streakBonusPerDay: 5,
-  /** Participer à un concours */
+  /** Participate in a contest */
   contestParticipate: 50,
-  /** Gagner un concours */
+  /** Win a contest */
   contestWin: 500,
-  /** Commentaire utile (limité 5x/jour) */
+  /** Helpful comment (limited to 5/day) */
   helpfulComment: 5,
 } as const;
 
-/** Limites quotidiennes (clé = action, valeur = max par jour) */
+/** Daily limits (key = action, value = max per day) */
 export const DAILY_LIMITS = {
   firstSolveOfDay: 1,
   dailyLogin: 1,
@@ -43,7 +43,7 @@ export interface BadgeDefinition {
   condition: string;
   rarity: BadgeRarity;
   xpReward: number;
-  /** Coins ou freezes optionnels */
+  /** Optional coins or freezes */
   coinsReward?: number;
   streakFreezes?: number;
 }

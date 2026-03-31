@@ -17,11 +17,12 @@ export interface CompetitionListItem {
   participants?: string[];
   totalSubmissions?: number;
   challengeIds: string[];
+  prizes?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard' | 'expert';
 }
 
 export interface CompetitionDetail extends CompetitionListItem {
   rules?: string;
-  totalSubmissions?: number;
 }
 
 export interface LeaderboardEntry {

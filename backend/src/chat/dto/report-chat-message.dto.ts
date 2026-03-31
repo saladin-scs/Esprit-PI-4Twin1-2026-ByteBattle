@@ -1,17 +1,16 @@
-import { IsMongoId, IsOptional, IsString, MaxLength } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class ReportChatMessageDto {
-  @ApiProperty({ example: '507f1f77bcf86cd799439011' })
-  @IsMongoId()
-  messageId: string;
-
-  @ApiProperty({ example: 'challenge:507f1f77bcf86cd799439011' })
+  @ApiProperty({ example: '661cf38db8d4f8d33a677abc' })
   @IsString()
-  @MaxLength(120)
-  room: string;
+  messageId!: string;
 
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiProperty({ example: 'competition:661cf38db8d4f8d33a677fff' })
+  @IsString()
+  room!: string;
+
+  @ApiProperty({ required: false, example: 'Spam message' })
   @IsOptional()
   @IsString()
   @MaxLength(500)
