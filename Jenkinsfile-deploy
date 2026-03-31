@@ -9,12 +9,12 @@ pipeline {
         choice(
             name: 'DEPLOY_ENV',
             choices: ['dev', 'staging', 'production'],
-            description: '🌍 Environnement de déploiement'
+            description: '🌍 Deployment environment'
         )
         string(
             name: 'BUILD_NUMBER',
             defaultValue: 'latest',
-            description: '🏷️ Numéro du build à déployer (ex: 12, latest)'
+            description: '🏷️ Build number to deploy (e.g. 12, latest)'
         )
     }
     
@@ -32,19 +32,19 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        echo "🔍 Vérification des images sur Docker Hub..."
+                        echo "🔍 Checking images on Docker Hub..."
                         
                         docker pull ${BACKEND_IMAGE} || {
-                            echo "❌ Image backend ${BACKEND_IMAGE} non trouvée"
+                            echo "❌ Backend image ${BACKEND_IMAGE} not found"
                             exit 1
                         }
                         
                         docker pull ${FRONTEND_IMAGE} || {
-                            echo "❌ Image frontend ${FRONTEND_IMAGE} non trouvée"
+                            echo "❌ Frontend image ${FRONTEND_IMAGE} not found"
                             exit 1
                         }
                         
-                        echo "✅ Images trouvées"
+                        echo "✅ Images found"
                         docker images | grep khalfaouisaladin
                     '''
                 }
@@ -56,32 +56,32 @@ pipeline {
                 script {
                     withKubeConfig([credentialsId: KUBECONFIG_CREDENTIAL]) {
                         sh """
-                            echo "🔍 Vérification de kubectl..."
-                            command -v kubectl || echo "⚠️ kubectl non trouvé dans PATH"
+                            echo "🔍 Checking kubectl..."
+                            command -v kubectl || echo "⚠️ kubectl not found in PATH"
                             
                             cd ${WORKSPACE}
                             
-                            echo "☸️ Déploiement sur Kubernetes (${params.DEPLOY_ENV})..."
+                            echo "☸️ Deploying to Kubernetes (${params.DEPLOY_ENV})..."
                             
-                            # Appliquer les configurations
+                            # Apply configuration files
                             kubectl apply -f mongodb-deployment.yaml
                             kubectl apply -f backend-deployment.yaml
                             kubectl apply -f frontend-deployment.yaml
                             
-                            # Mettre à jour les images des déploiements
+                            # Update deployment images
                             kubectl set image deployment/backend backend=${BACKEND_IMAGE}
                             kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}
                             
-                            # Vérifier le déploiement
-                            echo "⏳ Vérification du déploiement..."
+                            # Check deployment rollout
+                            echo "⏳ Checking deployment rollout..."
                             kubectl rollout status deployment/backend --timeout=120s
                             kubectl rollout status deployment/frontend --timeout=120s
                             
-                            # Afficher l'état
+                            # Show current state
                             kubectl get pods
                             kubectl get svc
                             
-                            echo "✅ Déploiement terminé sur ${params.DEPLOY_ENV}"
+                            echo "✅ Deployment completed on ${params.DEPLOY_ENV}"
                         """
                     }
                 }
@@ -93,61 +93,61 @@ stage('Smoke Tests') {
         script {
             withKubeConfig([credentialsId: KUBECONFIG_CREDENTIAL]) {
                 sh '''
-                    echo "🔥 Tests de non-régression..."
+                    echo "🔥 Smoke tests..."
                     
-                    echo "⏳ Mise en place du port-forwarding..."
+                    echo "⏳ Setting up port-forwarding..."
                     
-                    # Port-forward pour le backend API (port 3000)
+                    # Port-forward backend API (port 3000)
                     kubectl port-forward svc/backend-service 3000:3000 &
                     BACKEND_PF_PID=$!
                     
-                    # Port-forward pour le frontend (port 80 -> 3000 local)
+                    # Port-forward frontend (port 80 -> local 3001)
                     kubectl port-forward svc/frontend-service 3001:80 &
                     FRONTEND_PF_PID=$!
                     
-                    # Attendre que les port-forwards soient établis
+                    # Wait until port-forwards are established
                     sleep 5
                     
-                    # Tester le backend API
-                    echo "📡 Test du backend sur http://localhost:3000..."
+                    # Test backend API
+                    echo "📡 Testing backend at http://localhost:3000..."
                     BACKEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health || echo "000")
                     
                     if [ "$BACKEND_RESPONSE" -eq 200 ] || [ "$BACKEND_RESPONSE" -eq 404 ] || [ "$BACKEND_RESPONSE" -eq 401 ]; then
-                        echo "✅ Backend répond (HTTP $BACKEND_RESPONSE)"
+                        echo "✅ Backend responds (HTTP $BACKEND_RESPONSE)"
                         BACKEND_TEST="PASS"
                     else
-                        echo "❌ Backend ne répond pas (HTTP $BACKEND_RESPONSE)"
+                        echo "❌ Backend is not responding (HTTP $BACKEND_RESPONSE)"
                         BACKEND_TEST="FAIL"
                         
-                        # Debug : afficher plus d'infos
-                        echo "🔍 Test avec verbose pour debug :"
+                        # Debug: show additional details
+                        echo "🔍 Verbose debug test:"
                         curl -v http://localhost:3000/health || true
                     fi
                     
-                    # Tester le frontend
-                    echo "📡 Test du frontend sur http://localhost:3001..."
+                    # Test frontend
+                    echo "📡 Testing frontend at http://localhost:3001..."
                     FRONTEND_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001 || echo "000")
                     
                     if [ "$FRONTEND_RESPONSE" -eq 200 ]; then
-                        echo "✅ Frontend répond (HTTP $FRONTEND_RESPONSE)"
+                        echo "✅ Frontend responds (HTTP $FRONTEND_RESPONSE)"
                         FRONTEND_TEST="PASS"
                     else
-                        echo "❌ Frontend ne répond pas (HTTP $FRONTEND_RESPONSE)"
+                        echo "❌ Frontend is not responding (HTTP $FRONTEND_RESPONSE)"
                         FRONTEND_TEST="FAIL"
                     fi
                     
-                    # Nettoyer les port-forwards
-                    echo "🧹 Nettoyage des port-forwards..."
+                    # Clean up port-forwards
+                    echo "🧹 Cleaning up port-forwards..."
                     kill $BACKEND_PF_PID 2>/dev/null || true
                     kill $FRONTEND_PF_PID 2>/dev/null || true
                     
-                    # Vérifier les résultats
+                    # Check results
                     if [ "$BACKEND_TEST" = "FAIL" ] || [ "$FRONTEND_TEST" = "FAIL" ]; then
-                        echo "❌ Les tests ont échoué"
+                        echo "❌ Tests failed"
                         exit 1
                     fi
                     
-                    echo "✅ Tous les tests passent"
+                    echo "✅ All tests passed"
                 '''
             }
         }
@@ -157,10 +157,10 @@ stage('Smoke Tests') {
     
     post {
         success {
-            echo "✅ Déploiement réussi !"
+            echo "✅ Deployment succeeded!"
         }
         failure {
-            echo "❌ Déploiement échoué !"
+            echo "❌ Deployment failed!"
         }
     }
 }

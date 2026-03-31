@@ -1,6 +1,6 @@
 /**
- * Hook de synchronisation store ↔ query (URL search params).
- * Garde les filtres / page du store alignés avec l'URL et vice versa.
+ * Store ↔ query synchronization hook (URL search params).
+ * Keeps store filters/page aligned with URL and vice versa.
  */
 import { useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -8,26 +8,26 @@ import { useSearchParams } from 'react-router-dom';
 export interface QuerySyncConfig<T> {
   /** Map state → query keys (e.g. { search: 'q', difficulty: 'diff', page: 'page' }) */
   stateToQuery: { [K in keyof T]?: string };
-  /** Map query → state (parser par clé) */
+  /** Map query -> state (parser per key) */
   queryToState: (key: string, value: string | null) => T[keyof T] | undefined;
-  /** État actuel du store */
+  /** Current store state */
   state: T;
-  /** Mise à jour du store */
+  /** Store update function */
   setState: (partial: Partial<T>) => void;
-  /** Si true, écrire l'URL au montage depuis le store (défaut: true) */
+  /** If true, write URL on mount from store (default: true) */
   pushStateOnMount?: boolean;
 }
 
 /**
- * Synchronise un slice du store avec les search params.
- * - Au montage: lit l'URL et met à jour le store (optionnel), puis écoute le store et met à jour l'URL.
- * - Quand l'URL change (ex. navigate), met à jour le store.
+ * Synchronizes a store slice with search params.
+ * - On mount: reads URL and updates store (optional), then listens to store and updates URL.
+ * - When URL changes (e.g. navigate), updates store.
  */
 export function useStoreQuerySync<T extends Record<string, unknown>>(config: QuerySyncConfig<T>) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { stateToQuery, queryToState, state, setState, pushStateOnMount = true } = config;
 
-  // URL → store
+  // URL -> store
   useEffect(() => {
     const partial: Partial<T> = {};
     let hasChange = false;
@@ -44,7 +44,7 @@ export function useStoreQuerySync<T extends Record<string, unknown>>(config: Que
     if (hasChange) setState(partial);
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Store → URL (quand state change)
+  // Store -> URL (when state changes)
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
     let changed = false;

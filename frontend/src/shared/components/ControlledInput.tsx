@@ -1,5 +1,5 @@
 /**
- * Input utilisable en mode contrôlé (value + onChange) ou non contrôlé (defaultValue).
+ * Input that supports both controlled (value + onChange) and uncontrolled (defaultValue) modes.
  */
 import { useControlled } from '../../hooks/useControlled';
 

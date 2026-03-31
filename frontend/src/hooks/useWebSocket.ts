@@ -1,28 +1,28 @@
 /**
- * Hook WebSocket avec reconnexion automatique (backoff exponentiel).
+ * WebSocket hook with automatic reconnection (exponential backoff).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type WebSocketStatus = 'connecting' | 'open' | 'closing' | 'closed' | 'error';
 
 export interface UseWebSocketOptions {
-  /** Reconnexion automatique (défaut: true) */
+  /** Automatic reconnection (default: true) */
   reconnect?: boolean;
-  /** Délai initial de reconnexion (ms) */
+  /** Initial reconnection delay (ms) */
   reconnectInterval?: number;
-  /** Délai max de reconnexion (ms) */
+  /** Maximum reconnection delay (ms) */
   reconnectMaxInterval?: number;
-  /** Facteur de backoff */
+  /** Backoff factor */
   reconnectBackoff?: number;
-  /** Nombre max de tentatives (0 = illimité) */
+  /** Maximum number of attempts (0 = unlimited) */
   reconnectAttempts?: number;
-  /** Connexion uniquement si true (ex. when authenticated) */
+  /** Connect only when true (e.g. when authenticated) */
   enabled?: boolean;
-  /** Callback à l'ouverture */
+  /** Callback on open */
   onOpen?: (ev: Event) => void;
-  /** Callback à la fermeture */
+  /** Callback on close */
   onClose?: (ev: CloseEvent) => void;
-  /** Callback erreur */
+  /** Error callback */
   onError?: (ev: Event) => void;
 }
 

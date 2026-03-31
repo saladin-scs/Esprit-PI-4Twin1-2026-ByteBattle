@@ -41,7 +41,7 @@ export function Button({
       {loading ? (
         <>
           <span className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-          <span>Chargement…</span>
+          <span>Loading...</span>
         </>
       ) : (
         children

@@ -1,35 +1,35 @@
-# ByteBattle – Architecture modulaire et scalable
+# ByteBattle - Modular and Scalable Architecture
 
-Ce document décrit l’architecture **component-based** du projet (frontend et backend), les principes de séparation des responsabilités, la maintenabilité et les bonnes pratiques visant un niveau **production** et **enterprise**.
+This document describes the project's **component-based** architecture (frontend and backend), separation-of-concerns principles, maintainability goals, and best practices targeting **production** and **enterprise** quality.
 
 ---
 
-## 1. Principes directeurs
+## 1. Guiding Principles
 
-- **Modularité** : fonctionnalités découpées en modules/composants indépendants et réutilisables.
-- **Séparation des responsabilités** : une couche (API, auth, UI, etc.) a un rôle clair et limité.
-- **Testabilité** : modules testables en isolation (mocks, dépendances injectées).
-- **Extensibilité** : ajout de features sans modifier le cœur du système.
-- **Sécurité** : auth centralisée, guards, validation des entrées, pas de secrets côté client.
-- **Performance** : lazy loading, cache, optimisations ciblées par module.
+- **Modularity**: features are split into independent, reusable modules/components.
+- **Separation of concerns**: each layer (API, auth, UI, etc.) has a clear, limited role.
+- **Testability**: modules can be tested in isolation (mocks, injected dependencies).
+- **Extensibility**: add new features without changing core system behavior.
+- **Security**: centralized auth, guards, input validation, and no client-side secrets.
+- **Performance**: lazy loading, caching, and module-specific optimizations.
 
 ---
 
 ## 2. Backend (NestJS)
 
-### 2.1 Structure des dossiers
+### 2.1 Folder Structure
 
 ```
 backend/src/
-├── main.ts                 # Bootstrap, pipe global, CORS, Swagger
-├── app.module.ts           # Racine : import des modules métier + config
-├── config/                 # Configuration et validation d’environnement
+├── main.ts                 # Bootstrap, global pipe, CORS, Swagger
+├── app.module.ts           # Root: business modules + config imports
+├── config/                 # Environment config and validation
 │   └── validation.ts
-├── core/                   # Noyau partagé (guards, decorators, filters, interceptors)
-│   ├── guards/             # Réexport / usage central des guards
-│   ├── decorators/         # Décorateurs métier (roles, user, etc.)
+├── core/                   # Shared core (guards, decorators, filters, interceptors)
+│   ├── guards/             # Guard re-export / central usage
+│   ├── decorators/         # Business decorators (roles, user, etc.)
 │   └── index.ts
-├── auth/                   # Module Authentification
+├── auth/                   # Authentication module
 │   ├── auth.module.ts
 │   ├── auth.controller.ts
 │   ├── auth.service.ts
@@ -37,66 +37,66 @@ backend/src/
 │   ├── guards/
 │   ├── strategies/
 │   └── ...
-├── users/                   # Module Utilisateurs (profil, compte, activité)
+├── users/                   # Users module (profile, account, activity)
 │   ├── users.module.ts
 │   ├── users.controller.ts
 │   ├── users.public.controller.ts
 │   ├── users.service.ts
 │   ├── schemas/
 │   └── dto/
-├── admin/                   # Module Administration (interfaces admin)
+├── admin/                   # Admin module (admin interfaces)
 │   ├── admin.module.ts
 │   ├── admin.controller.ts
 │   └── admin.service.ts
-├── security-events/         # Module Événements de sécurité (audit)
-├── challenges/              # Module Défis
-├── competitions/            # Module Compétitions
-├── code-execution/          # Module Exécution de code
-├── feedback/                # Module Feedback / IA
-├── leaderboard/             # Module Classements
-├── achievements/            # Module Succès / badges
-├── ai/                      # Module IA (génération de défis, etc.)
-└── chat/                    # Module Chat (WebSocket)
+├── security-events/         # Security events module (audit)
+├── challenges/              # Challenges module
+├── competitions/            # Competitions module
+├── code-execution/          # Code execution module
+├── feedback/                # Feedback / AI module
+├── leaderboard/             # Leaderboard module
+├── achievements/            # Achievements / badges module
+├── ai/                      # AI module (challenge generation, etc.)
+└── chat/                    # Chat module (WebSocket)
 ```
 
-### 2.2 Rôles des couches
+### 2.2 Layer Roles
 
-| Couche | Rôle | Exemples |
+| Layer | Role | Examples |
 |--------|------|----------|
-| **Core** | Éléments transverses : guards, décorateurs, filtres d’exception, interceptors. | `JwtAuthGuard`, `RolesGuard`, `@Roles()` |
-| **Config** | Variables d’environnement, validation au démarrage. | `validateConfig`, `ConfigModule` |
-| **Module métier** | Domaine fonctionnel isolé : controller + service + DTOs + schémas. | `AuthModule`, `UsersModule`, `AdminModule` |
-| **API** | Contrôleurs HTTP (et WebSocket) exposent uniquement des contrats stables (DTOs, codes HTTP). | Routes REST, Swagger |
+| **Core** | Cross-cutting elements: guards, decorators, exception filters, interceptors. | `JwtAuthGuard`, `RolesGuard`, `@Roles()` |
+| **Config** | Environment variables, startup validation. | `validateConfig`, `ConfigModule` |
+| **Business module** | Isolated functional domain: controller + service + DTOs + schemas. | `AuthModule`, `UsersModule`, `AdminModule` |
+| **API** | HTTP (and WebSocket) controllers exposing stable contracts (DTOs, HTTP codes). | REST routes, Swagger |
 
-### 2.3 Règles par module
+### 2.3 Per-Module Rules
 
-- **Un module = un domaine** (auth, users, admin, challenges, …).
-- **Controller** : reçoit les requêtes, valide les DTOs, délègue au **service**.
-- **Service** : logique métier, accès données, pas de dépendance directe à HTTP.
-- **DTOs** : entrées/sorties typées et validées (`class-validator`).
-- **Schémas** : modèles de données (Mongoose) dans le module qui en est propriétaire.
-- **Exports** : un module n’exporte que ce dont d’autres modules ont besoin (ex. `AuthService`, `UsersService`).
+- **One module = one domain** (auth, users, admin, challenges, ...).
+- **Controller**: receives requests, validates DTOs, delegates to **service**.
+- **Service**: business logic and data access, with no direct HTTP dependency.
+- **DTOs**: typed and validated inputs/outputs (`class-validator`).
+- **Schemas**: data models (Mongoose) kept in their owning module.
+- **Exports**: a module exports only what others need (e.g. `AuthService`, `UsersService`).
 
-### 2.4 Sécurité
+### 2.4 Security
 
-- **Authentification** : JWT (access + refresh), stratégies Passport (local, Google, GitHub), 2FA.
-- **Autorisation** : guards (`JwtAuthGuard`, `RolesGuard`) et décorateur `@Roles()`.
-- **Données** : validation globale (`ValidationPipe`), pas de champs arbitraires (whitelist).
-- **Rate limiting** : appliqué dans `main.ts` (hors routes Swagger si besoin).
-- **CORS** : configuré de façon explicite selon l’environnement.
+- **Authentication**: JWT (access + refresh), Passport strategies (local, Google, GitHub), 2FA.
+- **Authorization**: guards (`JwtAuthGuard`, `RolesGuard`) and `@Roles()` decorator.
+- **Data safety**: global validation (`ValidationPipe`), no arbitrary fields (whitelist).
+- **Rate limiting**: applied in `main.ts` (excluding Swagger routes when needed).
+- **CORS**: explicitly configured by environment.
 
-### 2.5 Dépendances entre modules
+### 2.5 Module Dependencies
 
-- `AppModule` importe : `ConfigModule`, `MongooseModule`, `AuthModule`, `AdminModule`, (autres modules métier selon besoin).
-- `AuthModule` importe : `UsersModule`, `SecurityEventsModule`, `PassportModule`, `JwtModule`.
-- `AdminModule` importe : `MongooseModule` (User), éventuellement `UsersModule` si réutilisation de services.
-- Les autres modules (challenges, competitions, etc.) sont ajoutés au fur et à mesure dans `AppModule` pour activer leurs routes.
+- `AppModule` imports: `ConfigModule`, `MongooseModule`, `AuthModule`, `AdminModule` (plus other business modules as needed).
+- `AuthModule` imports: `UsersModule`, `SecurityEventsModule`, `PassportModule`, `JwtModule`.
+- `AdminModule` imports: `MongooseModule` (User), and optionally `UsersModule` if services are reused.
+- Other modules (challenges, competitions, etc.) are progressively added to `AppModule` to expose routes.
 
 ---
 
 ## 3. Frontend (React + Vite)
 
-### 3.1 Structure des dossiers (feature-based + shared)
+### 3.1 Folder Structure (feature-based + shared)
 
 ```
 frontend/src/
@@ -104,9 +104,9 @@ frontend/src/
 ├── App.tsx
 ├── index.css
 │
-├── core/                    # Cœur applicatif (API, store racine, auth)
-│   ├── api/                 # Client HTTP et couche API
-│   │   ├── client.ts        # Instance Axios partagée, interceptors
+├── core/                    # App core (API, root store, auth)
+│   ├── api/                 # HTTP client and API layer
+│   │   ├── client.ts        # Shared Axios instance, interceptors
 │   │   ├── auth.api.ts
 │   │   ├── users.api.ts
 │   │   ├── admin.api.ts
@@ -115,29 +115,29 @@ frontend/src/
 │   │   ├── store.ts
 │   │   ├── hooks.ts         # useAppDispatch, useAppSelector
 │   │   └── index.ts
-│   └── routes/              # Définition centralisée des routes
+│   └── routes/              # Centralized route definition
 │       ├── routes.tsx
 │       └── index.ts
 │
-├── shared/                  # Éléments réutilisables (UI, types, hooks)
-│   ├── components/          # Composants UI génériques
-│   │   ├── ui/              # Boutons, inputs, modals, etc.
+├── shared/                  # Reusable elements (UI, types, hooks)
+│   ├── components/          # Generic UI components
+│   │   ├── ui/              # Buttons, inputs, modals, etc.
 │   │   └── layout/          # Layout, Navbar, Footer
-│   ├── hooks/               # Hooks réutilisables
-│   ├── types/               # Types et constantes partagés
-│   └── utils/               # Helpers purs
+│   ├── hooks/               # Reusable hooks
+│   ├── types/               # Shared types and constants
+│   └── utils/               # Pure helpers
 │
-└── features/                # Un dossier par domaine métier
-    ├── auth/                # Authentification
+└── features/                # One folder per business domain
+   ├── auth/                # Authentication
     │   ├── components/
     │   ├── pages/           # Login, Register, ForgotPassword, etc.
-    │   ├── slice/           # authSlice (ou store/auth)
+   │   ├── slice/           # authSlice (or store/auth)
     │   └── index.ts
-    ├── user/                # Profil utilisateur, paramètres
+   ├── user/                # User profile, settings
     │   ├── components/
     │   ├── pages/
     │   └── index.ts
-    ├── admin/               # Interface admin
+   ├── admin/               # Admin interface
     │   ├── pages/
     │   └── index.ts
     ├── challenges/
@@ -146,84 +146,84 @@ frontend/src/
     └── ...
 ```
 
-### 3.2 Rôles des couches
+### 3.2 Layer Roles
 
-| Couche | Rôle | Exemples |
+| Layer | Role | Examples |
 |--------|------|----------|
-| **Core** | API client unique, store Redux racine, définition des routes. | `api/client.ts`, `store/store.ts`, `routes/routes.tsx` |
-| **Shared** | Composants UI, layout, types, hooks et utils sans logique métier. | `Button`, `Layout`, `Navbar`, types `User`, `FullProfile` |
-| **Features** | Domaine métier : pages, composants spécifiques, slices Redux, appels API du domaine. | `auth/`, `user/`, `admin/`, `challenges/` |
+| **Core** | Single API client, root Redux store, centralized route definition. | `api/client.ts`, `store/store.ts`, `routes/routes.tsx` |
+| **Shared** | UI components, layout, types, hooks, and utils without business logic. | `Button`, `Layout`, `Navbar`, `User`, `FullProfile` |
+| **Features** | Business domain: pages, specific components, Redux slices, domain API calls. | `auth/`, `user/`, `admin/`, `challenges/` |
 
-### 3.3 Règles par feature
+### 3.3 Per-Feature Rules
 
-- **Feature = un domaine** (auth, user, admin, challenges, …).
-- **Pages** : écrans rattachés aux routes ; ils utilisent les composants de la feature ou de `shared`.
-- **Components** : composants spécifiques au domaine (ex. `EditProfileModal` dans `user`).
-- **API** : les appels du domaine peuvent être dans `core/api/<domain>.api.ts` ou dans la feature ; une seule source de vérité pour le client HTTP (`core/api/client.ts`).
-- **State** : slices Redux par domaine (auth, challenges, competitions, etc.) enregistrés dans `core/store`.
+- **Feature = one domain** (auth, user, admin, challenges, ...).
+- **Pages**: route-linked screens using feature or `shared` components.
+- **Components**: domain-specific components (e.g. `EditProfileModal` in `user`).
+- **API**: domain calls can live in `core/api/<domain>.api.ts` or feature files; keep a single HTTP client source of truth (`core/api/client.ts`).
+- **State**: domain Redux slices (auth, challenges, competitions, etc.) registered in `core/store`.
 
-### 3.4 Sécurité et performance
+### 3.4 Security and Performance
 
-- **Token** : stocké de façon sécurisée (ex. mémoire ou cookie si possible) ; interceptor dans `core/api/client.ts` ajoute `Authorization` depuis le stockage.
-- **Routes protégées** : composant `ProtectedRoute` dans `shared/components/ProtectedRoute.tsx` – vérifie `auth.isAuthenticated` et redirige vers `/login` si besoin. À envelopper autour des routes privées (ex. `/settings/*`, `/admin/*`).
-- **Admin** : route(s) réservée(s) aux rôles admin ; vérification côté backend obligatoire ; frontend peut en plus utiliser `ProtectedRoute` + vérification du rôle dans la page.
-- **Performance** : lazy loading des routes par feature (`React.lazy`), code splitting par bundle.
+- **Token**: stored securely (memory or cookie when possible); interceptor in `core/api/client.ts` injects `Authorization`.
+- **Protected routes**: `ProtectedRoute` in `shared/components/ProtectedRoute.tsx` checks `auth.isAuthenticated` and redirects to `/login` if required. Wrap private routes (e.g. `/settings/*`, `/admin/*`).
+- **Admin**: admin-only routes; backend role checks are mandatory; frontend can additionally check role in route/page guards.
+- **Performance**: lazy loading routes by feature (`React.lazy`), bundle-level code splitting.
 
-### 3.5 Extensibilité
+### 3.5 Extensibility
 
-- Nouvelle feature : nouveau dossier sous `features/`, pages + composants + éventuellement slice et API.
-- Nouvelle route : ajout dans `core/routes`.
-- Nouveau composant UI générique : dans `shared/components/ui` (ou `layout`).
-- Nouveau type partagé : dans `shared/types`.
-
----
-
-## 4. Contrats API (Frontend ↔ Backend)
-
-- **Backend** : Swagger (`/api`) comme référence des endpoints, DTOs et réponses.
-- **Frontend** : types TypeScript alignés sur les DTOs et réponses (idéalement générés ou définis dans `shared/types` / `core/api`).
-- **Erreurs** : format d’erreur commun (ex. `{ statusCode, message, error }`) ; le client les gère de façon centralisée (interceptor, toast, page d’erreur).
+- New feature: add a folder under `features/` with pages + components + optional slice and API.
+- New route: add it in `core/routes`.
+- New generic UI component: place it in `shared/components/ui` (or `layout`).
+- New shared type: place it in `shared/types`.
 
 ---
 
-## 5. Qualité et maintenabilité
+## 4. API Contracts (Frontend ↔ Backend)
 
-- **Tests** : tests unitaires sur services (backend) et composants/logique (frontend) ; tests e2e sur les parcours critiques.
-- **Linting / format** : ESLint, Prettier, règles communes pour backend et frontend.
-- **Revues** : changements par feature, respect des limites de modules (pas d’import circulaire).
-- **Documentation** : README par repo, ce fichier ARCHITECTURE.md, commentaires sur les décisions non évidentes.
+- **Backend**: Swagger (`/api`) is the reference for endpoints, DTOs, and responses.
+- **Frontend**: TypeScript types aligned with DTOs and API responses (ideally generated or defined in `shared/types` / `core/api`).
+- **Errors**: shared error format (e.g. `{ statusCode, message, error }`); client handles centrally (interceptor, toast, error page).
 
 ---
 
-## 6. Résumé
+## 5. Quality and Maintainability
+
+- **Tests**: unit tests for services (backend) and components/logic (frontend); e2e tests for critical paths.
+- **Linting / formatting**: ESLint, Prettier, shared backend/frontend rules.
+- **Reviews**: feature-scoped changes and module boundaries respected (no circular imports).
+- **Documentation**: per-repo README, this ARCHITECTURE.md, and comments for non-obvious decisions.
+
+---
+
+## 6. Summary
 
 | Aspect | Backend | Frontend |
 |--------|---------|----------|
-| **Unité de découpage** | Module NestJS (controller + service + DTOs + schémas) | Feature (pages + components + slice + API) |
-| **Partagé** | `core/` (guards, decorators), `config/` | `core/` (api, store, routes), `shared/` (UI, types, hooks) |
-| **Sécurité** | JWT, guards, ValidationPipe, rate limit | Token, ProtectedRoute, appels API authentifiés |
-| **Extension** | Nouveau module + import dans `AppModule` | Nouvelle feature + routes + éventuellement slice et API |
+| **Decomposition unit** | NestJS module (controller + service + DTOs + schemas) | Feature (pages + components + slice + API) |
+| **Shared** | `core/` (guards, decorators), `config/` | `core/` (api, store, routes), `shared/` (UI, types, hooks) |
+| **Security** | JWT, guards, ValidationPipe, rate limit | Token, ProtectedRoute, authenticated API calls |
+| **Extension** | New module + import in `AppModule` | New feature + routes + optional slice and API |
 
-Cette architecture vise une **séparation claire des responsabilités**, une **évolution par modules/features** et une base **maintenable et testable** pour un déploiement en production.
+This architecture targets **clear separation of concerns**, **module/feature-based evolution**, and a **maintainable, testable** foundation for production deployment.
 
 ---
 
-## 7. Guide d’extension
+## 7. Extension Guide
 
-### Backend – Ajouter un module métier
+### Backend - Add a Business Module
 
-1. Créer un dossier `src/<module>/` avec au minimum :
+1. Create `src/<module>/` with at least:
    - `<module>.module.ts` (imports, controllers, providers, exports),
    - `<module>.controller.ts`,
    - `<module>.service.ts`,
-   - `dto/` et/ou `schemas/` si besoin.
-2. Pour les routes protégées : importer les guards depuis `../core` (`JwtAuthGuard`, `RolesGuard`, `@Roles()`).
-3. Enregistrer le module dans `app.module.ts` : `imports: [ ..., <Module> ]`.
+   - `dto/` and/or `schemas/` if needed.
+2. For protected routes, import guards from `../core` (`JwtAuthGuard`, `RolesGuard`, `@Roles()`).
+3. Register the module in `app.module.ts`: `imports: [ ..., <Module> ]`.
 
-### Frontend – Ajouter une feature
+### Frontend - Add a Feature
 
-1. Créer un dossier `src/features/<feature>/` avec :
-   - `pages/`, `components/`, et éventuellement `slice/`, `hooks/`.
-2. Ajouter les routes dans `core/routes/AppRoutes.tsx`.
-3. Si la feature a des appels API : ajouter `core/api/<feature>.api.ts` (en utilisant `apiClient` depuis `./client`) et l’exporter dans `core/api/index.ts`.
-4. Créer `features/<feature>/index.ts` (barrel) pour réexporter les éléments publics de la feature.
+1. Create `src/features/<feature>/` with:
+   - `pages/`, `components/`, and optionally `slice/`, `hooks/`.
+2. Add routes in `core/routes/AppRoutes.tsx`.
+3. If the feature has API calls, add `core/api/<feature>.api.ts` (using `apiClient` from `./client`) and export it in `core/api/index.ts`.
+4. Create `features/<feature>/index.ts` (barrel) to re-export the feature's public elements.

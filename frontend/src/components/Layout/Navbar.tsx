@@ -4,24 +4,15 @@ import { logout } from '../../store/slices/authSlice';
 import { RootState } from '../../store/store';
 import { Button } from '../../shared/components';
 import { ThemeToggle } from '../../shared/components/ThemeToggle';
-import { usePopup } from '../../contexts/PopupContext';
 
 function Navbar() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { confirm } = usePopup();
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   const isAdmin = !!user?.roles?.includes('admin');
 
-  const handleLogout = async () => {
-    const accepted = await confirm({
-      title: 'Log out',
-      message: 'Are you sure you want to disconnect?',
-      confirmText: 'Log out',
-      cancelText: 'Cancel',
-      variant: 'danger',
-    });
-    if (!accepted) return;
+  const handleLogout = () => {
+    if (!window.confirm('Are you sure you want to disconnect?')) return;
     dispatch(logout());
     navigate('/');
   };
@@ -52,6 +43,9 @@ function Navbar() {
                 <Link to="/leaderboard" className={linkClass}>
                   Leaderboard
                 </Link>
+                <Link to="/reclamation" className={linkClass}>
+                  Reports
+                </Link>
               </div>
             )}
           </div>
@@ -62,12 +56,10 @@ function Navbar() {
                 <Link to="/dashboard" className={linkClass}>Dashboard</Link>
                 <Link to="/settings/profile" className={linkClass}>Settings</Link>
                 {isAdmin && (
-                  <div className="flex gap-2 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-md border border-indigo-100 dark:border-indigo-800/50">
-                    <span className="text-xs font-bold text-indigo-500 flex items-center px-1">ADMIN</span>
-                    <Link to="/admin/users" className={linkClass}>Users</Link>
-                    <Link to="/admin/challenges" className={linkClass}>Challenges</Link>
-                    <Link to="/admin/competitions" className={linkClass}>Competitions</Link>
-                  </div>
+                  <>
+                    <Link to="/admin/users" className={linkClass}>Admin</Link>
+                    <Link to="/admin/reclamations" className={linkClass}>Reports</Link>
+                  </>
                 )}
                 <Link to={`/u/${user?.username}`} className={linkClass}>{user?.username}</Link>
                 <Button variant="danger" onClick={handleLogout} className="!py-1.5">

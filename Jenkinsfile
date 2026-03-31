@@ -165,7 +165,7 @@ pipeline {
             echo "Pipeline OK â€” ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
         failure {
-            echo "Pipeline en Ã©chec â€” consulter les logs des stages."
+            echo "Pipeline failed - check stage logs."
         }
         unstable {
             echo "Pipeline instable."

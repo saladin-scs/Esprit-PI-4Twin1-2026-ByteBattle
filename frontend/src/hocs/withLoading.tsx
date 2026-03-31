@@ -1,5 +1,5 @@
 /**
- * HOC: affiche un fallback tant que loading est true, puis le composant.
+ * HOC: displays a fallback while loading is true, then renders the component.
  */
 import { ComponentType } from 'react';
 

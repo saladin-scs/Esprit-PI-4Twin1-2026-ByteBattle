@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { IsString, IsEnum, IsArray, IsOptional, IsNumber, IsBoolean, IsObject, MinLength } from 'class-validator';
+import { IsString, IsEnum, IsArray, IsOptional, IsNumber, IsBoolean, IsObject, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
@@ -76,9 +76,14 @@ export class CreateChallengeDto {
   hints?: Array<{ text: string; tier: 'basic' | 'detailed' | 'premium'; cost: number }>;
 }
 
+/** Aligned with CODE_EXECUTION_MAX_CODE_CHARS (execution rejects beyond this). */
+const SUBMIT_CODE_MAX = Number(process.env.CODE_EXECUTION_MAX_CODE_CHARS || 20000);
+
 export class SubmitChallengeDto {
   @ApiProperty()
   @IsString()
+  @MinLength(1, { message: 'Code cannot be empty' })
+  @MaxLength(SUBMIT_CODE_MAX, { message: `Code exceeds maximum size (${SUBMIT_CODE_MAX} characters)` })
   code: string;
 
   @ApiProperty({ enum: ['javascript', 'python', 'java', 'cpp'] })

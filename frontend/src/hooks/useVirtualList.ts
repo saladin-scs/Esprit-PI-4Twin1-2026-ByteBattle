@@ -1,17 +1,17 @@
 /**
- * Hook pour virtualisation (windowing): calcule la fenêtre d'éléments visibles
- * et le décalage pour le conteneur scrollable.
+ * Virtualization (windowing) hook: computes visible item window
+ * and offset for the scrollable container.
  */
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 export interface UseVirtualListOptions {
-  /** Nombre total d'éléments */
+  /** Total number of items */
   itemCount: number;
-  /** Hauteur estimée par élément (px) */
+  /** Estimated height per item (px) */
   itemHeight: number;
-  /** Hauteur visible du viewport (px) */
+  /** Visible viewport height (px) */
   containerHeight: number;
-  /** Nombre d'éléments à rendre au-dessus/en-dessous de la fenêtre (overscan) */
+  /** Number of items to render above/below viewport (overscan) */
   overscan?: number;
 }
 
@@ -22,16 +22,16 @@ export interface VirtualItem {
 }
 
 export interface UseVirtualListReturn {
-  /** Indices de début et fin (inclus) à rendre */
+  /** Start and end indices (inclusive) to render */
   startIndex: number;
   endIndex: number;
-  /** Liste des items virtuels à mapper (index, offsetY, height) */
+  /** List of virtual items to map (index, offsetY, height) */
   virtualItems: VirtualItem[];
-  /** Hauteur totale du contenu (pour le conteneur interne) */
+  /** Total content height (for inner container) */
   totalHeight: number;
-  /** À attacher au conteneur scrollable pour mettre à jour au scroll */
+  /** Attach to scrollable container to update on scroll */
   onScroll: (e: React.UIEvent<HTMLElement>) => void;
-  /** Ref du conteneur pour mesurer la hauteur si besoin */
+  /** Container ref to measure height when needed */
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 

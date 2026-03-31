@@ -1,5 +1,5 @@
 /**
- * Feature Auth – pages et slice (barrel pour usage externe).
+ * Auth feature - pages and slice (barrel for external usage).
  */
 
 export { default as Login } from '../../pages/Auth/Login';

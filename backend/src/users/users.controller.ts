@@ -12,29 +12,29 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 
 @ApiTags('Users')
 @Controller('users')
-// ✅ FIX : @UseGuards(JwtAuthGuard) retiré du niveau classe
-// Les routes /register-face et /verify-face sont publiques (avant connexion)
+// FIX: @UseGuards(JwtAuthGuard) removed from class level.
+// /register-face and /verify-face routes are public (before login).
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ─── Routes PUBLIQUES (sans JWT) ────────────────────────────────────────
+  // Public routes (without JWT)
 
   @Post('register-face')
-  @ApiOperation({ summary: 'Enregistre un visage pour un userId' })
+  @ApiOperation({ summary: 'Register a face embedding for a userId' })
   async registerFace(@Body() body: { userId: string; embedding: number[] }) {
     await this.usersService.registerFace(body.userId, body.embedding);
     return { success: true };
   }
 
   @Post('verify-face')
-  @ApiOperation({ summary: 'Vérifie le visage pour le login (par email)' })
+  @ApiOperation({ summary: 'Verify face for login (by email)' })
   async verifyFace(@Body() body: { email: string; embedding: number[] }) {
-    // ✅ FIX : accepte email au lieu de userId — cohérent avec Register.tsx et Login.tsx
+    // FIX: accepts email instead of userId - consistent with Register.tsx and Login.tsx
     const match = await this.usersService.verifyFaceByEmail(body.email, body.embedding);
     return { match };
   }
 
-  // ─── Routes PROTÉGÉES (JWT requis) ──────────────────────────────────────
+  // Protected routes (JWT required)
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
@@ -164,5 +164,13 @@ export class UsersController {
   @ApiOperation({ summary: 'Consume and return last unlocked badge' })
   async getNewBadge(@Request() req) {
     return this.usersService.consumeAndReturnNewBadge(req.user.userId);
+  }
+
+  @Get('me/data-export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export account-related JSON data (GDPR / portability)' })
+  async getDataExport(@Request() req) {
+    return this.usersService.buildPersonalDataExport(req.user.userId);
   }
 }

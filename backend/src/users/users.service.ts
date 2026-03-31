@@ -3,6 +3,13 @@ import { Injectable, ConflictException, ForbiddenException, UnauthorizedExceptio
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
+import { Submission, SubmissionDocument } from '../challenges/schemas/Submission.schema';
+import { Solution, SolutionDocument } from '../challenges/schemas/solution.schema';
+import { CompetitionSubmission, CompetitionSubmissionDocument } from '../competitions/schemas/competition-submission.schema';
+import { Reclamation, ReclamationDocument } from '../reclamations/schemas/reclamation.schema';
+import { SiteRating, SiteRatingDocument } from '../site-ratings/schemas/site-rating.schema';
+import { Notification, NotificationDocument } from '../notifications/schemas/notification.schema';
+import { ApiKey, ApiKeyDocument } from '../api-keys/schemas/api-key.schema';
 import { UpdateMeDto } from './dto/update-me.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -13,6 +20,20 @@ export class UsersService {
   constructor(
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    @InjectModel(Submission.name)
+    private submissionModel: Model<SubmissionDocument>,
+    @InjectModel(Solution.name)
+    private solutionModel: Model<SolutionDocument>,
+    @InjectModel(CompetitionSubmission.name)
+    private competitionSubmissionModel: Model<CompetitionSubmissionDocument>,
+    @InjectModel(Reclamation.name)
+    private reclamationModel: Model<ReclamationDocument>,
+    @InjectModel(SiteRating.name)
+    private siteRatingModel: Model<SiteRatingDocument>,
+    @InjectModel(Notification.name)
+    private notificationModel: Model<NotificationDocument>,
+    @InjectModel(ApiKey.name)
+    private apiKeyModel: Model<ApiKeyDocument>,
     private securityEvents: SecurityEventsService,
   ) {}
 
@@ -21,15 +42,40 @@ export class UsersService {
       const email = String(dto.email || '').toLowerCase().trim();
       const username = String(dto.username || '').trim();
       const hashedPassword = await bcrypt.hash(dto.password, 10);
-      const { faceDescriptor, ...rest } = dto;
+      const faceDescriptor = dto.faceDescriptor;
       const faceEmbedding = Array.isArray(faceDescriptor) && faceDescriptor.length === 128
         ? faceDescriptor
         : undefined;
+
+      const firstName = dto.firstName != null ? String(dto.firstName).trim() : '';
+      const lastName = dto.lastName != null ? String(dto.lastName).trim() : '';
+      const phone = dto.phone != null ? String(dto.phone).trim() : '';
+      let dateOfBirth: Date | null = null;
+      if (dto.dateOfBirth) {
+        const d = new Date(dto.dateOfBirth);
+        if (!Number.isNaN(d.getTime())) dateOfBirth = d;
+      }
+      const displayNameFromRegister = [firstName, lastName].filter(Boolean).join(' ').trim() || undefined;
+
+      const preferences: Record<string, unknown> = {
+        preferredLanguage: 'python',
+        theme: 'dark',
+        notifications: { email: true, product: true },
+      };
+      if (typeof dto.newsletter === 'boolean') preferences.newsletter = dto.newsletter;
+      const ref = dto.referralSource != null ? String(dto.referralSource).trim() : '';
+      if (ref) preferences.referralSource = ref;
+
       const user = new this.userModel({
-        ...rest,
         email,
         username,
         password: hashedPassword,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        phone: phone || undefined,
+        dateOfBirth,
+        displayName: displayNameFromRegister,
+        preferences,
         roles: dto.roles?.length ? dto.roles : undefined,
         ...(faceEmbedding && { faceEmbedding }),
       });
@@ -84,51 +130,6 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
       .lean()
       .exec();
     return list as Array<{ _id: Types.ObjectId; username: string }>;
-  }
-
-  async getXpLeaderboard(page = 1, limit = 100): Promise<{
-    items: Array<{
-      username: string;
-      displayName?: string;
-      avatarUrl?: string;
-      xp: number;
-      rankTier?: string;
-      totalChallengesSolved: number;
-      currentStreak: number;
-      badgeIds?: string[];
-    }>;
-    page: number;
-    limit: number;
-    total: number;
-  }> {
-    const safePage = Math.max(1, Number(page) || 1);
-    const safeLimit = Math.max(1, Math.min(200, Number(limit) || 100));
-    const skip = (safePage - 1) * safeLimit;
-
-    const [rows, total] = await Promise.all([
-      this.userModel
-        .find({ isActive: true })
-        .select('username displayName avatarUrl xp rankTier totalChallengesSolved currentStreak badgeIds')
-        .sort({ xp: -1, totalChallengesSolved: -1, currentStreak: -1, createdAt: 1 })
-        .skip(skip)
-        .limit(safeLimit)
-        .lean()
-        .exec(),
-      this.userModel.countDocuments({ isActive: true }).exec(),
-    ]);
-
-    const items = (rows as any[]).map((u) => ({
-      username: u.username,
-      displayName: u.displayName,
-      avatarUrl: u.avatarUrl,
-      xp: u.xp ?? 0,
-      rankTier: u.rankTier,
-      totalChallengesSolved: u.totalChallengesSolved ?? 0,
-      currentStreak: u.currentStreak ?? 0,
-      badgeIds: u.badgeIds ?? [],
-    }));
-
-    return { items, page: safePage, limit: safeLimit, total };
   }
 
   async update(userId: string, updateData: Partial<User>): Promise<UserDocument | null> {
@@ -208,7 +209,7 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
 
   async findPublicByUsername(username: string) {
     const u = await this.userModel.findOne({ username: String(username || '').trim() })
-      .select('username displayName bio country avatarUrl coverImage links socialLinks profilePublic rating totalChallengesSolved totalBattlesWon achievements roles createdAt xp rankTier currentStreak longestStreak totalActiveDays lastActiveAt activityHeatmap dailyGoalTarget dailyGoalCompleted problemsByDifficulty acceptanceRate languageStats totalSubmissions totalAccepted battleLosses eloRating guildId codynCoins badgeIds emailVerifiedAt skillTreeProgress recentActivity')
+      .select('username displayName firstName lastName bio country avatarUrl coverImage links socialLinks profilePublic rating totalChallengesSolved totalBattlesWon achievements roles createdAt xp rankTier currentStreak longestStreak totalActiveDays lastActiveAt activityHeatmap dailyGoalTarget dailyGoalCompleted problemsByDifficulty acceptanceRate languageStats totalSubmissions totalAccepted battleLosses eloRating guildId codynCoins badgeIds emailVerifiedAt skillTreeProgress recentActivity')
       .lean().exec();
     if (!u) return null;
     const xp = (u as any).xp ?? 0;
@@ -297,11 +298,64 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     return badge;
   }
 
+  /**
+   * Structured copy of personal data (GDPR Art. 20 / school best practices).
+   * Excludes secrets (password, API key hashes, tokens).
+   */
+  async buildPersonalDataExport(userId: string) {
+    const oid = new Types.ObjectId(userId);
+    const user = await this.userModel
+      .findById(userId)
+      .select('+faceEmbedding')
+      .lean()
+      .exec();
+    if (!user) throw new NotFoundException('User not found');
+
+    const u = user as Record<string, unknown>;
+    delete u.password;
+    delete u.emailVerificationTokenHash;
+    delete u.passwordResetTokenHash;
+    delete u.refreshTokens;
+    delete u.twoFactorSecret;
+    delete u.twoFactorBackupCodes;
+
+    const [
+      challengeSubmissions,
+      communitySolutions,
+      competitionSubmissions,
+      reclamations,
+      siteRating,
+      notifications,
+      apiKeyRows,
+    ] = await Promise.all([
+      this.submissionModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(5000).lean().exec(),
+      this.solutionModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(2000).lean().exec(),
+      this.competitionSubmissionModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(2000).lean().exec(),
+      this.reclamationModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(500).lean().exec(),
+      this.siteRatingModel.findOne({ userId: oid }).lean().exec(),
+      this.notificationModel.find({ userId: oid }).sort({ createdAt: -1 }).limit(2000).lean().exec(),
+      this.apiKeyModel.find({ userId: oid }).select('-keyHash').sort({ createdAt: -1 }).lean().exec(),
+    ]);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      schemaVersion: 1,
+      profile: u,
+      challengeSubmissions,
+      communitySolutions,
+      competitionSubmissions,
+      reclamations,
+      siteRating: siteRating ?? null,
+      notifications,
+      apiKeys: apiKeyRows,
+    };
+  }
+
   async setLastUnlockedBadge(userId: string, badgeId: string, name: string) {
     await this.userModel.findByIdAndUpdate(userId, { lastUnlockedBadge: { badgeId, name }, $addToSet: { badgeIds: badgeId } }).exec();
   }
 
-  // ─── Reconnaissance faciale ──────────────────────────────────────────────
+  // ─── Facial recognition ─────────────────────────────────────────────────
 
   private euclideanDistance(a: number[], b: number[]): number {
     let sum = 0;
@@ -309,29 +363,29 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
     return Math.sqrt(sum);
   }
 
-  /** Sauvegarde l'embedding facial sur le user */
+  /** Saves the face embedding on the user */
   async registerFace(userId: string, embedding: number[]) {
     return this.userModel.findByIdAndUpdate(userId, { faceEmbedding: embedding }, { new: true }).exec();
   }
 
-  /** Vérifie le visage par userId */
+  /** Verifies face embedding by userId. */
   async verifyFace(userId: string, embedding: number[]): Promise<boolean> {
-    // ✅ FIX : +faceEmbedding obligatoire car select:false dans le schema
+    // +faceEmbedding is required because select:false is set in schema
     const user = await this.userModel.findById(userId).select('+faceEmbedding').exec();
     if (!user || !(user as any).faceEmbedding?.length) return false;
     return this.euclideanDistance((user as any).faceEmbedding, embedding) < 0.6;
   }
 
-  // ✅ NOUVEAU : vérifie le visage par email (utilisé par POST /users/verify-face)
+  // NEW: verifies face by email (used by POST /users/verify-face)
   async verifyFaceByEmail(email: string, embedding: number[]): Promise<boolean> {
     const user = await this.userModel
       .findOne({ email: String(email || '').toLowerCase().trim() })
       .select('+faceEmbedding')
       .exec();
 
-    if (!user) throw new UnauthorizedException('Utilisateur non trouvé');
+    if (!user) throw new UnauthorizedException('User not found');
     if (!(user as any).faceEmbedding?.length) {
-      throw new UnauthorizedException('Aucun visage enregistré pour ce compte. Inscrivez-vous avec la reconnaissance faciale.');
+      throw new UnauthorizedException('No face is registered for this account. Sign up with face recognition first.');
     }
 
     return this.euclideanDistance((user as any).faceEmbedding, embedding) < 0.6;
@@ -344,9 +398,9 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
       .select('+faceEmbedding')
       .exec();
 
-    if (!user) throw new UnauthorizedException('Utilisateur non trouvé');
+    if (!user) throw new UnauthorizedException('User not found');
     if (!(user as any).faceEmbedding?.length) {
-      throw new UnauthorizedException('Aucun visage enregistré pour ce compte. Inscrivez-vous avec la reconnaissance faciale.');
+      throw new UnauthorizedException('No face is registered for this account. Sign up with face recognition first.');
     }
 
     const match = this.euclideanDistance((user as any).faceEmbedding, embedding) < 0.6;

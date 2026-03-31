@@ -21,7 +21,7 @@ export class Submission {
   @Prop({ enum: ['accepted', 'wrong_answer', 'runtime_error', 'time_limit', 'pending'], default: 'pending' })
   status: string;
 
-  // Résultats détaillés par test case
+  // Detailed results per test case
   @Prop({
     type: [{
       input: String,

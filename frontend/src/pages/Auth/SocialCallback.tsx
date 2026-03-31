@@ -60,9 +60,9 @@ function SocialCallback() {
       <Card className="w-full max-w-md">
         {twoFactorToken ? (
           <form onSubmit={onVerify} className="space-y-4">
-            <div className="text-lg font-semibold text-gray-900 dark:text-white">2FA requise</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-white">2FA required</div>
             <p className="text-gray-600 dark:text-gray-300 text-sm">
-              Saisissez le code de votre application d’authentification (ou un code de secours) pour terminer la connexion sociale.
+              Enter the code from your authenticator app (or a backup code) to complete social sign-in.
             </p>
             {error && <Alert variant="error">{error}</Alert>}
             <Input

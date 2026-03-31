@@ -38,6 +38,9 @@ Thumbs.db
 # Docker
 .dockerignore
 
+# Piston (local container data)
+piston-data/
+
 # Backend specific
 backend/dist/
 backend/.env

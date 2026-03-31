@@ -18,4 +18,7 @@ export const usersApi = {
 
   uploadCover: (formData: FormData, config?: any) =>
     apiClient.post('/users/me/cover', formData, config),
+
+  /** GDPR / portability JSON export (account-related data). */
+  dataExport: () => apiClient.get<Record<string, unknown>>('/users/me/data-export'),
 };

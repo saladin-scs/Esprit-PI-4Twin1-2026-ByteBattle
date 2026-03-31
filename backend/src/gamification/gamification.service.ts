@@ -19,6 +19,7 @@ import {
   BADGES_LANGUAGE,
   BADGES_CONTEST,
 } from './badges.config';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 
@@ -27,6 +28,7 @@ export class GamificationService {
   constructor(
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private todayUtc(): string {
@@ -46,7 +48,7 @@ export class GamificationService {
     return tier;
   }
 
-  /** Enregistre une connexion quotidienne : XP + streak + badges streak */
+  /** Records daily login: XP + streak + streak badges */
   async recordDailyLogin(userId: string): Promise<{ xpAwarded: number; streak: number }> {
     const user = await this.userModel.findById(userId).select(
       'xp lastActiveAt lastDailyLoginDate currentStreak longestStreak totalActiveDays streakFreezes badgeIds hasRecoveredStreak',
@@ -70,7 +72,7 @@ export class GamificationService {
         ? Math.floor((Date.now() - lastActive.getTime()) / (24 * 60 * 60 * 1000))
         : 999;
       if (daysSinceActive === 0) {
-        // déjà actif aujourd'hui, pas de changement de streak
+        // already active today, no streak change
       } else if (daysSinceActive === 1) {
         newStreak = previousStreak + 1;
       } else {
@@ -111,8 +113,8 @@ export class GamificationService {
   }
 
   /**
-   * Enregistre un problème résolu : XP (base + bonus premier coup + premier du jour),
-   * mise à jour problemsByDifficulty, languageStats, streaks, et vérification des badges.
+   * Records a solved problem: XP (base + first-try bonus + first-of-day),
+   * updates problemsByDifficulty, languageStats, streaks, and checks badges.
    */
   async recordChallengeSolved(
     userId: string,
@@ -206,7 +208,7 @@ export class GamificationService {
   }
 
   /**
-   * Vérifie et débloque les badges éligibles.
+   * Checks and unlocks eligible badges.
    * category: 'streak' | 'solver' | 'difficulty' | 'quality' | 'language' | 'all'
    */
   async checkAndAwardBadges(userId: string, category: 'streak' | 'solver' | 'difficulty' | 'quality' | 'language' | 'all' = 'all'): Promise<string[]> {
@@ -355,6 +357,16 @@ export class GamificationService {
     }).exec();
 
     await this.pushRecentActivity(userId, 'badge_unlocked', { badgeId: badge.id, name: badge.name });
+
+    void this.notificationsService
+      .create({
+        userId,
+        type: 'badge_unlocked',
+        title: 'Badge unlocked',
+        body: `You unlocked the badge "${badge.name}"${badge.xpReward ? ` (+${badge.xpReward} XP)` : ''}.`,
+        meta: { href: '/dashboard' },
+      })
+      .catch(() => undefined);
   }
 
   private async pushRecentActivity(userId: string, type: string, metadata?: Record<string, any>): Promise<void> {
@@ -368,7 +380,7 @@ export class GamificationService {
     }).exec();
   }
 
-  /** Utiliser un streak freeze pour ne pas perdre son streak (ex. jour sans connexion) */
+  /** Use a streak freeze to avoid losing streak (e.g. day without login). */
   async useStreakFreeze(userId: string): Promise<{ success: boolean; remainingFreezes: number }> {
     const user = await this.userModel.findById(userId).select('streakFreezes currentStreak').exec();
     if (!user) throw new NotFoundException('User not found');
@@ -378,12 +390,12 @@ export class GamificationService {
     return { success: true, remainingFreezes: freezes - 1 };
   }
 
-  /** Marquer la récupération de streak (pour badge Phénix) */
+  /** Mark streak recovery (for Phoenix badge). */
   async markStreakRecovered(userId: string): Promise<void> {
     await this.userModel.findByIdAndUpdate(userId, { hasRecoveredStreak: true }).exec();
   }
 
-  /** Récupérer le catalogue des badges et constantes XP pour le front */
+  /** Get badge catalog and XP constants for frontend. */
   getCatalog() {
     return {
       badges: ALL_BADGES,
@@ -392,7 +404,7 @@ export class GamificationService {
     };
   }
 
-  /** Résumé gamification de l'utilisateur connecté (inclut progression vers le prochain rang, rang leaderboard). */
+  /** Gamification summary of logged-in user (includes progress to next rank and leaderboard rank). */
   async getMySummary(userId: string) {
     const user = await this.userModel.findById(userId).select(
       'username xp rankTier currentStreak longestStreak totalActiveDays streakFreezes totalChallengesSolved problemsByDifficulty languageStats badgeIds lastUnlockedBadge lastDailyLoginDate lastFirstSolveOfDayDate',

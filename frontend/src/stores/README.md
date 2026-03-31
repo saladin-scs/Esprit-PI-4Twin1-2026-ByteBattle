@@ -2,15 +2,15 @@
 
 ## Configuration (production / dev)
 
-- **`storeConfig.ts`** : `isProduction`, `isDev`, `getStoreConfig()`, `setStoreConfig()`, `createStoreConfig()`. En prod, désactiver le logging ; activer l’analytics si besoin.
+- **`storeConfig.ts`** : `isProduction`, `isDev`, `getStoreConfig()`, `setStoreConfig()`, `createStoreConfig()`. In prod, disable logging; enable analytics if needed.
 
 ## Middlewares Zustand
 
-- **`middleware/logging.ts`** : `loggingMiddleware(storeName)` — en dev, log chaque `set` (prev/next).
-- **`middleware/analytics.ts`** : `analyticsMiddleware({ storeName, onStateChange })` — appelle `onStateChange` à chaque changement (storeName, keys, next).
-- **`middleware/temporal.ts`** : types pour undo/redo ; pour un état avec historique, utiliser le hook **`useUndoRedo`** dans `hooks/useUndoRedo.ts`.
+- **`middleware/logging.ts`** : `loggingMiddleware(storeName)` - in dev, logs each `set` (prev/next).
+- **`middleware/analytics.ts`** : `analyticsMiddleware({ storeName, onStateChange })` - calls `onStateChange` on every change (storeName, keys, next).
+- **`middleware/temporal.ts`** : undo/redo types; for state with history, use the **`useUndoRedo`** hook in `hooks/useUndoRedo.ts`.
 
-### Exemple avec logging
+### Example with logging
 
 ```ts
 import { create } from 'zustand';
@@ -24,7 +24,7 @@ const useMyStore = create(
 );
 ```
 
-### Exemple avec analytics
+### Example with analytics
 
 ```ts
 analyticsMiddleware({

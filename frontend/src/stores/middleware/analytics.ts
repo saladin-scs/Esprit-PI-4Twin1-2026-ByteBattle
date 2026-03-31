@@ -1,6 +1,6 @@
 /**
- * Middleware d'analytics pour Zustand.
- * Appelle onStateChange quand l'état change (storeName + clés modifiées).
+ * Analytics middleware for Zustand.
+ * Calls onStateChange when state changes (storeName + modified keys).
  */
 export interface AnalyticsOptions {
   storeName: string;

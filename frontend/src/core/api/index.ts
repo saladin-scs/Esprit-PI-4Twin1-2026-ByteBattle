@@ -1,6 +1,6 @@
 /**
- * Couche API modulaire – chaque domaine expose son API.
- * Un seul client HTTP partagé (client.ts).
+ * Modular API layer - each domain exposes its API.
+ * One shared HTTP client (client.ts).
  */
 
 export { apiClient, default } from './client';

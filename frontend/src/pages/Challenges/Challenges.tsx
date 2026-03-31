@@ -1,18 +1,32 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
 import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
+import { PageContainer, Spinner, Button } from '../../shared/components';
+import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilityCallout';
+import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
 import { RootState } from '../../store/store';
-import { Button } from '../../shared/components';
 
 const PAGE_SIZE = 15;
 
+/** Days aligned with backend CHALLENGE_NEW_DAYS default (14). */
+const NEW_CHALLENGE_DAYS = 14;
+
+function isNewFromCreatedAt(createdAt?: string): boolean {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < NEW_CHALLENGE_DAYS * 86400000;
+}
+
 const Challenges = () => {
   const navigate = useNavigate();
-  const { user } = useSelector((state: RootState) => state.auth);
-  const isAdmin = !!user?.roles?.includes('admin');
+  const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const [reco, setReco] = useState<RecommendedChallengeItem[]>([]);
+  const [recoLoading, setRecoLoading] = useState(false);
+
   const {
     challenges,
     total,
@@ -30,6 +44,29 @@ const Challenges = () => {
     fetchChallenges();
   }, [filters.difficulty, filters.language, filters.search, page, fetchChallenges]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setReco([]);
+      return;
+    }
+    let cancelled = false;
+    setRecoLoading(true);
+    challengesApi
+      .getRecommended({ limit: 8 })
+      .then((res) => {
+        if (!cancelled) setReco(res.data.challenges || []);
+      })
+      .catch(() => {
+        if (!cancelled) setReco([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRecoLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -40,117 +77,193 @@ const Challenges = () => {
     c.totalSubmissions > 0 ? Math.round((c.totalAccepted / c.totalSubmissions) * 100) : 0;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-            Challenges
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {total} challenge{total !== 1 ? 's' : ''} available
-          </p>
+    <PageContainer maxWidth="7xl" className="relative py-8 md:py-12">
+      <div className="bb-hero-gradient-tall" aria-hidden />
+
+      <header className="relative mb-8">
+        <div className="bb-kicker">
+          <Code2 className="h-3.5 w-3.5" aria-hidden />
+          Practice
         </div>
-        {isAdmin && (
-          <Button onClick={() => navigate('/admin/challenges')}>
-            + Manage Challenges
-          </Button>
-        )}
+        <h1 className="bb-page-heading mb-2 flex flex-wrap items-center gap-2">
+          <Sparkles className="h-8 w-8 shrink-0 text-amber-500" aria-hidden />
+          <span className="bb-title-gradient text-3xl md:text-4xl">Challenges</span>
+        </h1>
+<p className="bb-body-text max-w-2xl" aria-live="polite" aria-atomic="true">
+          {total} challenge{total !== 1 ? 's' : ''} available — <strong>newest first</strong>. Challenges from the last{' '}
+          {NEW_CHALLENGE_DAYS} days are marked <span className="font-medium text-emerald-600 dark:text-emerald-400">New</span>.
+        </p>
+      </header>
+
+      <div className="relative mb-6">
+        <ChatAvailabilityCallout variant="compact" />
       </div>
 
-      <div className="mb-6">
+      {isAuthenticated && (
+        <section  className="relative mb-8 bb-card p-4 sm:p-5" aria-label="Recommended challenges">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+            <Sparkles className="h-5 w-5 text-amber-500" aria-hidden />
+            Recommended for you
+          </h2>
+          <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+            Basic suggestions based on your most recently solved challenges (tags and difficulty).
+          </p>
+          {recoLoading ? (
+            <div className="flex justify-center py-6">
+              <Spinner />
+            </div>
+          ) : reco.length === 0 ? (
+            <p className="text-sm text-slate-500">Solve a challenge to improve recommendations.</p>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {reco.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => navigate(`/challenges/${c.id}`)}
+                  className="min-w-[200px] max-w-[240px] shrink-0 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-primary-400 dark:border-slate-600 dark:bg-slate-900/40 dark:hover:border-primary-500"
+                >
+                  <div className="line-clamp-2 font-medium text-slate-900 dark:text-white">{c.title}</div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <DifficultyBadge difficulty={c.difficulty} size="sm" />
+                    {c.xpReward != null && (
+                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">+{c.xpReward} XP</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      <div className="relative mb-6 bb-card p-4 sm:p-5">
         <ChallengeFilters
           search={filters.search}
           onSearchChange={(v) => setFilters({ search: v })}
           difficulty={filters.difficulty}
-          onDifficultyChange={(v) => { setFilters({ difficulty: v }); setPage(1); }}
+          onDifficultyChange={(v) => {
+            setFilters({ difficulty: v });
+            setPage(1);
+          }}
           language={filters.language}
-          onLanguageChange={(v) => { setFilters({ language: v }); setPage(1); }}
+          onLanguageChange={(v) => {
+            setFilters({ language: v });
+            setPage(1);
+          }}
           onSearch={handleSearch}
           placeholder="Search challenges..."
         />
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
+        <div className="relative mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
           {error}
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 shadow-sm overflow-hidden">
+      <div className="relative bb-card overflow-hidden p-0">
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-500 dark:text-gray-400">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-500 border-t-transparent" />
+          <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-500 dark:text-slate-400">
+            <Spinner size="lg" />
+            <span className="text-sm">Loading challenges…</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[720px]">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Difficulty</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Languages</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acceptance</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">XP</th>
+                <tr className="border-b border-slate-200 bg-slate-50/90 dark:border-slate-700 dark:bg-slate-800/50">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    #
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Title
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Difficulty
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Languages
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Acceptance
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    XP
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {challenges.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
+                    <td colSpan={6} className="bb-body-text px-4 py-14 text-center text-sm">
                       No challenges found
                     </td>
                   </tr>
                 ) : (
                   challenges.map((c, i) => (
-                    <tr
-                      key={c._id}
-                      onClick={() => navigate(`/challenges/${c._id}`)}
-                      className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/30"
-                    >
-                      <td className="py-3 px-4 text-sm text-gray-500 dark:text-gray-400">
+                   <tr
+  key={c._id}
+  onClick={() => navigate(`/challenges/${c._id}`)}
+  tabIndex={0}
+  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/challenges/${c._id}`); }}
+  onFocus={(e) => (e.currentTarget.style.outline = '2px solid #6366f1')}
+  onBlur={(e) => (e.currentTarget.style.outline = '')}
+  className="cursor-pointer transition-colors hover:bg-primary-500/5 dark:hover:bg-primary-500/10"
+>
+                      <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                         {(page - 1) * PAGE_SIZE + i + 1}
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="font-medium text-gray-900 dark:text-white">{c.title}</div>
-                        <div className="flex flex-wrap gap-1.5 mt-1">
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-slate-900 dark:text-slate-100">{c.title}</span>
+                          {(c.isNew || isNewFromCreatedAt(c.createdAt)) && (
+                            <span
+                              className="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-400/35 dark:bg-emerald-500/20 dark:text-emerald-200"
+                              title={`New - created less than ${NEW_CHALLENGE_DAYS} days ago`}
+                            >
+                              New
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
                           {(c.tags || []).slice(0, 3).map((t) => (
                             <span
                               key={t}
-                              className="inline-flex px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                              className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300"
                             >
                               {t}
                             </span>
                           ))}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="px-4 py-3">
                         <DifficultyBadge difficulty={c.difficulty} size="sm" />
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
-                          {(c.languages || []).slice(0, 2).map((l) => (
+                          {(c.languages || []).slice(0, 3).map((l) => (
                             <span
                               key={l}
-                              className="inline-flex px-2 py-0.5 rounded text-xs bg-indigo-500/10 dark:bg-indigo-400/10 text-indigo-700 dark:text-indigo-300"
+                              className="inline-flex rounded-md border border-primary-500/25 bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-800 dark:text-primary-300"
                             >
                               {l}
                             </span>
                           ))}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="px-4 py-3">
                         <span
-                          className={`text-sm font-medium ${
+                          className={`text-sm font-semibold ${
                             acceptanceRate(c) >= 50
-                              ? 'text-emerald-600 dark:text-emerald-400'
+                              ? 'text-primary-600 dark:text-primary-400'
                               : 'text-red-600 dark:text-red-400'
                           }`}
                         >
                           {acceptanceRate(c)}%
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                      <td className="px-4 py-3 text-sm font-semibold text-amber-600 dark:text-amber-400">
                         +{c.xpReward} XP
                       </td>
                     </tr>
@@ -163,29 +276,29 @@ const Challenges = () => {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          <button
-            type="button"
+        <nav aria-label="Challenge pages navigation" className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Button
+            variant="secondary"
             disabled={page === 1}
-            onClick={() => setPage(page - 1)}
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+            onClick={() => setPage(Math.max(1, page - 1))}
+            className="inline-flex items-center gap-1 px-3 py-2 text-sm"
           >
-            <ChevronLeft className="w-4 h-4" /> Previous
-          </button>
-          <span className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
+            <ChevronLeft className="h-4 w-4" /> Previous
+          </Button>
+          <span className="bb-body-text px-4 text-sm">
             Page {page} of {totalPages}
           </span>
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             disabled={page === totalPages}
-            onClick={() => setPage(page + 1)}
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+            onClick={() => setPage(Math.min(totalPages, page + 1))}
+            className="inline-flex items-center gap-1 px-3 py-2 text-sm"
           >
-            Next <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+            Next <ChevronRight className="h-4 w-4" />
+          </Button>
+        </nav>
       )}
-    </div>
+    </PageContainer>
   );
 };
 

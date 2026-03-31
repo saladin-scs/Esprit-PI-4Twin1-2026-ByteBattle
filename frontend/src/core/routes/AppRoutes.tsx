@@ -1,6 +1,6 @@
 /**
- * Définition centralisée des routes – une seule source de vérité.
- * Code splitting: lazy loading des pages avec Suspense.
+ * Centralized route definitions - a single source of truth.
+ * Code splitting: lazy-loading pages with Suspense.
  */
 import { Routes, Route } from 'react-router-dom';
 import { Suspense } from 'react';

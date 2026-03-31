@@ -27,7 +27,7 @@ function Setup2FA() {
         const res = await authApi.twofaSetup();
         setSetup({ qrDataUrl: res.data.qrDataUrl, backupCodes: res.data.backupCodes });
       } catch (err: any) {
-        setError(err?.response?.data?.message || err?.message || 'Impossible de démarrer la 2FA');
+        setError(err?.response?.data?.message || err?.message || 'Unable to start 2FA');
         toast.error('Error setting up 2FA');
       } finally {
         setLoading(false);
@@ -50,15 +50,15 @@ function Setup2FA() {
             user: res.data.user,
           }),
         );
-        toast.success('Compte sécurisé avec 2FA. Bienvenue !');
+        toast.success('Account secured with 2FA. Welcome!');
         navigate('/');
       } else {
-        toast.success('2FA activée.');
+        toast.success('2FA enabled.');
         navigate('/');
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Code invalide');
-      toast.error('Code 2FA invalide');
+      setError(err?.response?.data?.message || err?.message || 'Invalid code');
+      toast.error('Invalid 2FA code');
     } finally {
       setLoading(false);
     }
@@ -67,9 +67,9 @@ function Setup2FA() {
   return (
     <PageContainer maxWidth="md" className="py-12">
       <Card>
-        <h1 className="text-2xl font-bold text-white mb-2">Configurer la 2FA</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">Set up 2FA</h1>
         <p className="text-gray-400 mb-6">
-          Pour sécuriser votre compte, scannez le QR code avec une application comme Google Authenticator ou Authy, puis entrez le code à 6 chiffres.
+          To secure your account, scan the QR code with an app like Google Authenticator or Authy, then enter the 6-digit code.
         </p>
 
         {loading && !setup && (
@@ -86,9 +86,9 @@ function Setup2FA() {
               <img src={setup.qrDataUrl} alt="QR Code 2FA" className="rounded-lg bg-white p-2" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-300 mb-2">Codes de secours</h3>
+              <h3 className="font-semibold text-gray-300 mb-2">Backup codes</h3>
               <p className="text-sm text-gray-400 mb-2">
-                Sauvegardez ces codes en lieu sûr. Chaque code ne peut être utilisé qu&apos;une fois.
+                Save these codes in a safe place. Each code can only be used once.
               </p>
               <div className="grid grid-cols-2 gap-2 text-sm font-mono bg-gray-900 p-3 rounded text-gray-300">
                 {setup.backupCodes.map((c) => (
@@ -98,7 +98,7 @@ function Setup2FA() {
             </div>
             <form onSubmit={onSubmit} className="space-y-3">
               <Input
-                label="Code à 6 chiffres"
+                label="6-digit code"
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -113,7 +113,7 @@ function Setup2FA() {
                 loading={loading}
                 disabled={code.length !== 6}
               >
-                Activer la 2FA et continuer
+                Enable 2FA and continue
               </Button>
             </form>
           </div>

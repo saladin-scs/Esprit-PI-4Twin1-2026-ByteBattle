@@ -117,7 +117,7 @@ export class AdminService {
     return user;
   }
 
-  /** Stats gamification pour l’interface admin */
+  /** Gamification stats for admin interface */
   async getGamificationStats() {
     const [totalUsers, usersWithBadges, xpAgg, badgeCounts] = await Promise.all([
       this.userModel.countDocuments().exec(),

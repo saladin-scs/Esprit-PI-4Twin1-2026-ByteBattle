@@ -1,5 +1,5 @@
 /**
- * Code splitting: lazy loading des pages avec Suspense.
+ * Code splitting: lazy-load pages with Suspense.
  */
 import { lazy, Suspense } from 'react';
 

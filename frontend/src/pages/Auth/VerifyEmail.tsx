@@ -15,9 +15,9 @@ function VerifyEmail() {
       setLoading(true);
       try {
         await authApi.verifyEmail(token);
-        setMessage('Email vérifié avec succès.');
+        setMessage('Email verified successfully.');
       } catch (err: any) {
-        setMessage(err?.response?.data?.message || err.message || 'Échec de vérification');
+        setMessage(err?.response?.data?.message || err.message || 'Verification failed');
       } finally {
         setLoading(false);
       }
@@ -27,11 +27,11 @@ function VerifyEmail() {
   return (
     <PageContainer maxWidth="md" className="py-12">
       <Card>
-        <h1 className="text-2xl font-bold text-white mb-4">Vérification email</h1>
+        <h1 className="text-2xl font-bold text-white mb-4">Email verification</h1>
         {loading ? (
           <div className="flex items-center gap-3 text-gray-300">
             <Spinner size="md" />
-            <span>Vérification…</span>
+            <span>Verifying...</span>
           </div>
         ) : (
           <p className="text-gray-200">{message}</p>

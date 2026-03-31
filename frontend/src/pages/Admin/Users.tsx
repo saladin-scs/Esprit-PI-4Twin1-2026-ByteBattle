@@ -7,9 +7,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { adminApi } from '../../services/api';
-import { Button, Input, Card, Alert, PageContainer, Spinner } from '../../shared/components';
+import { Button, Input, Card, Alert, PageContainer, Spinner, Modal } from '../../shared/components';
 import type { RootState } from '../../store/store';
-import { usePopup } from '../../contexts/PopupContext';
 
 type Role = 'user' | 'moderator' | 'admin';
 
@@ -33,11 +32,18 @@ interface ListResponse {
 }
 
 const ROLES: Role[] = ['user', 'moderator', 'admin'];
+
+/** Display labels for the 3 roles assignable by admin users. */
+const ROLE_LABELS: Record<Role, string> = {
+  user: 'User',
+  moderator: 'Moderator',
+  admin: 'Admin',
+};
+
 const PAGE_SIZE = 20;
 
 function AdminUsers() {
   const currentUserId = useSelector((s: RootState) => s.auth.user?.id);
-  const { confirm } = usePopup();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -48,6 +54,12 @@ function AdminUsers() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<ListResponse | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    | null
+    | { type: 'toggle-active'; user: UserRow }
+    | { type: 'set-role'; user: UserRow; role: Role }
+  >(null);
+  const [confirmPending, setConfirmPending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,10 +76,18 @@ function AdminUsers() {
       const res = await adminApi.listUsers(params);
       setData(res.data as ListResponse);
     } catch (err: unknown) {
-      const msg = err && typeof err === 'object' && 'response' in err
-        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-        : null;
-      setError(msg || (err instanceof Error ? err.message : 'Failed to load users'));
+      const res = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { status?: number; data?: { message?: string } } }).response
+        : undefined;
+      const msg = res?.data?.message;
+      if (res?.status === 403) {
+        setError(
+          msg ||
+            'Access denied: non-admin account or roles not yet synced. Run `npm run make-admin -- your@email.com` in backend/, then refresh the page.',
+        );
+      } else {
+        setError(msg || (err instanceof Error ? err.message : 'Failed to load users'));
+      }
     } finally {
       setLoading(false);
     }
@@ -92,58 +112,48 @@ function AdminUsers() {
 
   const isSelf = (userId: string) => currentUserId && String(userId) === String(currentUserId);
 
-  const handleToggleActive = async (user: UserRow) => {
+  const openToggleActiveConfirm = (user: UserRow) => {
     if (isSelf(user._id)) {
       setError('You cannot deactivate your own account.');
       return;
     }
-    const accepted = await confirm({
-      title: 'Confirm user status change',
-      message: `Are you sure you want to ${user.isActive ? 'deactivate' : 'activate'} ${user.email}?`,
-      confirmText: user.isActive ? 'Deactivate' : 'Activate',
-      cancelText: 'Cancel',
-      variant: user.isActive ? 'danger' : 'default',
-    });
-    if (!accepted) {
-      return;
-    }
-    setUpdatingId(user._id);
     setError('');
     setSuccess('');
-    try {
-      await adminApi.updateUser(user._id, { isActive: !user.isActive });
-      setSuccess(user.isActive ? 'User deactivated.' : 'User activated.');
-      await load();
-    } catch (err: unknown) {
-      const msg = err && typeof err === 'object' && 'response' in err
-        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
-        : null;
-      setError(msg || 'Update failed');
-    } finally {
-      setUpdatingId(null);
-    }
+    setConfirmAction({ type: 'toggle-active', user });
   };
 
-  const handleSetRole = async (user: UserRow, role: Role) => {
+  const openSetRoleConfirm = (user: UserRow, role: Role) => {
     if (isSelf(user._id) && role !== 'admin') {
       setError('You cannot remove your own admin role.');
       return;
     }
     const currentRoles = user.roles?.length ? user.roles : (user.isAdmin ? ['admin'] : ['user']);
     if (currentRoles.includes(role) && currentRoles.length === 1) return;
-    const accepted = await confirm({
-      title: 'Confirm role change',
-      message: `Set role of ${user.email} to "${role}"?`,
-      confirmText: 'Confirm',
-      cancelText: 'Cancel',
-    });
-    if (!accepted) return;
+    setError('');
+    setSuccess('');
+    setConfirmAction({ type: 'set-role', user, role });
+  };
+
+  const closeConfirmModal = () => {
+    if (!confirmPending) setConfirmAction(null);
+  };
+
+  const runConfirmedAction = async () => {
+    if (!confirmAction) return;
+    const user = confirmAction.user;
+    setConfirmPending(true);
     setUpdatingId(user._id);
     setError('');
     setSuccess('');
     try {
-      await adminApi.setUserRole(user._id, role);
-      setSuccess(`Role set to ${role}.`);
+      if (confirmAction.type === 'toggle-active') {
+        await adminApi.updateUser(user._id, { isActive: !user.isActive });
+        setSuccess(user.isActive !== false ? 'User deactivated.' : 'User activated.');
+      } else {
+        await adminApi.setUserRole(user._id, confirmAction.role);
+        setSuccess(`Role set to ${ROLE_LABELS[confirmAction.role]}.`);
+      }
+      setConfirmAction(null);
       await load();
     } catch (err: unknown) {
       const msg = err && typeof err === 'object' && 'response' in err
@@ -151,13 +161,14 @@ function AdminUsers() {
         : null;
       setError(msg || 'Update failed');
     } finally {
+      setConfirmPending(false);
       setUpdatingId(null);
     }
   };
 
   const displayRoles = (u: UserRow) => {
     const roles = u.roles?.length ? u.roles : (u.isAdmin ? ['admin'] : ['user']);
-    return roles.join(', ');
+    return roles.map((r) => ROLE_LABELS[r as Role] ?? r).join(', ');
   };
 
   return (
@@ -169,12 +180,14 @@ function AdminUsers() {
             Manage user roles and account status. Only administrators can access this page.
           </p>
         </div>
-        <Link
-          to="/admin/gamification"
-          className="text-indigo-500 dark:text-indigo-400 hover:underline text-sm font-medium"
-        >
-          Gamification stats →
-        </Link>
+        <div className="flex flex-wrap gap-4 text-sm font-medium">
+          <Link to="/admin/reclamations" className="text-indigo-500 dark:text-indigo-400 hover:underline">
+            Reports →
+          </Link>
+          <Link to="/admin/gamification" className="text-indigo-500 dark:text-indigo-400 hover:underline">
+            Gamification stats →
+          </Link>
+        </div>
       </div>
 
       <form onSubmit={handleSearch} className="flex flex-wrap gap-3 mb-6">
@@ -187,17 +200,19 @@ function AdminUsers() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 min-w-[120px]"
+          className="min-w-[120px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         >
           <option value="">All roles</option>
           {ROLES.map((r) => (
-            <option key={r} value={r}>{r}</option>
+            <option key={r} value={r}>
+              {ROLE_LABELS[r]}
+            </option>
           ))}
         </select>
         <select
           value={activeFilter}
           onChange={(e) => setActiveFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 min-w-[120px]"
+          className="min-w-[120px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         >
           <option value="">Any status</option>
           <option value="true">Active</option>
@@ -206,7 +221,7 @@ function AdminUsers() {
         <select
           value={verifiedFilter}
           onChange={(e) => setVerifiedFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 min-w-[140px]"
+          className="min-w-[140px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
         >
           <option value="">Email verified</option>
           <option value="true">Verified</option>
@@ -224,15 +239,15 @@ function AdminUsers() {
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-100 dark:bg-gray-900/60">
+            <thead className="bg-slate-100 dark:bg-gray-900/80">
               <tr className="text-left">
-                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Email</th>
-                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Username</th>
-                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Role</th>
-                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Status</th>
-                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Verified</th>
-                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Joined</th>
-                <th className="p-3 text-gray-700 dark:text-gray-300 font-medium">Actions</th>
+                <th className="p-3 font-medium text-slate-700 dark:text-gray-300">Email</th>
+                <th className="p-3 font-medium text-slate-700 dark:text-gray-300">Username</th>
+                <th className="p-3 font-medium text-slate-700 dark:text-gray-300">Role</th>
+                <th className="p-3 font-medium text-slate-700 dark:text-gray-300">Status</th>
+                <th className="p-3 font-medium text-slate-700 dark:text-gray-300">Verified</th>
+                <th className="p-3 font-medium text-slate-700 dark:text-gray-300">Joined</th>
+                <th className="p-3 font-medium text-slate-700 dark:text-gray-300">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -247,29 +262,32 @@ function AdminUsers() {
                 </tr>
               ) : (
                 (data?.items ?? []).map((u) => (
-                  <tr key={u._id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800/50">
-                    <td className="p-3 text-gray-800 dark:text-gray-200">{u.email}</td>
-                    <td className="p-3 text-gray-800 dark:text-gray-200">@{u.username}</td>
-                    <td className="p-3 text-gray-800 dark:text-gray-200">{displayRoles(u)}</td>
+                  <tr
+                    key={u._id}
+                    className="border-t border-gray-200 hover:bg-slate-50 dark:border-gray-700 dark:hover:bg-gray-800/50"
+                  >
+                    <td className="p-3 text-slate-900 dark:text-gray-200">{u.email}</td>
+                    <td className="p-3 text-slate-900 dark:text-gray-200">@{u.username}</td>
+                    <td className="p-3 text-slate-900 dark:text-gray-200">{displayRoles(u)}</td>
                     <td className="p-3">
                       <span
-                        className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                        className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${
                           u.isActive !== false
-                            ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
-                            : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
                         }`}
                       >
                         {u.isActive !== false ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="p-3 text-gray-200">
+                    <td className="p-3 text-slate-900 dark:text-gray-200">
                       {u.emailVerifiedAt ? (
-                        <span className="text-green-600 dark:text-green-400">Yes</span>
+                        <span className="text-green-700 dark:text-green-400">Yes</span>
                       ) : (
-                        <span className="text-gray-500 dark:text-gray-500">No</span>
+                        <span className="text-slate-600 dark:text-gray-500">No</span>
                       )}
                     </td>
-                    <td className="p-3 text-gray-500 dark:text-gray-400">
+                    <td className="p-3 text-slate-600 dark:text-gray-400">
                       {u.createdAt
                         ? new Date(u.createdAt).toLocaleDateString(undefined, {
                             year: 'numeric',
@@ -285,7 +303,7 @@ function AdminUsers() {
                           variant="secondary"
                           className="!py-1 !px-3 text-xs"
                           disabled={isSelf(u._id) || updatingId === u._id}
-                          onClick={() => handleToggleActive(u)}
+                          onClick={() => openToggleActiveConfirm(u)}
                         >
                           {updatingId === u._id ? '…' : u.isActive !== false ? 'Deactivate' : 'Activate'}
                         </Button>
@@ -296,17 +314,18 @@ function AdminUsers() {
                             <button
                               key={role}
                               type="button"
+                              title={`Set role to ${ROLE_LABELS[role]}`}
                               disabled={
-                                (isSelf(u._id) && role !== 'admin') || updatingId === u._id
+                                (isSelf(u._id) && role !== 'admin') || updatingId === u._id || isCurrentRole
                               }
-                              onClick={() => handleSetRole(u, role)}
-                              className={`!py-1 !px-3 text-xs rounded font-medium transition ${
+                              onClick={() => openSetRoleConfirm(u, role)}
+                              className={`rounded px-3 py-1 text-xs font-medium transition ${
                                 isCurrentRole
-                                  ? 'bg-blue-600 text-white cursor-default'
-                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed'
+                                  ? 'cursor-default bg-blue-600 text-white ring-2 ring-blue-400/50'
+                                  : 'bg-slate-200 text-slate-900 hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
                               }`}
                             >
-                              {role}
+                              {ROLE_LABELS[role]}
                             </button>
                           );
                         })}
@@ -320,8 +339,8 @@ function AdminUsers() {
         </div>
 
         {data && !loading && (
-          <div className="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700 flex-wrap gap-4">
-            <div className="text-gray-500 dark:text-gray-400 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 p-4 dark:border-gray-700">
+            <div className="text-sm text-slate-600 dark:text-gray-400">
               {data.total} user{data.total !== 1 ? 's' : ''} — Page {data.page} of {Math.ceil(data.total / data.limit) || 1}
             </div>
             <div className="flex gap-2">
@@ -343,6 +362,77 @@ function AdminUsers() {
           </div>
         )}
       </Card>
+
+      <Modal
+        isOpen={confirmAction !== null}
+        onClose={closeConfirmModal}
+        title={
+          confirmAction?.type === 'toggle-active'
+            ? confirmAction.user.isActive !== false
+              ? 'Deactivate account'
+              : 'Activate account'
+            : 'Change role'
+        }
+      >
+        <div className="space-y-4">
+          {confirmAction?.type === 'toggle-active' ? (
+            <p className="text-gray-600 dark:text-gray-300">
+              {confirmAction.user.isActive !== false ? (
+                <>
+                  Deactivate <span className="font-medium text-gray-900 dark:text-white">{confirmAction.user.email}</span>
+                  ? They will no longer be able to sign in until the account is activated again.
+                </>
+              ) : (
+                <>
+                  Activate <span className="font-medium text-gray-900 dark:text-white">{confirmAction.user.email}</span>
+                  ? They will be able to sign in again.
+                </>
+              )}
+            </p>
+          ) : confirmAction?.type === 'set-role' ? (
+            <p className="text-gray-600 dark:text-gray-300">
+              Set role of{' '}
+              <span className="font-medium text-gray-900 dark:text-white">{confirmAction.user.email}</span> to{' '}
+              <span className="font-medium text-primary-600 dark:text-primary-400">
+                &quot;{ROLE_LABELS[confirmAction.role]}&quot;
+              </span>
+              ? This updates their permissions immediately.
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={closeConfirmModal} disabled={confirmPending}>
+              Cancel
+            </Button>
+            {confirmAction?.type === 'toggle-active' && confirmAction.user.isActive !== false ? (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => void runConfirmedAction()}
+                loading={confirmPending}
+                disabled={confirmPending}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Deactivate
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => void runConfirmedAction()}
+                loading={confirmPending}
+                disabled={confirmPending}
+                className={
+                  confirmAction?.type === 'toggle-active'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : ''
+                }
+              >
+                {confirmAction?.type === 'toggle-active' ? 'Activate' : 'Confirm'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </Modal>
     </PageContainer>
   );
 }

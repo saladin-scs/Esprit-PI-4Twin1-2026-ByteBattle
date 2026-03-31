@@ -1,5 +1,5 @@
 /**
- * Feature User – profil public, paramètres (barrel pour usage externe).
+ * User feature - public profile, settings (barrel for external usage).
  */
 
 export { default as PublicProfile } from '../../pages/User/PublicProfile';

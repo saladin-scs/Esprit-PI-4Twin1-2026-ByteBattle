@@ -131,10 +131,10 @@ function PublicProfile() {
       const response = await usersApi.uploadAvatar(formData);
       setProfile(prev => prev ? { ...prev, avatarUrl: response.data.avatarUrl } : null);
       
-      toast.success('Avatar mis à jour');
+      toast.success('Avatar updated');
       dispatch(fetchMe());
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Échec de la mise à jour de l\'avatar';
+      const message = err?.response?.data?.message || 'Failed to update avatar';
       toast.error(message);
     } finally {
       setUploadingAvatar(false);
@@ -157,10 +157,10 @@ function PublicProfile() {
       formData.append('file', file);
       const response = await usersApi.uploadCover(formData);
       setProfile(prev => prev ? { ...prev, coverImage: response.data.coverImage || response.data.coverUrl } : null);
-      toast.success('Image de couverture mise à jour');
+      toast.success('Cover image updated');
       dispatch(fetchMe());
     } catch (err: any) {
-      const message = err?.response?.data?.message || 'Échec de la mise à jour de la couverture';
+      const message = err?.response?.data?.message || 'Failed to update cover image';
       toast.error(message);
     } finally {
       setUploadingCover(false);
@@ -262,7 +262,7 @@ function PublicProfile() {
                 <Spinner size="sm" />
               ) : (
                 <span className="text-white bg-gray-800/80 px-3 py-1 rounded-full text-sm">
-                  Changer la couverture
+                  Change cover image
                 </span>
               )}
             </div>
@@ -523,8 +523,8 @@ function PublicProfile() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={[
-                    { name: 'Accepté', value: profile.totalAccepted ?? 0, fill: '#10b981' },
-                    { name: 'Refusé', value: (profile.totalSubmissions ?? 0) - (profile.totalAccepted ?? 0), fill: '#ef4444' },
+                    { name: 'Accepted', value: profile.totalAccepted ?? 0, fill: '#10b981' },
+                    { name: 'Rejected', value: (profile.totalSubmissions ?? 0) - (profile.totalAccepted ?? 0), fill: '#ef4444' },
                   ].filter((d) => d.value > 0)}
                   margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
                 >
@@ -534,7 +534,7 @@ function PublicProfile() {
                     contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
                     labelStyle={{ color: '#e5e7eb' }}
                   />
-                  <Bar dataKey="value" name="Soumissions" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="value" name="Submissions" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

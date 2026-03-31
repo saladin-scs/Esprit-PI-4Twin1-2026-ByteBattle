@@ -1,6 +1,6 @@
 /**
- * Pattern Controlled vs Uncontrolled: un seul composant peut être utilisé en mode
- * contrôlé (value + onChange) ou non contrôlé (defaultValue, état interne).
+ * Controlled vs Uncontrolled pattern: one component can be used in
+ * controlled mode (value + onChange) or uncontrolled mode (defaultValue, internal state).
  */
 import { useCallback, useRef, useState } from 'react';
 
@@ -11,9 +11,9 @@ export interface UseControlledOptions<T> {
 }
 
 /**
- * Retourne [value, setValue] stables.
- * - Si `value` est défini → mode contrôlé (value + onChange).
- * - Sinon → mode non contrôlé (état interne initialisé à defaultValue).
+ * Returns stable [value, setValue].
+ * - If `value` is defined -> controlled mode (value + onChange).
+ * - Otherwise -> uncontrolled mode (internal state initialized to defaultValue).
  */
 export function useControlled<T>(options: UseControlledOptions<T>): [T, (value: T | ((prev: T) => T)) => void] {
   const { value: controlledValue, defaultValue, onChange } = options;

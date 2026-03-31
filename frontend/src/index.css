@@ -2,6 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ByteBattle charter - after Tailwind so @apply resolves primary/slate */
+@layer components {
+  .bb-hero-gradient {
+    @apply pointer-events-none absolute inset-x-0 bg-gradient-to-b from-sky-500/10 via-sky-400/5 to-transparent dark:from-sky-500/15 dark:via-sky-600/5;
+  }
+  .bb-hero-gradient-tall {
+    @apply pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-sky-500/10 via-sky-400/5 to-transparent dark:from-sky-500/15 dark:via-sky-600/5;
+  }
+  .bb-hero-gradient-detail {
+    @apply pointer-events-none absolute inset-x-0 -top-24 h-64 bg-gradient-to-b from-sky-500/10 via-transparent to-transparent dark:from-sky-500/15;
+  }
+  .bb-card {
+    @apply rounded-2xl border border-slate-200/90 bg-white/95 shadow-lg shadow-slate-200/25 backdrop-blur-sm dark:border-slate-700/90 dark:bg-slate-900/90 dark:shadow-none;
+  }
+  .bb-card-interactive {
+    @apply cursor-pointer rounded-2xl border border-slate-200/90 bg-white/95 shadow-lg shadow-slate-200/25 backdrop-blur-sm transition-all duration-200 hover:border-sky-500/50 hover:shadow-md hover:shadow-sky-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50 dark:border-slate-700/90 dark:bg-slate-900/90 dark:shadow-none dark:hover:border-sky-400/45 dark:hover:shadow-sky-500/5 dark:focus-visible:ring-offset-gray-900;
+  }
+  .bb-kicker {
+    @apply mb-3 inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-sky-900 dark:border-sky-500/35 dark:bg-sky-500/15 dark:text-sky-200;
+  }
+  .bb-title-gradient {
+    @apply bg-gradient-to-r from-primary-600 via-sky-500 to-cyan-500 bg-clip-text font-bold text-transparent dark:from-primary-400 dark:via-sky-300 dark:to-cyan-400;
+  }
+  .bb-page-heading {
+    @apply text-3xl font-bold tracking-tight text-slate-900 dark:text-white md:text-4xl;
+  }
+  .bb-section-title {
+    @apply text-lg font-semibold text-primary-600 dark:text-primary-400;
+  }
+  .bb-body-text {
+    @apply text-slate-800 dark:text-slate-400;
+  }
+  .bb-link {
+    @apply text-slate-600 transition-colors hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400;
+  }
+  .bb-pill-dates {
+    @apply inline-flex items-center gap-2 rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-950 dark:border-sky-500/30 dark:bg-sky-500/15 dark:text-sky-100;
+  }
+  .bb-badge-multi {
+    @apply inline-flex items-center gap-1 rounded-full border border-sky-400/40 bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-900 dark:text-sky-300;
+  }
+  .bb-included-problems {
+    @apply mb-4 rounded-xl border border-sky-500/25 bg-sky-500/5 px-4 py-3 dark:border-sky-500/20 dark:bg-sky-500/10;
+  }
+  .bb-problem-index {
+    @apply text-primary-600 dark:text-primary-400;
+  }
+  .bb-code {
+    @apply text-primary-700 dark:text-primary-300;
+  }
+  .bb-empty-state {
+    @apply flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/90 px-6 py-16 dark:border-slate-600 dark:bg-slate-800/50;
+  }
+  .bb-submission-shell {
+    @apply rounded-2xl border border-slate-200/90 bg-white/95 p-5 shadow-lg shadow-slate-200/25 dark:border-slate-700/90 dark:bg-slate-900/95 dark:shadow-none;
+  }
+  .bb-select {
+    @apply w-full max-w-xs rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100;
+  }
+  .bb-editor-ring {
+    @apply rounded-lg border border-slate-300 transition-shadow focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-sky-500/30 dark:border-slate-600;
+  }
+  .bb-tablist {
+    @apply flex gap-1 rounded-xl border border-slate-200 bg-slate-100/90 p-1 dark:border-slate-700 dark:bg-slate-800/90;
+  }
+  .bb-tab-trigger {
+    @apply rounded-lg px-5 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-offset-gray-900;
+  }
+  .bb-tab-trigger-active {
+    @apply bg-primary-600 text-white shadow-sm dark:bg-primary-500;
+  }
+  .bb-tab-trigger-inactive {
+    @apply text-slate-800 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-200;
+  }
+  .bb-lb-aside {
+    @apply sticky top-4 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/90 p-5 shadow-lg shadow-slate-200/40 dark:border-slate-700/90 dark:from-slate-900/95 dark:to-slate-950/90 dark:shadow-none;
+  }
+  .bb-lb-pill-active {
+    @apply bg-primary-600 text-white shadow-md shadow-sky-500/25 dark:bg-primary-500;
+  }
+  .bb-lb-pill-idle {
+    @apply bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700;
+  }
+  .bb-skeleton-card {
+    @apply animate-pulse rounded-2xl border border-slate-200 bg-slate-100/80 p-5 dark:border-slate-700 dark:bg-slate-800/60;
+  }
+}
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -10,41 +98,29 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: light dark;
+}
+
+:root:not(.dark) {
+  color: #171717;
+  background-color: #fafafa;
+}
+
+.dark {
+  color: rgba(248, 250, 252, 0.92);
+  background-color: #020617; /* slate-950 - charter */
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white;
+  /* Aligned with ByteBattle charter */
+  @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
-}
-
-/* Light-mode compatibility for legacy dark-first utility classes */
-:root:not(.dark) .bg-gray-900,
-:root:not(.dark) .bg-gray-900\/60,
-:root:not(.dark) .bg-gray-900\/50,
-:root:not(.dark) .bg-gray-800,
-:root:not(.dark) .bg-gray-800\/80,
-:root:not(.dark) .bg-gray-800\/50 {
-  background-color: rgb(255 255 255 / 0.96) !important;
-}
-
-:root:not(.dark) .border-gray-700,
-:root:not(.dark) .border-gray-700\/50,
-:root:not(.dark) .border-gray-700\/40 {
-  border-color: rgb(229 231 235) !important;
-}
-
-:root:not(.dark) .text-gray-100,
-:root:not(.dark) .text-gray-200,
-:root:not(.dark) .text-gray-300,
-:root:not(.dark) .text-gray-400,
-:root:not(.dark) .text-white {
-  color: rgb(31 41 55) !important;
 }
 

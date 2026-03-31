@@ -1,83 +1,99 @@
 /* eslint-disable prettier/prettier */
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Req, Delete, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChallengeService } from './challenges.service';
 import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto } from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtOrApiKeyAuthGuard } from '../auth/guards/jwt-or-api-key.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ActionRateLimitGuard, RateLimitAction } from '../common/action-rate-limit.guard';
 
 @ApiTags('Challenges')
 @Controller('challenges')
 export class ChallengeController {
   constructor(private readonly challengeService: ChallengeService) {}
 
-  // ─── Routes PUBLIQUES ────────────────────────────────────────────────────
+  // Public routes
 
   @Get()
-  @ApiOperation({ summary: 'Liste des challenges avec filtres' })
+  @ApiOperation({ summary: 'List challenges with filters' })
   async findAll(@Query() query: GetChallengesDto) {
     return this.challengeService.findAll(query);
   }
 
+  @Post('dev/post-easy-medium-hard')
+  @ApiOperation({
+    summary:
+      'DEV: create 1 easy + 1 medium + 1 hard sample challenge (ENABLE_DEV_CHALLENGE_SEED=true)',
+  })
+  async devPostEasyMediumHard() {
+    return this.challengeService.seedDevEasyMediumHard();
+  }
+
+  /** Before any :id route - prevents "recommended" or "me" from being interpreted as ObjectId */
+  @Get('recommended')
+  @UseGuards(JwtOrApiKeyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Recommended challenges (JWT or bb_live_ API key / X-Api-Key)' })
+  async recommended(@Req() req: any, @Query('limit') limit?: string) {
+    const n = limit ? parseInt(limit, 10) : 12;
+    return this.challengeService.recommendForUser(req.user.userId, Number.isFinite(n) ? n : 12);
+  }
+
+  @Get('me/submissions')
+  @UseGuards(JwtOrApiKeyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'My submissions' })
+  async mySubmissions(@Req() req: any, @Query('challengeId') challengeId?: string) {
+    return this.challengeService.getUserSubmissions(req.user.userId, challengeId);
+  }
+
   @Get(':id/stats')
-  @ApiOperation({ summary: 'Stats d\'un challenge (taux d\'acceptation, etc.)' })
+  @ApiOperation({ summary: 'Challenge stats (acceptance rate, etc.)' })
   async getStats(@Param('id') id: string) {
     return this.challengeService.getStats(id);
   }
 
   @Get(':id/my-completion')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtOrApiKeyAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Langages dans lesquels l\'utilisateur a résolu ce challenge' })
+  @ApiOperation({ summary: 'Languages in which user solved this challenge' })
   async getMyCompletion(@Param('id') id: string, @Req() req: any) {
     return this.challengeService.getMyCompletion(id, req.user.userId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Détail d\'un challenge' })
+  @ApiOperation({ summary: 'Challenge details' })
   async findOne(@Param('id') id: string) {
     return this.challengeService.findOne(id);
   }
 
-  // ─── Routes PROTÉGÉES (JWT requis) ──────────────────────────────────────
+  // Protected routes (JWT or API key)
 
   @Post(':id/run')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtOrApiKeyAuthGuard, ActionRateLimitGuard)
+  @RateLimitAction('challenge_run')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Exécuter le code contre les exemples uniquement (sans enregistrer)' })
-  async run(
-    @Param('id') id: string,
-    @Body() dto: SubmitChallengeDto,
-  ) {
+  @ApiOperation({ summary: 'Run code against examples only (without saving)' })
+  async run(@Param('id') id: string, @Body() dto: SubmitChallengeDto) {
     return this.challengeService.run(id, dto);
   }
 
   @Post(':id/submit')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtOrApiKeyAuthGuard, ActionRateLimitGuard)
+  @RateLimitAction('challenge_submit')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Soumettre une solution' })
-  async submit(
-    @Param('id') id: string,
-    @Body() dto: SubmitChallengeDto,
-    @Req() req: any,
-  ) {
+  @ApiOperation({ summary: 'Submit a solution' })
+  async submit(@Param('id') id: string, @Body() dto: SubmitChallengeDto, @Req() req: any) {
     return this.challengeService.submit(id, req.user.userId, dto);
   }
 
-  @Get('me/submissions')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Mes soumissions' })
-  async mySubmissions(@Req() req: any, @Query('challengeId') challengeId?: string) {
-    return this.challengeService.getUserSubmissions(req.user.userId, challengeId);
-  }
-
-  // ─── Communauté : Solutions ──────────────────────────────────────────────
+  // Community: Solutions
 
   @Get(':id/solutions')
-  @ApiOperation({ summary: 'Voir les solutions de la communauté pour un challenge' })
+  @ApiOperation({ summary: 'View community solutions for a challenge' })
   async getSolutions(
     @Param('id') challengeId: string,
     @Query('page') page?: number,
@@ -87,9 +103,9 @@ export class ChallengeController {
   }
 
   @Post(':id/solutions')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtOrApiKeyAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Partager une solution' })
+  @ApiOperation({ summary: 'Share a solution' })
   async createSolution(
     @Param('id') challengeId: string,
     @Body() dto: CreateSolutionDto,
@@ -99,14 +115,14 @@ export class ChallengeController {
   }
 
   @Post('solutions/:solutionId/upvote')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtOrApiKeyAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Upvoter/Downvoter une solution' })
+  @ApiOperation({ summary: 'Upvote/downvote a solution' })
   async upvoteSolution(@Param('solutionId') solutionId: string, @Req() req: any) {
     return this.challengeService.upvoteSolution(req.user.userId, solutionId);
   }
 
-  // ─── Route ADMIN (créer un challenge) ───────────────────────────────────
+  // Admin route (create challenge)
 
   @Post('seed')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -118,29 +134,11 @@ export class ChallengeController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)          // <-- added RolesGuard
-  @Roles('admin')                                // <-- only admin can create
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Créer un challenge (admin)' })
+  @ApiOperation({ summary: 'Create a challenge (admin)' })
   async create(@Body() dto: CreateChallengeDto) {
     return this.challengeService.create(dto);
-  }
-
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Mettre à jour un challenge (admin)' })
-  async update(@Param('id') id: string, @Body() dto: Partial<CreateChallengeDto>) {
-    return this.challengeService.update(id, dto);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Supprimer un challenge (admin)' })
-  async delete(@Param('id') id: string) {
-    return this.challengeService.delete(id);
   }
 }

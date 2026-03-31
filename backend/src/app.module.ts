@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-// backend/src/app.module.ts – Racine modulaire : config + modules métier
+// backend/src/app.module.ts - Modular root: config + business modules
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
