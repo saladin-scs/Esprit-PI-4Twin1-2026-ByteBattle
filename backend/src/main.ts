@@ -58,11 +58,15 @@ async function bootstrap() {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const localhostOriginOk = (o: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(o);
+
   app.enableCors({
     origin: (origin, callback) => {
       // Allow non-browser requests (no origin) like curl/Postman
       if (!origin) return callback(null, true);
       if (corsOrigins.includes(origin)) return callback(null, true);
+      if (nodeEnv !== 'production' && localhostOriginOk(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,

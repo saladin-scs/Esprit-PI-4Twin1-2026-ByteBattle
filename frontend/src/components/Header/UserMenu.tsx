@@ -6,6 +6,7 @@ import { RootState } from '../../store/store';
 import { Avatar, DropdownMenu, DropdownMenuItem, DropdownMenuSeparator, Modal, Button } from '../../shared/components';
 import { authApi } from '../../core/api';
 import toast from 'react-hot-toast';
+import { KeyRound } from 'lucide-react';
 import {
   IconUser,
   IconLayoutDashboard,
@@ -79,6 +80,9 @@ export function UserMenu() {
           </DropdownMenuItem>
           <DropdownMenuItem to="/settings/profile" icon={<IconCog />}>
             Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem to="/settings/developer" icon={<KeyRound className="h-4 w-4" aria-hidden />}>
+            Developer & data
           </DropdownMenuItem>
           {isAdmin && (
             <>

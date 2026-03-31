@@ -10,7 +10,7 @@ import type { FullProfile } from '../../types/profile';
 import { RANK_TIER_COLORS as RANK_COLORS, BADGE_CATALOG } from '../../types/profile';
 import EditProfileModal from '../../components/Profile/EditProfileModal';
 import toast from 'react-hot-toast';
-import { Button, Spinner, Alert, PageContainer } from '../../shared/components';
+import { Button, Alert, PageContainer, Spinner } from '../../shared/components';
 
 interface ActivityData {
   heatmap: Array<{ date: string; count: number }>;
@@ -23,6 +23,11 @@ interface SkillTreeItem {
 }
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+function normalizeCountryCode(code?: string) {
+  const cc = String(code || '').trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(cc) ? cc : '';
+}
 
 function PublicProfile() {
   const { username } = useParams();
@@ -172,8 +177,41 @@ function PublicProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-        <Spinner size="lg" />
+      <div className="min-h-screen bg-gray-50 pb-20 dark:bg-gray-900">
+        <section className="relative">
+          <div className="h-48 w-full animate-pulse bg-slate-200 dark:bg-slate-800 sm:h-64" />
+        </section>
+        <section className="relative z-10 mx-auto -mt-12 max-w-4xl px-4 sm:px-6">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-gray-700/50 dark:bg-gray-800/80">
+            <div className="flex flex-col items-start gap-6 sm:flex-row">
+              <div className="h-24 w-24 animate-pulse rounded-2xl bg-slate-200 sm:h-32 sm:w-32 dark:bg-slate-700" />
+              <div className="w-full min-w-0 flex-1 space-y-3">
+                <div className="h-8 w-60 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                <div className="h-5 w-36 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                <div className="h-4 w-full max-w-xl animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+              </div>
+            </div>
+          </div>
+        </section>
+        <div className="mx-auto mt-8 max-w-4xl space-y-6 px-4 sm:px-6">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-gray-700/50 dark:bg-gray-800/80">
+            <div className="mb-4 h-6 w-48 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="h-20 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+              <div className="h-20 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+              <div className="h-20 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+              <div className="h-20 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-gray-700/50 dark:bg-gray-800/80">
+            <div className="mb-4 h-6 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="space-y-2">
+              <div className="h-4 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+              <div className="h-4 w-10/12 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+              <div className="h-4 w-8/12 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -192,6 +230,8 @@ function PublicProfile() {
     profile.displayName?.trim() ||
     [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() ||
     profile.username;
+  const countryCode = normalizeCountryCode(profile.country);
+  const countryFlagUrl = countryCode ? `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png` : '';
 
   const rankProgress = profile.rankProgress || {
     currentTier: profile.rankTier || 'F',
@@ -321,6 +361,15 @@ function PublicProfile() {
                     <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl dark:text-white">
                       {profileDisplayName}
                     </h1>
+                    {countryFlagUrl && (
+                      <img
+                        src={countryFlagUrl}
+                        alt={countryCode}
+                        title={countryCode}
+                        className="h-5 w-7 rounded-sm object-cover ring-1 ring-black/10 dark:ring-white/20"
+                        loading="lazy"
+                      />
+                    )}
                     {profile.emailVerifiedAt && (
                       <span className="text-blue-600 dark:text-blue-400" title="Email verified">✓</span>
                     )}
@@ -339,8 +388,16 @@ function PublicProfile() {
               )}
 
               <div className="mt-2 flex flex-wrap gap-3">
-                {profile.country && (
-                  <span className="text-sm text-slate-600 dark:text-gray-400">📍 {profile.country}</span>
+                {countryFlagUrl && (
+                  <span className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-gray-400">
+                    <img
+                      src={countryFlagUrl}
+                      alt={countryCode}
+                      className="h-4 w-6 rounded-[2px] object-cover ring-1 ring-black/10 dark:ring-white/20"
+                      loading="lazy"
+                    />
+                    {countryCode}
+                  </span>
                 )}
                 {profile.memberSince && (
                   <span className="text-sm text-slate-600 dark:text-gray-400">

@@ -32,6 +32,8 @@ const {
   Setup2FA,
   Status,
   Reclamation,
+  Explore,
+  DeveloperSettings,
 } = LazyRoutes;
 
 export function AppRoutes() {
@@ -40,6 +42,7 @@ export function AppRoutes() {
       <Suspense fallback={<SuspensePageFallback />}>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/explore" element={<Explore />} />
           <Route path="/status" element={<Status />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -57,6 +60,7 @@ export function AppRoutes() {
           <Route path="/competitions/:id" element={<ProtectedRoute><CompetitionDetail /></ProtectedRoute>} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/security" element={<SecuritySettings />} />
+          <Route path="/settings/developer" element={<DeveloperSettings />} />
           <Route path="/u/:username" element={<PublicProfile />} />
           <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
           <Route path="/admin/gamification" element={<AdminRoute><AdminGamificationStats /></AdminRoute>} />

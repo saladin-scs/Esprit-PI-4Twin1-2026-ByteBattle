@@ -4,9 +4,9 @@
  */
 
 import axios, { type AxiosInstance } from 'axios';
-import { getPublicApiUrl } from '../../config/publicEnv';
+import { getHttpApiBaseUrl } from '../../config/publicEnv';
 
-const API_URL = getPublicApiUrl();
+const API_URL = getHttpApiBaseUrl();
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,

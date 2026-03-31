@@ -1,10 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
 import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
 import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
 import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilityCallout';
+import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
+import { RootState } from '../../store/store';
 
 const PAGE_SIZE = 15;
 
@@ -20,6 +23,10 @@ function isNewFromCreatedAt(createdAt?: string): boolean {
 
 const Challenges = () => {
   const navigate = useNavigate();
+  const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const [reco, setReco] = useState<RecommendedChallengeItem[]>([]);
+  const [recoLoading, setRecoLoading] = useState(false);
+
   const {
     challenges,
     total,
@@ -36,6 +43,29 @@ const Challenges = () => {
   useEffect(() => {
     fetchChallenges();
   }, [filters.difficulty, filters.language, filters.search, page, fetchChallenges]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setReco([]);
+      return;
+    }
+    let cancelled = false;
+    setRecoLoading(true);
+    challengesApi
+      .getRecommended({ limit: 8 })
+      .then((res) => {
+        if (!cancelled) setReco(res.data.challenges || []);
+      })
+      .catch(() => {
+        if (!cancelled) setReco([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRecoLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +98,44 @@ const Challenges = () => {
       <div className="relative mb-6">
         <ChatAvailabilityCallout variant="compact" />
       </div>
+
+      {isAuthenticated && (
+        <section className="relative mb-8 bb-card p-4 sm:p-5" aria-label="Recommended challenges">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+            <Sparkles className="h-5 w-5 text-amber-500" aria-hidden />
+            Recommandés pour vous
+          </h2>
+          <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+            Suggestions simples selon tes derniers défis réussis (tags & difficulté).
+          </p>
+          {recoLoading ? (
+            <div className="flex justify-center py-6">
+              <Spinner />
+            </div>
+          ) : reco.length === 0 ? (
+            <p className="text-sm text-slate-500">Résous un défi pour affiner les recommandations.</p>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {reco.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => navigate(`/challenges/${c.id}`)}
+                  className="min-w-[200px] max-w-[240px] shrink-0 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-primary-400 dark:border-slate-600 dark:bg-slate-900/40 dark:hover:border-primary-500"
+                >
+                  <div className="line-clamp-2 font-medium text-slate-900 dark:text-white">{c.title}</div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <DifficultyBadge difficulty={c.difficulty} size="sm" />
+                    {c.xpReward != null && (
+                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">+{c.xpReward} XP</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="relative mb-6 bb-card p-4 sm:p-5">
         <ChallengeFilters

@@ -84,10 +84,16 @@ export const useChallengesStore = create<ChallengesState>((set, get) => ({
         loading: false,
         error: null,
       });
-    } catch {
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'data' in err.response
+          ? (err.response as { data?: { message?: string } }).data?.message
+          : err instanceof Error
+            ? err.message
+            : 'Failed to load challenges.';
       set({
         loading: false,
-        error: 'Failed to load challenges.',
+        error: Array.isArray(message) ? message.join(', ') : message || 'Failed to load challenges.',
       });
     }
   },

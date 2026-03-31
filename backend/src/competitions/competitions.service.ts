@@ -19,6 +19,7 @@ import { ChallengeService } from '../challenges/challenges.service';
 import { CodeExecutionService } from '../code-execution/code-execution.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 function devCompetitionSeedAllowed(): boolean {
   return (
@@ -38,6 +39,7 @@ export class CompetitionsService {
     private codeExecution: CodeExecutionService,
     private gamificationService: GamificationService,
     private usersService: UsersService,
+    private notificationsService: NotificationsService,
   ) {}
 
   private mapLanguage(lang: string): string {
@@ -220,6 +222,15 @@ export class CompetitionsService {
     if (!competition.participants.includes(uid)) {
       competition.participants.push(uid);
       await competition.save();
+      void this.notificationsService
+        .create({
+          userId,
+          type: 'competition_joined',
+          title: 'Inscription confirmée',
+          body: `Tu participes à la compétition « ${competition.name} ».`,
+          meta: { href: `/competitions/${competitionId}`, competitionId },
+        })
+        .catch(() => undefined);
     }
     return { success: true };
   }
@@ -447,8 +458,40 @@ export class CompetitionsService {
   async updateStatus(competitionId: string, status: 'scheduled' | 'active' | 'closed' | 'archived') {
     const competition = await this.competitionModel.findById(competitionId).exec();
     if (!competition) throw new NotFoundException('Competition not found');
+    const prevStatus = competition.status;
     competition.status = status;
     await competition.save();
+    const name = competition.name;
+    const participants = competition.participants || [];
+
+    if (status === 'active' && prevStatus !== 'active') {
+      for (const uid of participants) {
+        void this.notificationsService
+          .create({
+            userId: uid,
+            type: 'competition_active',
+            title: 'Compétition en cours',
+            body: `« ${name} » est maintenant active. Tu peux soumettre tes solutions.`,
+            meta: { href: `/competitions/${competitionId}`, competitionId },
+          })
+          .catch(() => undefined);
+      }
+    }
+
+    if (status === 'closed' && prevStatus !== 'closed') {
+      for (const uid of participants) {
+        void this.notificationsService
+          .create({
+            userId: uid,
+            type: 'competition_closed',
+            title: 'Compétition terminée',
+            body: `« ${name} » est close. Consulte le classement.`,
+            meta: { href: `/competitions/${competitionId}`, competitionId },
+          })
+          .catch(() => undefined);
+      }
+    }
+
     if (status === 'closed') {
       await this.finalizeCompetition(competitionId);
     }

@@ -19,6 +19,7 @@ import CommunitySolutions from './CommunitySolutions';
 import { RootState } from '../../store/store';
 import { CollaborationChat } from '../../shared/components/CollaborationChat';
 import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
+import { Breadcrumbs, EmptyState } from '../../shared/components';
 import { getEditorPrefillCode } from '../../utils/testPrefill';
 
 const MONACO_LANG: Record<string, string> = {
@@ -137,7 +138,8 @@ const ChallengeDetail = () => {
   const prevChallengeIdRef = useRef<string | undefined>(undefined);
   const prevLangParamRef = useRef<string | null>(null);
 
-  const editorTheme = theme === 'dark' ? 'vs-dark' : 'light';
+  /** `vs` = thème clair Monaco plus lisible que `light` (meilleur contraste syntaxe) */
+  const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs';
   const loading = loadingChallenge;
   const error = storeError;
 
@@ -312,8 +314,51 @@ const ChallengeDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] text-gray-500 dark:text-gray-400">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary-500 border-t-transparent" />
+      <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 dark:bg-[#010409]">
+        <div className="flex h-full w-[38%] min-w-[320px] flex-col border-r border-slate-200 bg-white p-4 dark:border-[#30363d] dark:bg-[#0d1117]">
+          <div className="mb-4 flex gap-3">
+            <div className="h-9 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-9 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-9 w-16 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+          </div>
+          <div className="mb-3 h-8 w-3/4 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+          <div className="space-y-2">
+            <div className="h-4 w-full animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-4 w-11/12 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-4 w-9/12 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+          </div>
+          <div className="mt-6 space-y-2">
+            <div className="h-4 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-16 w-full animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+            <div className="h-16 w-full animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+          </div>
+        </div>
+        <div className="flex h-full min-w-0 flex-1 flex-col">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 dark:border-[#30363d] dark:bg-[#0d1117]">
+            <div className="flex gap-2">
+              <div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="h-8 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-9 w-20 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="h-9 w-24 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+            </div>
+          </div>
+          <div className="flex min-h-0 flex-1">
+            <div className="min-w-0 flex-1 bg-white p-4 dark:bg-[#0d1117]">
+              <div className="h-full w-full animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-[#30363d] dark:bg-slate-900/50" />
+            </div>
+            <div className="w-[320px] border-l border-slate-200 bg-white p-4 dark:border-[#30363d] dark:bg-[#0d1117]">
+              <div className="mb-3 h-8 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+              <div className="space-y-3">
+                <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+                <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+                <div className="h-24 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -330,6 +375,7 @@ const ChallengeDetail = () => {
     return (
       <div className="relative mx-auto max-w-3xl px-4 py-8 sm:px-6 md:py-12">
         <div className="bb-hero-gradient-tall" aria-hidden />
+        <Breadcrumbs items={[{ label: 'Challenges', to: '/challenges' }, { label: challenge.title }]} className="relative mb-4" />
         <button
           type="button"
           onClick={() => navigate('/challenges')}
@@ -387,14 +433,17 @@ const ChallengeDetail = () => {
       <Group {...({ direction: 'horizontal' } as any)}>
         <Panel defaultSize={38} minSize={28}>
           <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
-            <div className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
+            <div className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]" role="tablist" aria-label="Challenge panels">
               <button
                 type="button"
                 onClick={() => setActiveTab('description')}
+                role="tab"
+                aria-selected={activeTab === 'description'}
+                tabIndex={activeTab === 'description' ? 0 : -1}
                 className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                   activeTab === 'description'
                     ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                    : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
                 }`}
               >
                 Description
@@ -403,10 +452,13 @@ const ChallengeDetail = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab('hints')}
+                  role="tab"
+                  aria-selected={activeTab === 'hints'}
+                  tabIndex={activeTab === 'hints' ? 0 : -1}
                   className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'hints'
                       ? 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
-                      : 'border-transparent text-slate-500 hover:text-amber-700 dark:text-[#8b949e] dark:hover:text-amber-200/90'
+                      : 'border-transparent text-slate-700 hover:text-amber-800 dark:text-[#8b949e] dark:hover:text-amber-200/90'
                   }`}
                   aria-label="Indices et aide"
                 >
@@ -418,10 +470,13 @@ const ChallengeDetail = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab('solutions')}
+                  role="tab"
+                  aria-selected={activeTab === 'solutions'}
+                  tabIndex={activeTab === 'solutions' ? 0 : -1}
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'solutions'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                      : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
                   }`}
                 >
                   Solutions
@@ -431,10 +486,13 @@ const ChallengeDetail = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab('result')}
+                  role="tab"
+                  aria-selected={activeTab === 'result'}
+                  tabIndex={activeTab === 'result' ? 0 : -1}
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                     activeTab === 'result'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                      : 'border-transparent text-slate-500 dark:text-[#8b949e]'
+                      : 'border-transparent text-slate-700 dark:text-[#8b949e]'
                   }`}
                 >
                   Result {displayResult?.status === 'accepted' ? '✅' : displayResult ? '❌' : '⚠️'}
@@ -445,10 +503,13 @@ const ChallengeDetail = () => {
                   <button
                     type="button"
                     onClick={() => setActiveTab('chat')}
+                    role="tab"
+                    aria-selected={activeTab === 'chat'}
+                    tabIndex={activeTab === 'chat' ? 0 : -1}
                     className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                       activeTab === 'chat'
                         ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                        : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                        : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
                     }`}
                   >
                     <MessageCircle className="h-4 w-4" aria-hidden />
@@ -457,10 +518,13 @@ const ChallengeDetail = () => {
                   <button
                     type="button"
                     onClick={() => setActiveTab('coach')}
+                    role="tab"
+                    aria-selected={activeTab === 'coach'}
+                    tabIndex={activeTab === 'coach' ? 0 : -1}
                     className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
                       activeTab === 'coach'
                         ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                        : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                        : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
                     }`}
                   >
                     <Sparkles className="h-4 w-4" aria-hidden />
@@ -516,7 +580,7 @@ const ChallengeDetail = () => {
                         <span className="block text-sm font-semibold text-amber-950 dark:text-amber-100">
                           Besoin d&apos;un coup de pouce ?
                         </span>
-                        <span className="mt-0.5 block text-xs text-amber-900/80 dark:text-amber-200/80">
+                        <span className="mt-0.5 block text-sm text-amber-950 dark:text-amber-200/80">
                           {challenge.hints.length} indice{challenge.hints.length > 1 ? 's' : ''} disponible
                           {challenge.hints.length > 1 ? 's' : ''} — ouvre l&apos;onglet{' '}
                           <strong className="font-semibold">Indices</strong> (icône ampoule).
@@ -526,14 +590,14 @@ const ChallengeDetail = () => {
                   ) : (
                     <div className="mb-5 flex items-start gap-3 rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-[#30363d] dark:bg-[#161b22]">
                       <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80 dark:text-amber-400/90" aria-hidden />
-                      <p className="text-xs leading-relaxed text-slate-600 dark:text-[#8b949e]">
-                        <span className="font-semibold text-slate-800 dark:text-[#c9d1d9]">Petit rappel :</span> lis bien
+                      <p className="text-sm leading-relaxed text-slate-800 dark:text-[#8b949e]">
+                        <span className="font-semibold text-slate-900 dark:text-[#c9d1d9]">Petit rappel :</span> lis bien
                         l&apos;énoncé et les exemples, utilise <strong>Run</strong> sur les cas visibles, puis{' '}
                         <strong>Submit</strong> quand tu es prêt.
                       </p>
                     </div>
                   )}
-                  <div className="markdown-body prose prose-sm mb-6 max-w-none text-gray-700 dark:prose-invert dark:text-[#c9d1d9]">
+                  <div className="markdown-body prose prose-slate prose-sm mb-6 max-w-none text-gray-800 prose-headings:text-gray-900 dark:prose-invert dark:text-[#c9d1d9]">
                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>
                       {challenge.description}
                     </ReactMarkdown>
@@ -636,7 +700,7 @@ const ChallengeDetail = () => {
                               />
                               <div>
                                 <p className="font-medium text-slate-800 dark:text-[#c9d1d9]">Indice {i + 1}</p>
-                                <p className="text-xs text-slate-500 dark:text-[#8b949e]">
+                                <p className="text-sm text-slate-700 dark:text-[#8b949e]">
                                   {tierLabel}
                                   {hint.cost > 0 ? ` · ${hint.cost} XP` : ''} — masqué pour l&apos;instant.
                                 </p>
@@ -784,7 +848,7 @@ const ChallengeDetail = () => {
           <Group {...({ direction: 'vertical' } as any)}>
             <Panel defaultSize={68} minSize={22}>
               <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
-                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
+                <div className="sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
                   <div className="flex flex-wrap items-center gap-2">
                     {challenge.languages.map((lang) => (
                       <button
@@ -804,7 +868,7 @@ const ChallengeDetail = () => {
                     <button
                       type="button"
                       onClick={() => setSearchParams({})}
-                      className="rounded px-3 py-1.5 text-xs text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-gray-100"
+                      className="rounded px-3 py-1.5 text-xs font-medium text-slate-800 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-100"
                       title="Change language"
                     >
                       Change language
@@ -813,7 +877,7 @@ const ChallengeDetail = () => {
                     <button
                       type="button"
                       title="Vim mode"
-                      className={`rounded p-1.5 ${isVimMode ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                      className={`rounded p-1.5 ${isVimMode ? 'text-primary-600 dark:text-primary-400' : 'text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200'}`}
                       onClick={() => setIsVimMode(!isVimMode)}
                     >
                       <Keyboard className="h-4 w-4" />
@@ -821,7 +885,7 @@ const ChallengeDetail = () => {
                     <button
                       type="button"
                       title="Format"
-                      className="rounded p-1.5 text-slate-500 hover:text-slate-800 dark:text-gray-400 dark:hover:text-gray-200"
+                      className="rounded p-1.5 text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200"
                       onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
                     >
                       <AlignLeft className="h-4 w-4" />
@@ -899,7 +963,7 @@ const ChallengeDetail = () => {
                       {challenge.examples[selectedTestCase] && (
                         <div className="space-y-4">
                           <div>
-                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-[#8b949e]">
+                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-[#8b949e]">
                               Input
                             </div>
                             <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#c9d1d9]">
@@ -907,7 +971,7 @@ const ChallengeDetail = () => {
                             </pre>
                           </div>
                           <div>
-                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-[#8b949e]">
+                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-[#8b949e]">
                               Expected output
                             </div>
                             <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#c9d1d9]">
@@ -918,7 +982,11 @@ const ChallengeDetail = () => {
                       )}
                     </>
                   ) : (
-                    <p className="text-slate-500 dark:text-[#8b949e]">No examples. Run or submit to see results.</p>
+                    <EmptyState
+                      title="No execution results yet"
+                      description="Run visible examples or submit your solution to get detailed feedback."
+                      className="py-8"
+                    />
                   )}
                 </div>
               </div>

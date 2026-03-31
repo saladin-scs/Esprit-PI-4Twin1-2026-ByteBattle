@@ -15,10 +15,14 @@ import { isValidChatRoom } from './chat-room.util';
 
 @WebSocketGateway({
   cors: {
-    origin: (process.env.CORS_ORIGIN || 'http://localhost:5173')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
+    // En dev, refléter l’origine (Vite sur n’importe quel port localhost) ; en prod liste stricte.
+    origin:
+      (process.env.NODE_ENV || 'development') !== 'production'
+        ? true
+        : (process.env.CORS_ORIGIN || 'http://localhost:5173')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
     credentials: true,
   },
   transports: ['websocket', 'polling'],

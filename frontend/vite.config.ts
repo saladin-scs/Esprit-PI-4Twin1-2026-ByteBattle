@@ -13,14 +13,21 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // API REST via préfixe dédié (évite conflit avec la route SPA /challenges, etc.)
+      // 127.0.0.1 évite sur Windows les soucis où `localhost` résout en IPv6 (::1) sans listener
+      '/bb-api': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/bb-api/, ''),
+      },
       // Swagger sous /api côté Nest ; utile si tu appelles le doc via le dev server
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
-      // Socket.IO — même cible que VITE_API_URL pour rester aligné avec le backend
+      // Socket.IO — même cible que le backend
       '/socket.io': {
-        target: 'http://localhost:3000',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         ws: true,
       },

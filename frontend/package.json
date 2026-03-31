@@ -5,6 +5,7 @@
   "description": "ByteBattle Frontend - Real-Time Collaborative Coding Challenge Platform",
   "scripts": {
     "dev": "vite",
+    "dev:stack": "concurrently -n backend,web -c blue,magenta \"npm run start:dev --prefix ../backend\" \"vite\"",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
@@ -66,6 +67,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.3.3",
-    "vite": "^5.0.8"
+    "vite": "^5.0.8",
+    "concurrently": "^9.1.2"
   }
 }

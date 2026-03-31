@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { adminApi } from '../../services/api';
-import { Button, Input, Card, Alert, PageContainer, Spinner, Modal } from '../../shared/components';
+import { Button, Input, Card, Alert, PageContainer, Spinner, Modal, Breadcrumbs } from '../../shared/components';
 import type { RootState } from '../../store/store';
 
 type Role = 'user' | 'moderator' | 'admin';
@@ -173,6 +173,7 @@ function AdminUsers() {
 
   return (
     <PageContainer maxWidth="7xl" className="py-8">
+      <Breadcrumbs className="mb-4" items={[{ label: 'Admin' }, { label: 'Users' }]} />
       <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">User Management</h1>

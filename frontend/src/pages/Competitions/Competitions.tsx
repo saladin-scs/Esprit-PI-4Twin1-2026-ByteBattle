@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageContainer } from '../../shared/components';
 import { Alert } from '../../shared/components';
 import { ChatAvailabilityCallout } from '../../shared/components/ChatAvailabilityCallout';
-import { Trophy, Sparkles } from 'lucide-react';
+import { Trophy, Sparkles, Filter } from 'lucide-react';
 import { useCompetitionsStore } from './useCompetitionsStore';
 import {
   CompetitionCard,
@@ -10,13 +10,43 @@ import {
   CompetitionTabs,
   CompetitionEmptyState,
 } from './components';
+import type { CompetitionType } from './types';
 
 export default function Competitions() {
   const { tab, setTab, competitions, total, loading, error, fetchCompetitions } = useCompetitionsStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'' | CompetitionType>('');
+  const [languageFilter, setLanguageFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchCompetitions();
   }, [tab, fetchCompetitions]);
+
+  const languageOptions = useMemo(() => {
+    const set = new Set<string>();
+    competitions.forEach((c) => (c.supportedLanguages || []).forEach((l) => set.add(String(l))));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [competitions]);
+
+  const filteredCompetitions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return competitions.filter((c) => {
+      if (typeFilter && c.type !== typeFilter) return false;
+      if (languageFilter && !(c.supportedLanguages || []).includes(languageFilter)) return false;
+      if (!q) return true;
+      return (
+        c.name?.toLowerCase().includes(q) ||
+        c.description?.toLowerCase().includes(q)
+      );
+    });
+  }, [competitions, searchQuery, typeFilter, languageFilter]);
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setTypeFilter('');
+    setLanguageFilter('');
+  };
 
   return (
     <PageContainer maxWidth="7xl" className="relative py-8 md:py-12">
@@ -53,17 +83,75 @@ export default function Competitions() {
         </Alert>
       )}
 
+      <div className="mt-6 space-y-3">
+        <button
+          onClick={() => setShowFilters((v) => !v)}
+          className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+        >
+          <Filter className="h-4 w-4" />
+          {showFilters ? 'Hide Filters' : 'Show Filters'}
+        </button>
+        {showFilters && (
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-4 dark:border-slate-700 dark:bg-slate-800/50">
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Search</label>
+              <input
+                type="text"
+                placeholder="Name or description..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Type</label>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as '' | CompetitionType)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+              >
+                <option value="">All types</option>
+                <option value="algorithmic">Algorithmic</option>
+                <option value="speed">Speed</option>
+                <option value="code_golf">Code Golf</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Language</label>
+              <select
+                value={languageFilter}
+                onChange={(e) => setLanguageFilter(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+              >
+                <option value="">All languages</option>
+                {languageOptions.map((lang) => (
+                  <option key={lang} value={lang}>{lang}</option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-4">
+              <button
+                onClick={resetFilters}
+                className="w-full rounded-lg bg-slate-300 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-400 dark:bg-slate-600 dark:text-white dark:hover:bg-slate-500"
+              >
+                Reset Filters
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {loading ? (
         <div className="mt-6 space-y-4" aria-busy="true" aria-label="Loading contests">
           {[1, 2, 3].map((i) => (
             <CompetitionCardSkeleton key={i} />
           ))}
         </div>
-      ) : competitions.length === 0 ? (
+      ) : filteredCompetitions.length === 0 ? (
         <CompetitionEmptyState tab={tab} className="mt-6" />
       ) : (
         <div className="mt-6 space-y-4">
-          {competitions.map((c, i) => (
+          {filteredCompetitions.map((c, i) => (
             <CompetitionCard key={c._id} competition={c} index={i} />
           ))}
         </div>
@@ -71,7 +159,7 @@ export default function Competitions() {
 
       {!loading && total > 0 && (
         <p className="bb-body-text mt-8 text-center text-sm" role="status">
-          Showing <strong className="text-slate-800 dark:text-slate-200">{competitions.length}</strong> of{' '}
+          Showing <strong className="text-slate-800 dark:text-slate-200">{filteredCompetitions.length}</strong> of{' '}
           <strong className="text-slate-800 dark:text-slate-200">{total}</strong> contest
           {total !== 1 ? 's' : ''}
         </p>

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { usersApi } from '../../services/api';
+import { authApi, usersApi } from '../../services/api';
 import { AppDispatch, RootState } from '../../store/store';
-import { fetchMe } from '../../store/slices/authSlice';
+import { fetchMe, logout } from '../../store/slices/authSlice';
 import {
   Button,
   Input,
@@ -17,8 +17,9 @@ import {
   TabsContent,
   SimpleTooltip,
   ProgressBar,
+  Modal,
 } from '../../shared/components';
-import { Camera, User, UserCircle, Heart, Share2, ImageIcon, HelpCircle } from 'lucide-react';
+import { Camera, User, UserCircle, Heart, Share2, ImageIcon, HelpCircle, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
@@ -30,7 +31,7 @@ const BIO_MAX = 500;
 
 function ProfileSettings() {
   const dispatch = useDispatch<AppDispatch>();
-  const { user } = useSelector((s: RootState) => s.auth);
+  const { user, refreshToken } = useSelector((s: RootState) => s.auth);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -57,6 +58,11 @@ function ProfileSettings() {
 
   const [avatarUploadProgress, setAvatarUploadProgress] = useState(0);
   const [coverUploadProgress, setCoverUploadProgress] = useState(0);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [dangerPassword, setDangerPassword] = useState('');
 
   useEffect(() => {
     setDisplayName(user?.displayName || '');
@@ -195,6 +201,68 @@ function ProfileSettings() {
     }
   };
 
+  const onChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      await usersApi.changePassword({ currentPassword, newPassword });
+      setCurrentPassword('');
+      setNewPassword('');
+      setSuccess('Password changed.');
+      toast.success('Password updated');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || 'Failed to change password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onDeactivateAccount = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      await usersApi.deactivateMe(dangerPassword ? { currentPassword: dangerPassword } : undefined);
+      try {
+        await authApi.logout(refreshToken || undefined);
+      } catch {
+        // ignore
+      }
+      dispatch(logout());
+      toast.success('Account deactivated.');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || 'Failed to deactivate account');
+    } finally {
+      setLoading(false);
+      setDangerPassword('');
+      setShowDeactivateModal(false);
+    }
+  };
+
+  const onDeleteAccount = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      await usersApi.deleteMe(dangerPassword ? { currentPassword: dangerPassword } : undefined);
+      try {
+        await authApi.logout(refreshToken || undefined);
+      } catch {
+        // ignore
+      }
+      dispatch(logout());
+      toast.success('Account deleted.');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || 'Failed to delete account');
+    } finally {
+      setLoading(false);
+      setDangerPassword('');
+      setShowDeleteModal(false);
+    }
+  };
+
   const tabTriggerClass =
     'w-full justify-start gap-2 rounded-lg px-3 py-2.5 text-left data-[state=active]:shadow-sm sm:w-auto sm:min-w-[140px]';
 
@@ -254,6 +322,10 @@ function ProfileSettings() {
               <TabsTrigger value="social" className={tabTriggerClass}>
                 <Share2 className="h-4 w-4 shrink-0 opacity-70" />
                 Social
+              </TabsTrigger>
+              <TabsTrigger value="security" className={tabTriggerClass}>
+                <Shield className="h-4 w-4 shrink-0 opacity-70" />
+                Security
               </TabsTrigger>
               <TabsTrigger value="media" className={tabTriggerClass}>
                 <ImageIcon className="h-4 w-4 shrink-0 opacity-70" />
@@ -498,6 +570,69 @@ function ProfileSettings() {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="security" className="mt-0 focus-visible:outline-none">
+                <Card className="bb-card shadow-lg" title="">
+                  <div className="space-y-6">
+                    <div className={fieldShell}>
+                      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Change password
+                      </h2>
+                      <form onSubmit={onChangePassword} className="space-y-4">
+                        <Input
+                          label="Current password"
+                          type="password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          required
+                        />
+                        <Input
+                          label="New password"
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required
+                          minLength={8}
+                        />
+                        <Button type="submit" disabled={loading} loading={loading}>
+                          Update password
+                        </Button>
+                      </form>
+                    </div>
+
+                    <div className="rounded-xl border border-red-200/80 bg-red-50/70 p-4 dark:border-red-900/40 dark:bg-red-950/20">
+                      <h3 className="mb-1 text-sm font-semibold text-red-900 dark:text-red-200">Danger zone</h3>
+                      <p className="mb-3 text-xs text-red-800/90 dark:text-red-300/90">
+                        Deactivate keeps your data but blocks login. Delete permanently removes your account and related data.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={loading}
+                          onClick={() => {
+                            setDangerPassword('');
+                            setShowDeactivateModal(true);
+                          }}
+                        >
+                          Deactivate account
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="danger"
+                          disabled={loading}
+                          onClick={() => {
+                            setDangerPassword('');
+                            setShowDeleteModal(true);
+                          }}
+                        >
+                          Delete account
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="media" className="mt-0 focus-visible:outline-none">
                 <Card className="bb-card shadow-lg" title="">
                   <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -607,6 +742,60 @@ function ProfileSettings() {
           </Button>
         </div>
       </div>
+
+      <Modal
+        isOpen={showDeactivateModal}
+        onClose={() => !loading && setShowDeactivateModal(false)}
+        title="Deactivate account?"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            You will not be able to sign in until an admin reactivates your account.
+          </p>
+          <Input
+            label="Current password (if applicable)"
+            type="password"
+            value={dangerPassword}
+            onChange={(e) => setDangerPassword(e.target.value)}
+            placeholder="Enter password"
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" disabled={loading} onClick={() => setShowDeactivateModal(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" loading={loading} disabled={loading} onClick={() => void onDeactivateAccount()}>
+              Deactivate
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => !loading && setShowDeleteModal(false)}
+        title="Delete account?"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            This action is permanent and cannot be undone.
+          </p>
+          <Input
+            label="Current password (if applicable)"
+            type="password"
+            value={dangerPassword}
+            onChange={(e) => setDangerPassword(e.target.value)}
+            placeholder="Enter password"
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" disabled={loading} onClick={() => setShowDeleteModal(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" loading={loading} disabled={loading} onClick={() => void onDeleteAccount()}>
+              Delete permanently
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </PageContainer>
   );
 }

@@ -18,4 +18,11 @@ export const usersApi = {
 
   uploadCover: (formData: FormData, config?: any) =>
     apiClient.post('/users/me/cover', formData, config),
+
+  /** Export JSON RGPD / portabilité (données liées au compte). */
+  dataExport: () => apiClient.get<Record<string, unknown>>('/users/me/data-export'),
+  deactivateMe: (data?: { currentPassword?: string }) =>
+    apiClient.post<{ success: true }>('/users/me/deactivate', data || {}),
+  deleteMe: (data?: { currentPassword?: string }) =>
+    apiClient.delete<{ success: true }>('/users/me', { data: data || {} }),
 };

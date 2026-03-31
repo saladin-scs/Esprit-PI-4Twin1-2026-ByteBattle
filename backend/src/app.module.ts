@@ -15,6 +15,9 @@ import { ChatModule } from './chat/chat.module';
 import { HealthModule } from './health/health.module';
 import { ReclamationsModule } from './reclamations/reclamations.module';
 import { SiteRatingsModule } from './site-ratings/site-ratings.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ExploreModule } from './explore/explore.module';
+import { ApiKeysModule } from './api-keys/api-keys.module';
 
 @Module({
   imports: [
@@ -41,6 +44,9 @@ import { SiteRatingsModule } from './site-ratings/site-ratings.module';
     HealthModule,
     ReclamationsModule,
     SiteRatingsModule,
+    NotificationsModule,
+    ExploreModule,
+    ApiKeysModule,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,15 @@
 {
+  "name": "pidev-bytebattle",
+  "private": true,
+  "description": "ByteBattle — `npm run dev` à la racine = API :3000 + Vite :5173 (sans double backend)",
+  "scripts": {
+    "dev": "concurrently -n backend,web -c blue,magenta \"npm run start:dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev:backend": "npm run start:dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
   "dependencies": {
     "face-api.js": "^0.22.2",
     "lucide-react": "^0.577.0"

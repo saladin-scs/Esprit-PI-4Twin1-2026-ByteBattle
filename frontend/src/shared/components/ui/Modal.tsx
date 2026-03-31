@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -8,9 +8,14 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   className?: string;
+  description?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children, className = '' }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, className = '', description }: ModalProps) {
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -25,6 +30,12 @@ export function Modal({ isOpen, onClose, title, children, className = '' }: Moda
     };
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (isOpen) {
+      modalRef.current?.focus();
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -37,12 +48,15 @@ export function Modal({ isOpen, onClose, title, children, className = '' }: Moda
       
       <div 
         className={`relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${className}`}
+        ref={modalRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 id="modal-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-white">
             {title}
           </h2>
           <button
@@ -55,6 +69,11 @@ export function Modal({ isOpen, onClose, title, children, className = '' }: Moda
         </div>
         
         <div className="p-6">
+          {description ? (
+            <p id={descriptionId} className="mb-3 text-sm text-gray-600 dark:text-gray-300">
+              {description}
+            </p>
+          ) : null}
           {children}
         </div>
       </div>

@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { Controller, Get, UseGuards, Request, Put, Body, Post, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request, Put, Body, Post, UseInterceptors, UploadedFile, BadRequestException, Delete } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
@@ -134,6 +134,28 @@ export class UsersController {
     return this.usersService.changePassword(req.user.userId, dto.currentPassword, dto.newPassword);
   }
 
+  @Post('me/deactivate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Deactivate current account (keeps data)' })
+  async deactivateMyAccount(
+    @Request() req,
+    @Body() body: { currentPassword?: string },
+  ) {
+    return this.usersService.deactivateMyAccount(req.user.userId, body?.currentPassword);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete current account and related data' })
+  async deleteMyAccount(
+    @Request() req,
+    @Body() body: { currentPassword?: string },
+  ) {
+    return this.usersService.deleteMyAccount(req.user.userId, body?.currentPassword);
+  }
+
   @Get('me/stats')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -164,5 +186,13 @@ export class UsersController {
   @ApiOperation({ summary: 'Consume and return last unlocked badge' })
   async getNewBadge(@Request() req) {
     return this.usersService.consumeAndReturnNewBadge(req.user.userId);
+  }
+
+  @Get('me/data-export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export JSON des données liées au compte (RGPD / portabilité)' })
+  async getDataExport(@Request() req) {
+    return this.usersService.buildPersonalDataExport(req.user.userId);
   }
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { reclamationsApi, type ReclamationMineItem, type ReclamationStatus } from '../../services/api';
-import { Button, Card, PageContainer, Alert } from '../../shared/components';
+import { Button, Card, PageContainer, Alert, Modal, EmptyState } from '../../shared/components';
 import { RECLAMATION_CATEGORY_LABELS } from './constants';
 import { ReclamationForm } from './components/ReclamationForm';
 import { ReclamationStatusBadge } from './components/ReclamationStatusBadge';
@@ -35,6 +35,7 @@ export function ReclamationScreen() {
   const [listError, setListError] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState('');
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   const loadList = useCallback(async () => {
     setListLoading(true);
@@ -68,14 +69,14 @@ export function ReclamationScreen() {
     }
   }, [listLoading, items, selected]);
 
-  const onCancel = async () => {
+  const confirmCancelReclamation = async () => {
     if (!selected || !canUserCancel(selected.status)) return;
-    if (!window.confirm('Annuler cette réclamation ? Cette action est définitive.')) return;
     setCancelLoading(true);
     setCancelError('');
     try {
       const { data } = await reclamationsApi.cancelMine(selected.id);
       setSelected(data.reclamation);
+      setCancelModalOpen(false);
       await loadList();
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string | string[] } }; message?: string };
@@ -137,8 +138,11 @@ export function ReclamationScreen() {
                 </div>
               )}
               {!listLoading && !listError && items.length === 0 && (
-                <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                  Aucune réclamation pour l’instant. Passe à l’onglet « Nouvelle réclamation » pour en créer une.
+                <div className="p-4">
+                  <EmptyState
+                    title="Aucune réclamation pour l'instant"
+                    description="Passe à l'onglet « Nouvelle réclamation » pour en créer une."
+                  />
                 </div>
               )}
               {!listLoading &&
@@ -179,7 +183,7 @@ export function ReclamationScreen() {
                   Précédent
                 </Button>
                 <span className="text-gray-600 dark:text-gray-400">
-                  Page {page} / {totalPages}
+                  Page {page} sur {totalPages}
                 </span>
                 <Button
                   type="button"
@@ -217,9 +221,17 @@ export function ReclamationScreen() {
                     {selected.message}
                   </p>
                 </div>
-                {cancelError && <Alert variant="error">{cancelError}</Alert>}
+                {cancelError && !cancelModalOpen && <Alert variant="error">{cancelError}</Alert>}
                 {canUserCancel(selected.status) && (
-                  <Button type="button" variant="danger" loading={cancelLoading} onClick={() => void onCancel()}>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    disabled={cancelLoading}
+                    onClick={() => {
+                      setCancelError('');
+                      setCancelModalOpen(true);
+                    }}
+                  >
                     Annuler cette réclamation
                   </Button>
                 )}
@@ -250,6 +262,35 @@ export function ReclamationScreen() {
           </Card>
         </div>
       )}
+
+      <Modal
+        isOpen={cancelModalOpen && selected != null && canUserCancel(selected.status)}
+        onClose={() => !cancelLoading && setCancelModalOpen(false)}
+        title="Annuler la réclamation ?"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            Cette action est définitive. L’équipe ne traitera plus cette demande. Tu pourras en créer une nouvelle si
+            besoin.
+          </p>
+          {cancelError && <Alert variant="error">{cancelError}</Alert>}
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setCancelModalOpen(false)} disabled={cancelLoading}>
+              Retour
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => void confirmCancelReclamation()}
+              loading={cancelLoading}
+              disabled={cancelLoading}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Annuler la réclamation
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </PageContainer>
   );
 }
