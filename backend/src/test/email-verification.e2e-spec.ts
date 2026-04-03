@@ -1,79 +1,68 @@
-import * as request from 'supertest';
-import { Test } from '@nestjs/testing';
-import { AppModule } from '../app.module';
-import { INestApplication } from '@nestjs/common';
-import { MongoMemoryServer } from 'mongodb-memory-server';
-import { getModelToken } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User } from '../users/schemas/user.schema';
+import request from 'supertest';
+import { describe, beforeAll, afterAll, it, expect } from '@jest/globals';
+import { MongoClient, Db } from 'mongodb';
 
 describe('Email Verification (e2e)', () => {
-  let app: INestApplication;
-  let mongod: MongoMemoryServer;
-  let userModel: Model<User>;
+  let backendUrl: string;
+  let mailhogUrl: string;
+  let dbClient: MongoClient;
+  let db: Db;
 
   beforeAll(async () => {
-    mongod = await MongoMemoryServer.create();
-    const uri = mongod.getUri();
+    backendUrl = process.env.BACKEND_URL || 'http://backend:3000';
+    mailhogUrl = process.env.MAILHOG_API_URL || 'http://mailhog:8025';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://test:test@mongodb:27017/bytebattle_test?authSource=admin';
 
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider('DATABASE_CONNECTION')
-      .useValue(uri)
-      .compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-
-    userModel = moduleRef.get(getModelToken(User.name));
+    dbClient = new MongoClient(mongoUri);
+    await dbClient.connect();
+    db = dbClient.db();
   });
 
   afterAll(async () => {
-    await app.close();
-    await mongod.stop();
+    await dbClient.close();
   });
 
   it('should send verification email on registration', async () => {
     const registerDto = {
-      email: 'test@example.com',
+      email: 'test-e2e@example.com',
       username: 'testuser',
       password: 'Test123!',
     };
 
-    const res = await request(app.getHttpServer())
+    // 1. Register user
+    await request(backendUrl)
       .post('/auth/register')
       .send(registerDto)
       .expect(201);
 
-    // Wait a moment for the email to be sent
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // 2. Wait for email
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Retrieve the email from Mailhog (via its API)
-    const mailhogResponse = await request('http://localhost:8025')
+    // 3. Fetch email from Mailhog
+    const mailhogRes = await request(mailhogUrl)
       .get('/api/v2/messages')
       .expect(200);
 
-    const messages = mailhogResponse.body.items;
-    const verificationEmail = messages.find(msg => 
-      msg.Content.Headers.Subject[0] === 'Verify Your Email Address'
+    const messages = mailhogRes.body.items;
+    const verificationEmail = messages.find((msg: any) =>
+      msg.Content?.Headers?.Subject?.[0] === 'Verify Your Email Address'
     );
-
     expect(verificationEmail).toBeDefined();
 
-    // Extract token from email body (e.g., using regex)
+    // 4. Extract token
     const emailBody = verificationEmail.Content.Body;
     const tokenMatch = emailBody.match(/token=([^&"\s]+)/);
     const token = tokenMatch ? tokenMatch[1] : null;
     expect(token).toBeDefined();
 
-    // Now verify the email
-    await request(app.getHttpServer())
+    // 5. Verify email
+    await request(backendUrl)
       .get(`/auth/verify-email?token=${token}`)
       .expect(200);
 
-    // Check user in database
-    const user = await userModel.findOne({ email: registerDto.email });
+    // 6. Check database
+    const usersCollection = db.collection('users');
+    const user = await usersCollection.findOne({ email: registerDto.email });
     expect(user.emailVerifiedAt).toBeDefined();
   });
 });
