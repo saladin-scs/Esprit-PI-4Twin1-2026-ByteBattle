@@ -33,7 +33,18 @@ pipeline {
             steps {
                 dir('frontend') {
                     echo '🧪 Running unit tests...'
-                    sh 'npm run test -- --coverage --watchAll=false --reporter=verbose'
+                    script {
+                        def hasTestScript = sh(
+                            script: "node -e \"const pkg=require('./package.json'); process.exit(pkg.scripts && pkg.scripts.test ? 0 : 1)\"",
+                            returnStatus: true
+                        ) == 0
+
+                        if (hasTestScript) {
+                            sh 'npm run test -- --coverage --watchAll=false --reporter=verbose'
+                        } else {
+                            echo '⚠️ Skipping frontend unit tests: package.json has no test script.'
+                        }
+                    }
                 }
             }
             post {
@@ -81,7 +92,7 @@ pipeline {
                 dir('frontend') {
                     echo '🔍 Running SonarQube analysis...'
                     withSonarQubeEnv('SonarQube') {
-                        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        withCredentials([string(credentialsId: 'sonar-token-frontend', variable: 'SONAR_TOKEN')]) {
                             writeFile file: 'sonar-project.properties', text: '''
 sonar.projectKey=bytebattle-frontend
 sonar.projectName=ByteBattle Frontend

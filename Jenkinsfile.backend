@@ -104,7 +104,7 @@ pipeline {
                 dir('backend') {
                     echo '🔍 Running SonarQube analysis...'
                     withSonarQubeEnv('SonarQube') {
-                        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        withCredentials([string(credentialsId: 'sonar-token-backend', variable: 'SONAR_TOKEN')]) {
                             writeFile file: 'sonar-project.properties', text: '''
 sonar.projectKey=bytebattle-backend
 sonar.projectName=ByteBattle Backend
