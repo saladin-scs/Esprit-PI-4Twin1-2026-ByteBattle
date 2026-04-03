@@ -15,6 +15,7 @@ pipeline {
         stage('Build & Run Tests') {
             steps {
                 script {
+                     timeout(time: 10, unit: 'MINUTES'){
                     // Start all services
                     sh "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
 
@@ -24,6 +25,7 @@ pipeline {
                     // Run tests
                     sh "docker-compose -f ${DOCKER_COMPOSE_FILE} exec -T test-runner npm run test:e2e"
                 }
+            }
             }
         }
 
