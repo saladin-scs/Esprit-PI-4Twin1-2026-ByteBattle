@@ -63,12 +63,18 @@ pipeline {
             steps {
                 dir('backend') {
                     echo '🔗 Running E2E tests...'
-                    sh 'npm run test:e2e -- --forceExit --detectOpenHandles || true'
+                    script {
+                        if (fileExists('test/jest-e2e.json')) {
+                            sh 'npm run test:e2e -- --forceExit --detectOpenHandles || true'
+                        } else {
+                            echo '⚠️ Skipping E2E: backend/test/jest-e2e.json not found.'
+                        }
+                    }
                 }
             }
             post {
                 success {
-                    echo '✅ E2E tests passed!'
+                    echo '✅ E2E stage completed!'
                 }
                 failure {
                     echo '⚠️ E2E tests failed (non-blocking)'
@@ -98,18 +104,21 @@ pipeline {
                 dir('backend') {
                     echo '🔍 Running SonarQube analysis...'
                     withSonarQubeEnv('SonarQube') {
-                        sh """
-                            npx sonar-scanner \
-                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
-                                -Dsonar.sources=src \
-                                -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/*.spec.ts,**/*.e2e-spec.ts,**/coverage/** \
-                                -Dsonar.tests=src \
-                                -Dsonar.test.inclusions=**/*.spec.ts,**/*.e2e-spec.ts \
-                                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-                                -Dsonar.typescript.tsconfigPath=tsconfig.json \
-                                -Dsonar.sourceEncoding=UTF-8
-                        """
+                        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                            sh """
+                                npx sonar-scanner \
+                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                    -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
+                                    -Dsonar.sources=src \
+                                    -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/*.spec.ts,**/*.e2e-spec.ts,**/coverage/** \
+                                    -Dsonar.tests=src \
+                                    -Dsonar.test.inclusions=**/*.spec.ts,**/*.e2e-spec.ts \
+                                    -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                                    -Dsonar.typescript.tsconfigPath=tsconfig.json \
+                                    -Dsonar.sourceEncoding=UTF-8 \
+                                    -Dsonar.token=$SONAR_TOKEN
+                            """
+                        }
                     }
                 }
             }

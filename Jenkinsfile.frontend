@@ -81,18 +81,21 @@ pipeline {
                 dir('frontend') {
                     echo '🔍 Running SonarQube analysis...'
                     withSonarQubeEnv('SonarQube') {
-                        sh """
-                            npx sonar-scanner \
-                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
-                                -Dsonar.sources=src \
-                                -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/*.test.tsx,**/*.test.ts,**/coverage/** \
-                                -Dsonar.tests=src \
-                                -Dsonar.test.inclusions=**/*.test.tsx,**/*.test.ts,**/*.spec.tsx,**/*.spec.ts \
-                                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-                                -Dsonar.typescript.tsconfigPath=tsconfig.json \
-                                -Dsonar.sourceEncoding=UTF-8
-                        """
+                        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                            sh """
+                                npx sonar-scanner \
+                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                    -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
+                                    -Dsonar.sources=src \
+                                    -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/*.test.tsx,**/*.test.ts,**/coverage/** \
+                                    -Dsonar.tests=src \
+                                    -Dsonar.test.inclusions=**/*.test.tsx,**/*.test.ts,**/*.spec.tsx,**/*.spec.ts \
+                                    -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                                    -Dsonar.typescript.tsconfigPath=tsconfig.json \
+                                    -Dsonar.sourceEncoding=UTF-8 \
+                                    -Dsonar.token=$SONAR_TOKEN
+                            """
+                        }
                     }
                 }
             }
