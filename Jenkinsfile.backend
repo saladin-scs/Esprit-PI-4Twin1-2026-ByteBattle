@@ -108,7 +108,7 @@ pipeline {
                     withSonarQubeEnv('SonarQube') {
                         withCredentials([string(credentialsId: 'sonar-token-backend', variable: 'SONAR_TOKEN')]) {
                             writeFile file: 'sonar-project.properties', text: '''
-sonar.projectKey=bytebattle-backend
+sonar.projectKey=BYTEBATTLE-BACKEND
 sonar.projectName=ByteBattle Backend
 sonar.sources=src
 sonar.exclusions=**/node_modules/**,**/dist/**,**/*.spec.ts,**/*.e2e-spec.ts,**/coverage/**
