@@ -7,7 +7,10 @@ echo "=========================================="
 
 # ─── Update system ───────────────────────────
 apt-get update -y
-apt-get upgrade -y
+# Skip upgrade on re-provisions to avoid SSH timeout
+if [ ! -f /opt/sonarqube-provisioned ]; then
+  apt-get upgrade -y
+fi
 
 # ─── System requirements ─────────────────────
 echo ">>> Configuring system requirements..."
@@ -39,12 +42,14 @@ apt-get install -y postgresql postgresql-contrib
 systemctl start postgresql
 systemctl enable postgresql
 
-# Create sonarqube database and user
-sudo -u postgres psql << 'PSQL'
+# Create sonarqube database and user (idempotent)
+if ! sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname = 'sonarqube'" | grep -q 1; then
+  sudo -u postgres psql << 'PSQL'
 CREATE USER sonarqube WITH PASSWORD 'sonarqube123';
 CREATE DATABASE sonarqube OWNER sonarqube;
 GRANT ALL PRIVILEGES ON DATABASE sonarqube TO sonarqube;
 PSQL
+fi
 
 # ─── Download SonarQube ──────────────────────
 echo ">>> Downloading SonarQube..."
@@ -52,7 +57,9 @@ wget -q https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-10.3.0
   -O /tmp/sonarqube.zip
 
 apt-get install -y unzip
-unzip -q /tmp/sonarqube.zip -d /opt/
+rm -rf /opt/sonarqube-10.3.0.82913
+unzip -oq /tmp/sonarqube.zip -d /opt/
+rm -rf /opt/sonarqube
 mv /opt/sonarqube-10.3.0.82913 /opt/sonarqube
 rm /tmp/sonarqube.zip
 
@@ -93,8 +100,11 @@ WantedBy=multi-user.target
 SERVICE
 
 systemctl daemon-reload
-systemctl start sonarqube
 systemctl enable sonarqube
+systemctl start sonarqube || systemctl restart sonarqube
+
+# Mark as provisioned to skip upgrade on re-runs
+echo 'done' > /opt/sonarqube-provisioned
 
 echo "=========================================="
 echo "  SonarQube installed successfully!"
@@ -103,3 +113,14 @@ echo "  Login   : admin"
 echo "  Password: admin"
 echo "  (change password on first login)"
 echo "=========================================="
+
+# Wait for SonarQube to be ready
+echo ">>> Waiting for SonarQube to be ready..."
+for i in {1..120}; do
+  if curl -sf http://localhost:9000/api/system/ping >/dev/null 2>&1; then
+    echo ">>> SonarQube is ready!"
+    exit 0
+  fi
+  sleep 1
+done
+echo ">>> SonarQube startup timeout, but service may still be initializing"
