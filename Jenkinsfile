@@ -19,7 +19,7 @@ pipeline {
                 withEnv(['COMPOSE_HTTP_TIMEOUT=300']) {
                     sh "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
                 }
-                // Wait for backend to be ready
+                // Wait for backend
                 sh "docker-compose -f ${DOCKER_COMPOSE_FILE} exec -T test-runner sh -c 'until nc -z backend 3000; do sleep 1; done'"
                 // Run the tests
                 sh "docker-compose -f ${DOCKER_COMPOSE_FILE} exec -T test-runner npm run test:e2e"
