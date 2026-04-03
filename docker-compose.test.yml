@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: test
+      MONGO_INITDB_ROOT_PASSWORD: test
+    volumes:
+      - mongodb_data:/data/db
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      - mongodb
+      - mailhog
+    environment:
+      NODE_ENV: test
+      PORT: 3000
+      MONGODB_URI: mongodb://test:test@mongodb:27017/bytebattle_test?authSource=admin
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USER: ""  # Mailhog doesn't need auth
+      SMTP_PASS: ""
+      FRONTEND_URL: http://localhost:5173   # for links
+      JWT_SECRET: test-secret
+      JWT_EXPIRATION: 15m
+      JWT_REFRESH_EXPIRATION: 7d
+    ports:
+      - "3000:3000"
+    command: npm run start:test   # adjust script to run tests, or keep server running
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://backend:3000
+    ports:
+      - "5173:5173"
+    command: npm run dev   # or run tests
+
+  # Optional: test runner (e.g., Jest) that runs inside container
+  test-runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+      - mongodb
+      - mailhog
+    environment:
+      NODE_ENV: test
+      MONGODB_URI: mongodb://test:test@mongodb:27017/bytebattle_test?authSource=admin
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+    command: npm run test:e2e   # your end-to-end test script
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+volumes:
+  mongodb_data:
