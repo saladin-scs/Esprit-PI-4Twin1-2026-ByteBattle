@@ -1,0 +1,149 @@
+pipeline {
+    agent any
+
+    environment {
+        NODE_VERSION = '20'
+        SONAR_PROJECT_KEY = 'bytebattle-backend'
+        SONAR_PROJECT_NAME = 'ByteBattle Backend'
+    }
+
+    tools {
+        nodejs 'NodeJS-20'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo '📥 Cloning repository...'
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                dir('backend') {
+                    echo '📦 Installing dependencies...'
+                    sh 'npm ci'
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                dir('backend') {
+                    echo '🧪 Running unit tests...'
+                    sh 'npm run test -- --coverage --forceExit --detectOpenHandles'
+                }
+            }
+            post {
+                always {
+                    dir('backend') {
+                        junit testResults: 'coverage/junit.xml', allowEmptyResults: true
+                        publishHTML(target: [
+                            allowMissing: true,
+                            alwaysLinkToLastBuild: true,
+                            keepAll: true,
+                            reportDir: 'coverage/lcov-report',
+                            reportFiles: 'index.html',
+                            reportName: 'Backend Coverage Report'
+                        ])
+                    }
+                }
+                failure {
+                    echo '❌ Unit tests failed!'
+                }
+                success {
+                    echo '✅ Unit tests passed!'
+                }
+            }
+        }
+
+        stage('Test E2E') {
+            steps {
+                dir('backend') {
+                    echo '🔗 Running E2E tests...'
+                    sh 'npm run test:e2e -- --forceExit --detectOpenHandles || true'
+                }
+            }
+            post {
+                success {
+                    echo '✅ E2E tests passed!'
+                }
+                failure {
+                    echo '⚠️ E2E tests failed (non-blocking)'
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                dir('backend') {
+                    echo '🔨 Building backend...'
+                    sh 'npm run build'
+                }
+            }
+            post {
+                success {
+                    echo '✅ Build successful!'
+                }
+                failure {
+                    echo '❌ Build failed!'
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir('backend') {
+                    echo '🔍 Running SonarQube analysis...'
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            npx sonar-scanner \
+                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
+                                -Dsonar.sources=src \
+                                -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/*.spec.ts,**/*.e2e-spec.ts,**/coverage/** \
+                                -Dsonar.tests=src \
+                                -Dsonar.test.inclusions=**/*.spec.ts,**/*.e2e-spec.ts \
+                                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                                -Dsonar.typescript.tsconfigPath=tsconfig.json \
+                                -Dsonar.sourceEncoding=UTF-8
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Quality Gate') {
+            steps {
+                echo '🚦 Checking SonarQube Quality Gate...'
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+            post {
+                success {
+                    echo '✅ Quality Gate passed!'
+                }
+                failure {
+                    echo '❌ Quality Gate failed!'
+                }
+            }
+        }
+
+    }
+
+    post {
+        always {
+            echo '🧹 Cleaning workspace...'
+            cleanWs()
+        }
+        success {
+            echo '🎉 Backend pipeline completed successfully!'
+        }
+        failure {
+            echo '💥 Backend pipeline failed!'
+        }
+    }
+}

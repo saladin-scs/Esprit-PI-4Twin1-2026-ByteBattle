@@ -124,6 +124,11 @@ export const competitionsApi = {
   join: (id: string) => apiClient.post(`/competitions/${id}/join`),
   submit: (id: string, data: { code: string; language: string; challengeId?: string }) =>
     apiClient.post(`/competitions/${id}/submit`, data),
+  backfillChallenges: () =>
+    apiClient.post<{
+      updated: Array<{ id: string; name: string; challengeIds: string[] }>;
+      skipped: Array<{ id: string; name: string }>;
+    }>('/competitions/admin/backfill-challenges'),
   updateStatus: (id: string, status: 'scheduled' | 'active' | 'closed' | 'archived') =>
     apiClient.put(`/competitions/${id}/status`, { status }),
 };

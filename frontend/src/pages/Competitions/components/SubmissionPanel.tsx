@@ -16,6 +16,9 @@ const MONACO_LANG: Record<string, string> = {
 interface SubmissionPanelProps {
   competition: CompetitionDetail;
   challenge: { title: string; languages: string[]; starterCode: Record<string, string> } | null;
+  challenges?: Array<{ _id: string; title: string }>;
+  selectedChallengeId?: string;
+  onChallengeChange?: (challengeId: string) => void;
   code: string;
   onCodeChange: (value: string) => void;
   selectedLang: string;
@@ -31,6 +34,9 @@ interface SubmissionPanelProps {
 function SubmissionPanelComponent({
   competition,
   challenge,
+  challenges = [],
+  selectedChallengeId,
+  onChallengeChange,
   code,
   onCodeChange,
   selectedLang,
@@ -50,17 +56,42 @@ function SubmissionPanelComponent({
     if (!submitting && isActive) onSubmit();
   }, [onSubmit, submitting, isActive]);
 
-  if (!challenge) return null;
-
+  const challengeMissing = !challenge;
+  const selectedChallengeValue = selectedChallengeId ?? challenges[0]?._id ?? '';
   const languages = competition.supportedLanguages?.length
     ? competition.supportedLanguages
-    : challenge.languages || ['python', 'javascript'];
+    : challenge?.languages || ['python', 'javascript'];
 
   return (
     <section className={`bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5 ${className}`} aria-labelledby="submission-heading">
       <h2 id="submission-heading" className="text-lg font-semibold text-emerald-400 mb-4">
         Submission
       </h2>
+      {challengeMissing && (
+        <p className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
+          Challenge details are currently unavailable. You can still write your code here.
+        </p>
+      )}
+      {challenges.length > 1 && (
+        <div className="mb-3">
+          <label htmlFor="submission-challenge" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Challenge
+          </label>
+          <select
+            id="submission-challenge"
+            value={selectedChallengeValue}
+            onChange={(e) => onChallengeChange?.(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            aria-label="Select challenge"
+          >
+            {challenges.map((c) => (
+              <option key={c._id} value={c._id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="mb-3">
         <label htmlFor="submission-lang" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Language

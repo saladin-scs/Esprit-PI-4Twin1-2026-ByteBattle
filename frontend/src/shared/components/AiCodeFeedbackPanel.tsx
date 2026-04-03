@@ -126,7 +126,11 @@ export function AiCodeFeedbackPanel({
       lastAnalyzedSig.current = contextSig;
     } catch (e: unknown) {
       const ax = e as { response?: { status?: number; data?: { message?: string } } };
-      if (ax.response?.status === 429) {
+      if (ax.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
+        setErr('Session expired. Please sign in again to use AI coach.');
+      } else if (ax.response?.status === 429) {
         setErr('Too many requests. Please try again shortly.');
       } else {
         setErr(ax.response?.data?.message ?? 'Analysis unavailable.');

@@ -236,6 +236,12 @@ const authSlice = createSlice({
       .addCase(fetchMe.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch profile';
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        state.isAuthenticated = false;
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
       });
   },
 });

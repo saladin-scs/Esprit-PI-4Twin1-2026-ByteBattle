@@ -1,0 +1,132 @@
+pipeline {
+    agent any
+
+    environment {
+        NODE_VERSION = '20'
+        SONAR_PROJECT_KEY = 'bytebattle-frontend'
+        SONAR_PROJECT_NAME = 'ByteBattle Frontend'
+    }
+
+    tools {
+        nodejs 'NodeJS-20'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo '📥 Cloning repository...'
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                dir('frontend') {
+                    echo '📦 Installing dependencies...'
+                    sh 'npm ci'
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                dir('frontend') {
+                    echo '🧪 Running unit tests...'
+                    sh 'npm run test -- --coverage --watchAll=false --reporter=verbose'
+                }
+            }
+            post {
+                always {
+                    dir('frontend') {
+                        junit testResults: 'coverage/junit.xml', allowEmptyResults: true
+                        publishHTML(target: [
+                            allowMissing: true,
+                            alwaysLinkToLastBuild: true,
+                            keepAll: true,
+                            reportDir: 'coverage/lcov-report',
+                            reportFiles: 'index.html',
+                            reportName: 'Frontend Coverage Report'
+                        ])
+                    }
+                }
+                failure {
+                    echo '❌ Unit tests failed!'
+                }
+                success {
+                    echo '✅ Unit tests passed!'
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                dir('frontend') {
+                    echo '🔨 Building frontend...'
+                    sh 'npm run build'
+                }
+            }
+            post {
+                success {
+                    echo '✅ Build successful!'
+                }
+                failure {
+                    echo '❌ Build failed!'
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir('frontend') {
+                    echo '🔍 Running SonarQube analysis...'
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            npx sonar-scanner \
+                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                -Dsonar.projectName="${SONAR_PROJECT_NAME}" \
+                                -Dsonar.sources=src \
+                                -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/*.test.tsx,**/*.test.ts,**/coverage/** \
+                                -Dsonar.tests=src \
+                                -Dsonar.test.inclusions=**/*.test.tsx,**/*.test.ts,**/*.spec.tsx,**/*.spec.ts \
+                                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                                -Dsonar.typescript.tsconfigPath=tsconfig.json \
+                                -Dsonar.sourceEncoding=UTF-8
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Quality Gate') {
+            steps {
+                echo '🚦 Checking SonarQube Quality Gate...'
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+            post {
+                success {
+                    echo '✅ Quality Gate passed!'
+                }
+                failure {
+                    echo '❌ Quality Gate failed!'
+                }
+            }
+        }
+
+    }
+
+    post {
+        always {
+            echo '🧹 Cleaning workspace...'
+            cleanWs()
+        }
+        success {
+            echo '🎉 Frontend pipeline completed successfully!'
+        }
+        failure {
+            echo '💥 Frontend pipeline failed!'
+        }
+    }
+}

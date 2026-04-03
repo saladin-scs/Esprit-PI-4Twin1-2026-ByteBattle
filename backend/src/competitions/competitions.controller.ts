@@ -45,6 +45,15 @@ export class CompetitionsController {
     return this.competitionsService.seedOne();
   }
 
+  @Post('admin/backfill-challenges')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Attach challenges to competitions that have none (admin only)' })
+  async backfillChallenges() {
+    return this.competitionsService.backfillChallengesForCompetitions();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get competition by ID' })
   async findOne(@Param('id') id: string) {

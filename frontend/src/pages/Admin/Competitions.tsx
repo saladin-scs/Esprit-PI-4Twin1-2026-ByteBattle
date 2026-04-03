@@ -4,6 +4,7 @@ import { CompetitionStatusBadge } from '../Competitions/components/CompetitionSt
 import { CompetitionTypeBadge } from '../Competitions/components/CompetitionTypeBadge';
 import toast from 'react-hot-toast';
 import { Trash2, Edit2, Plus } from 'lucide-react';
+import { competitionsApi } from '../../services/api';
 
 interface Competition {
   _id: string;
@@ -37,6 +38,7 @@ export default function AdminCompetitions() {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [challenges, setChallenges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [backfilling, setBackfilling] = useState(false);
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -180,6 +182,28 @@ export default function AdminCompetitions() {
       loadData();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to delete competition');
+    }
+  };
+
+  const handleBackfillChallenges = async () => {
+    setBackfilling(true);
+    try {
+      const res = await competitionsApi.backfillChallenges();
+      const updatedCount = res.data.updated?.length ?? 0;
+      const skippedCount = res.data.skipped?.length ?? 0;
+      if (updatedCount > 0) {
+        toast.success(`Challenges assigned for ${updatedCount} competition(s).`);
+      } else {
+        toast.success('All competitions already have challenges.');
+      }
+      if (skippedCount > 0) {
+        toast(`${skippedCount} competition(s) unchanged.`, { icon: 'ℹ️' });
+      }
+      await loadData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to backfill competition challenges');
+    } finally {
+      setBackfilling(false);
     }
   };
 
@@ -333,13 +357,20 @@ export default function AdminCompetitions() {
         </div>
 
         {/* Create Button */}
-        <div className="mb-6">
+        <div className="mb-6 flex flex-wrap items-center gap-3">
           <button
             onClick={openCreateModal}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
           >
             <Plus size={20} />
             Create New Competition
+          </button>
+          <button
+            onClick={handleBackfillChallenges}
+            disabled={backfilling}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg font-medium transition"
+          >
+            {backfilling ? 'Assigning...' : 'Assign Challenges To Competitions'}
           </button>
         </div>
 

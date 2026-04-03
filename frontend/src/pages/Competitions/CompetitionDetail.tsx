@@ -30,10 +30,15 @@ export default function CompetitionDetail() {
   const [leaderboardLang, setLeaderboardLang] = useState('');
   const [leaderboardLimit, setLeaderboardLimit] = useState(25);
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const hasToken = !!localStorage.getItem('token');
+  const canUseProtectedActions = isAuthed && hasToken;
 
   const {
     competition,
     challenge,
+    challenges,
+    selectedChallengeId,
+    setSelectedChallengeId,
     loading,
     error,
     selectedLang,
@@ -67,6 +72,15 @@ export default function CompetitionDetail() {
   }, [submitError]);
 
   const handleBack = () => navigate('/competitions');
+
+  const handleSubmit = () => {
+    if (!canUseProtectedActions) {
+      toast.error('Please sign in to submit your solution.');
+      navigate('/login');
+      return;
+    }
+    submit();
+  };
 
   if (loading || !id) {
     return (
@@ -150,6 +164,29 @@ export default function CompetitionDetail() {
                   className="bb-card [&_h2]:text-primary-600 dark:[&_h2]:text-primary-400"
                   title={challenge.title}
                 >
+                  {challenges.length > 1 && (
+                    <div className="mb-3">
+                      <label
+                        htmlFor="statement-challenge"
+                        className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300"
+                      >
+                        Challenge in this competition
+                      </label>
+                      <select
+                        id="statement-challenge"
+                        value={selectedChallengeId || challenge._id}
+                        onChange={(e) => setSelectedChallengeId(e.target.value)}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                        aria-label="Select challenge in statement"
+                      >
+                        {challenges.map((c) => (
+                          <option key={c._id} value={c._id}>
+                            {c.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     <DifficultyBadge difficulty={challenge.difficulty} />
                     <span className="text-xs text-slate-500">Statement · submit below</span>
@@ -180,39 +217,45 @@ export default function CompetitionDetail() {
             )}
           </AnimatePresence>
 
-          {challenge && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, delay: 0.08 }}
-            >
-              <SubmissionPanel
-                competition={competition}
-                challenge={challenge}
-                code={code}
-                onCodeChange={setCode}
-                selectedLang={selectedLang}
-                onLanguageChange={setSelectedLang}
-                onSubmit={submit}
-                submitting={submitting}
-                result={submitResult}
-                error={submitError}
-                theme={theme === 'dark' ? 'dark' : 'light'}
-              />
-              {isAuthed && challenge && (
-                <div className="mt-4">
-                  <AiCodeFeedbackPanel
-                    code={code}
-                    language={selectedLang}
-                    taskDescription={`${competition.name} — ${challenge.title}\n\n${(challenge.description || '').slice(0, 8000)}`}
-                    testsPassed={submitResult?.status === 'accepted'}
-                    executionError={submitError ?? undefined}
-                    runtimeMs={submitResult?.executionTimeMs}
-                  />
-                </div>
-              )}
-            </motion.div>
-          )}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.08 }}
+          >
+            <SubmissionPanel
+              competition={competition}
+              challenge={challenge}
+              challenges={challenges}
+              selectedChallengeId={selectedChallengeId}
+              onChallengeChange={setSelectedChallengeId}
+              code={code}
+              onCodeChange={setCode}
+              selectedLang={selectedLang}
+              onLanguageChange={setSelectedLang}
+              onSubmit={handleSubmit}
+              submitting={submitting}
+              result={submitResult}
+              error={submitError}
+              theme={theme === 'dark' ? 'dark' : 'light'}
+            />
+            {canUseProtectedActions && challenge && (
+              <div className="mt-4">
+                <AiCodeFeedbackPanel
+                  code={code}
+                  language={selectedLang}
+                  taskDescription={`${competition.name} — ${challenge.title}\n\n${(challenge.description || '').slice(0, 8000)}`}
+                  testsPassed={submitResult?.status === 'accepted'}
+                  executionError={submitError ?? undefined}
+                  runtimeMs={submitResult?.executionTimeMs}
+                />
+              </div>
+            )}
+            {!canUseProtectedActions && (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                Sign in to use AI coach and submit solutions.
+              </div>
+            )}
+          </motion.div>
         </div>
 
         <motion.aside
@@ -223,7 +266,7 @@ export default function CompetitionDetail() {
         >
           <LeaderboardTable
             entries={leaderboardEntries}
-            type={competition.type as any}
+            type={competition.type}
             loading={leaderboardLoading}
             languageFilter={leaderboardLang}
             onLanguageFilterChange={setLeaderboardLang}
@@ -231,7 +274,7 @@ export default function CompetitionDetail() {
             onLimitChange={setLeaderboardLimit}
             supportedLanguages={competition.supportedLanguages ?? []}
           />
-          {isAuthed && (
+          {canUseProtectedActions && (
             <div className="mt-6">
               <p className="mb-2 flex items-center gap-2 text-xs font-medium text-emerald-800 dark:text-emerald-200">
                 <MessageCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
