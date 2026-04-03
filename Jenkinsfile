@@ -13,23 +13,20 @@ pipeline {
         }
 
         stage('Build & Run Tests') {
-            steps {
-                script {
-                     timeout(time: 10, unit: 'MINUTES'){
-                         withEnv(['COMPOSE_HTTP_TIMEOUT=300']){
-                    // Start all services
+    steps {
+        script {
+            timeout(time: 10, unit: 'MINUTES') {
+                withEnv(['COMPOSE_HTTP_TIMEOUT=300']) {
                     sh "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
-
-                    // Wait for backend to be ready
-                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} exec -T test-runner sh -c 'until nc -z backend 3000; do sleep 1; done'"
-
-                    // Run tests
-                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} exec -T test-runner npm run test:e2e"
                 }
-                     }
-            }
+                // Wait for backend to be ready
+                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} exec -T test-runner sh -c 'until nc -z backend 3000; do sleep 1; done'"
+                // Run the tests
+                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} exec -T test-runner npm run test:e2e"
             }
         }
+    }
+}
 
         stage('Collect Results') {
             steps {
