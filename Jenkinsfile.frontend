@@ -82,18 +82,22 @@ pipeline {
                     echo '🔍 Running SonarQube analysis...'
                     withSonarQubeEnv('SonarQube') {
                         withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                            writeFile file: 'sonar-project.properties', text: '''
+sonar.projectKey=bytebattle-frontend
+sonar.projectName=ByteBattle Frontend
+sonar.sources=src
+sonar.exclusions=**/node_modules/**,**/dist/**,**/*.test.tsx,**/*.test.ts,**/coverage/**
+sonar.tests=src
+sonar.test.inclusions=**/*.test.tsx,**/*.test.ts,**/*.spec.tsx,**/*.spec.ts
+sonar.javascript.lcov.reportPaths=coverage/lcov.info
+sonar.typescript.tsconfigPath=tsconfig.json
+sonar.sourceEncoding=UTF-8
+'''
                             sh '''
                                 npx sonar-scanner \
-                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                    -Dsonar.projectName="$SONAR_PROJECT_NAME" \
-                                    -Dsonar.sources=src \
-                                    -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/*.test.tsx,**/*.test.ts,**/coverage/** \
-                                    -Dsonar.tests=src \
-                                    -Dsonar.test.inclusions=**/*.test.tsx,**/*.test.ts,**/*.spec.tsx,**/*.spec.ts \
-                                    -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-                                    -Dsonar.typescript.tsconfigPath=tsconfig.json \
-                                    -Dsonar.sourceEncoding=UTF-8 \
-                                    -Dsonar.token=$SONAR_TOKEN
+                                    -Dproject.settings=sonar-project.properties \
+                                    -Dsonar.host.url="$SONAR_HOST_URL" \
+                                    -Dsonar.login="$SONAR_TOKEN"
                             '''
                         }
                     }
