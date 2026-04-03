@@ -74,7 +74,9 @@ pipeline {
             steps {
                 dir('frontend') {
                     echo '🔨 Building frontend...'
-                    sh 'npm run build'
+                    retry(2) {
+                        sh 'npm run build'
+                    }
                 }
             }
             post {
