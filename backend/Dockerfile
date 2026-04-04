@@ -1,11 +1,17 @@
 FROM node:20-alpine
-RUN apk add --no-cache netcat-openbsd 
+
 WORKDIR /app
 
+# Copy package files and install dependencies
 COPY package*.json ./
-RUN npm install --no-fund --no-audit
-COPY . .
+RUN npm install
 
+# Copy source code and build
+COPY . .
+RUN npm run build
+
+# Expose the port
 EXPOSE 3000
 
-CMD ["npm", "run", "start:dev"]
+# Start the compiled app
+CMD ["node", "dist/main"]
