@@ -1,7 +1,6 @@
 import request from 'supertest';
-import { describe, beforeAll, afterAll, it, expect } from '@jest/globals';
+import { describe, beforeAll, afterAll, beforeEach, it, expect } from '@jest/globals';
 import { MongoClient, Db } from 'mongodb';
-import { User } from '../users/schemas/user.schema';
 
 describe('Email Verification (e2e)', () => {
   let backendUrl: string;
@@ -23,10 +22,17 @@ describe('Email Verification (e2e)', () => {
     await dbClient.close();
   });
 
+  // Clear users collection before each test to avoid duplicate email conflicts
+  beforeEach(async () => {
+    await db.collection('users').deleteMany({});
+  });
+
   it('should send verification email on registration', async () => {
+    // Use a unique email to avoid conflicts if previous cleanup failed
+    const uniqueEmail = `test-e2e-${Date.now()}@example.com`;
     const registerDto = {
-      email: 'test-e2e@example.com',
-      username: 'testuser',
+      email: uniqueEmail,
+      username: `testuser-${Date.now()}`,
       password: 'Test123!',
     };
 
@@ -36,34 +42,45 @@ describe('Email Verification (e2e)', () => {
       .send(registerDto)
       .expect(201);
 
-    // 2. Wait for email
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // 2. Wait for email to be processed
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // 3. Fetch email from Mailhog
-    const mailhogRes = await request(mailhogUrl)
-      .get('/api/v2/messages')
-      .expect(200);
+    // 3. Fetch email from Mailhog (try v2, fallback to v1)
+    let mailhogRes;
+    try {
+      mailhogRes = await request(mailhogUrl).get('/api/v2/messages').expect(200);
+    } catch (err) {
+      // Fallback to v1 API
+      mailhogRes = await request(mailhogUrl).get('/api/v1/messages').expect(200);
+    }
 
-    const messages = mailhogRes.body.items;
+    // Extract messages array (v2 uses .items, v1 returns array directly)
+    let messages = mailhogRes.body.items || mailhogRes.body;
+    if (!Array.isArray(messages)) {
+      throw new Error(`Mailhog API returned unexpected structure: ${JSON.stringify(messages)}`);
+    }
+
+    console.log(`Found ${messages.length} emails. Subjects:`, messages.map(m => m.Content?.Headers?.Subject?.[0]));
+
     const verificationEmail = messages.find((msg: any) =>
       msg.Content?.Headers?.Subject?.[0] === 'Verify Your Email Address'
     );
     expect(verificationEmail).toBeDefined();
 
-    // 4. Extract token
+    // 4. Extract token from email body
     const emailBody = verificationEmail.Content.Body;
     const tokenMatch = emailBody.match(/token=([^&"\s]+)/);
     const token = tokenMatch ? tokenMatch[1] : null;
     expect(token).toBeDefined();
 
-    // 5. Verify email
+    // 5. Verify email using the token
     await request(backendUrl)
       .get(`/auth/verify-email?token=${token}`)
       .expect(200);
 
-    // 6. Check database
+    // 6. Check database for emailVerifiedAt
     const usersCollection = db.collection('users');
-    const user = await usersCollection.findOne({ email: registerDto.email });
+    const user = await usersCollection.findOne({ email: uniqueEmail });
     expect(user).toBeDefined();
     if (!user) {
       throw new Error('User not found after email verification');
