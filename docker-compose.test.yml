@@ -32,8 +32,8 @@ services:
       MONGODB_URI: mongodb://test:test@mongodb:27017/bytebattle_test?authSource=admin
       SMTP_HOST: mailhog
       SMTP_PORT: 1025
-      SMTP_USER: ""
-      SMTP_PASS: ""
+      SMTP_USER: dummy
+      SMTP_PASS: dummy
       FRONTEND_URL: http://localhost:5173
       JWT_SECRET: test-secret
       JWT_EXPIRATION: 15m
