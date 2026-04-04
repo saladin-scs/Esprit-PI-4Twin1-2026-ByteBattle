@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { describe, beforeAll, afterAll, it, expect } from '@jest/globals';
 import { MongoClient, Db } from 'mongodb';
+import { User } from '../users/schemas/user.schema';
 
 describe('Email Verification (e2e)', () => {
   let backendUrl: string;
@@ -63,6 +64,10 @@ describe('Email Verification (e2e)', () => {
     // 6. Check database
     const usersCollection = db.collection('users');
     const user = await usersCollection.findOne({ email: registerDto.email });
+    expect(user).toBeDefined();
+    if (!user) {
+      throw new Error('User not found after email verification');
+    }
     expect(user.emailVerifiedAt).toBeDefined();
   });
 });
