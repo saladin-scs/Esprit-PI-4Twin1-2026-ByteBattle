@@ -68,19 +68,22 @@ describe('Email Verification (e2e)', () => {
     );
     expect(verificationEmail).toBeDefined();
 
-    // 4. Extract token from email body
     const emailBody = verificationEmail.Content.Body;
-    const tokenMatch = emailBody.match(/token=([^&"\s]+)/);
-    const token = tokenMatch ? tokenMatch[1] : null;
-    expect(token).toBeDefined();
+let tokenMatch = emailBody.match(/token=([^&"\s]+)/);
+let token = tokenMatch ? tokenMatch[1] : null;
 
-    // 5. Verify email using the token
-    const verifyRes = await request(backendUrl)
-      .post('/auth/verify-email')
-      .send({ token });
-    console.log('Verification response status:', verifyRes.status);
-    console.log('Verification response body:', verifyRes.body);
-    expect(verifyRes.status).toBe(200);
+// Remove the quoted-printable encoding prefix (e.g., "3D" from "=3D")
+if (token && token.startsWith('3D')) {
+  token = token.substring(2);
+}
+expect(token).toBeDefined();
+
+// 5. Verify email using the token (POST request)
+const verifyRes = await request(backendUrl)
+  .post('/auth/verify-email')
+  .send({ token });
+console.log('Verification response:', verifyRes.status, verifyRes.body);
+expect(verifyRes.status).toBe(200);
     // 6. Check database
     const usersCollection = db.collection('users');
     const user = await usersCollection.findOne({ email: uniqueEmail });
