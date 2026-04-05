@@ -24,7 +24,7 @@ describe('Email Verification (e2e)', () => {
 
   beforeEach(async () => {
     await db.collection('users').deleteMany({});
-    await fetch(`${mailhogUrl}/api/v1/messages`, { method: 'DELETE' }).catch(() => {});
+    await fetch(`${mailhogUrl}/api/v1/messages`, { method: 'DELETE' }).catch(() => { });
   });
 
   it('should send verification email on registration', async () => {
@@ -76,9 +76,9 @@ describe('Email Verification (e2e)', () => {
 
     // 5. Verify email using the token
     await request(backendUrl)
-      .get(`/auth/verify-email?token=${token}`)
+      .post('/auth/verify-email')
+      .send({ token })
       .expect(200);
-
     // 6. Check database
     const usersCollection = db.collection('users');
     const user = await usersCollection.findOne({ email: uniqueEmail });
