@@ -24,7 +24,6 @@ describe('Email Verification (e2e)', () => {
 
   beforeEach(async () => {
     await db.collection('users').deleteMany({});
-    // Clear Mailhog messages
     await fetch(`${mailhogUrl}/api/v1/messages`, { method: 'DELETE' }).catch(() => {});
   });
 
@@ -45,14 +44,13 @@ describe('Email Verification (e2e)', () => {
     // 2. Wait for email to be processed
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // 3. Fetch email from Mailhog using fetch (native)
+    // 3. Fetch email from Mailhog
     let messages = [];
     try {
       const res = await fetch(`${mailhogUrl}/api/v2/messages`);
       const data = await res.json();
       messages = data.items || data;
     } catch (err) {
-      // fallback to v1
       const res = await fetch(`${mailhogUrl}/api/v1/messages`);
       messages = await res.json();
     }
@@ -64,18 +62,19 @@ describe('Email Verification (e2e)', () => {
 
     console.log(`Found ${messages.length} emails. Subjects:`, messages.map(m => m.Content?.Headers?.Subject?.[0]));
 
+    // Match the actual subject sent by your backend
     const verificationEmail = messages.find(msg =>
-      msg.Content?.Headers?.Subject?.[0] === 'Verify Your Email Address'
+      msg.Content?.Headers?.Subject?.[0] === 'Verify Your Email'
     );
     expect(verificationEmail).toBeDefined();
 
-    // 4. Extract token
+    // 4. Extract token from email body
     const emailBody = verificationEmail.Content.Body;
     const tokenMatch = emailBody.match(/token=([^&"\s]+)/);
     const token = tokenMatch ? tokenMatch[1] : null;
     expect(token).toBeDefined();
 
-    // 5. Verify email
+    // 5. Verify email using the token
     await request(backendUrl)
       .get(`/auth/verify-email?token=${token}`)
       .expect(200);
@@ -83,8 +82,9 @@ describe('Email Verification (e2e)', () => {
     // 6. Check database
     const usersCollection = db.collection('users');
     const user = await usersCollection.findOne({ email: uniqueEmail });
+    expect(user).toBeDefined();
     if (!user) {
-      throw new Error('User not found after email verification');
+      throw new Error('User was not found after verification');
     }
     expect(user.emailVerifiedAt).toBeDefined();
   });
