@@ -83,7 +83,7 @@ const verifyRes = await request(backendUrl)
   .post('/auth/verify-email')
   .send({ token });
 console.log('Verification response:', verifyRes.status, verifyRes.body);
-expect(verifyRes.status).toBe(200);
+expect(verifyRes.status).toBe(201);
     // 6. Check database
     const usersCollection = db.collection('users');
     const user = await usersCollection.findOne({ email: uniqueEmail });
