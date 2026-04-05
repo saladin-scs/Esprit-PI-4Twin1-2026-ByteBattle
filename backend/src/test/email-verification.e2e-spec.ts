@@ -75,10 +75,12 @@ describe('Email Verification (e2e)', () => {
     expect(token).toBeDefined();
 
     // 5. Verify email using the token
-    await request(backendUrl)
+    const verifyRes = await request(backendUrl)
       .post('/auth/verify-email')
-      .send({ token })
-      .expect(200);
+      .send({ token });
+    console.log('Verification response status:', verifyRes.status);
+    console.log('Verification response body:', verifyRes.body);
+    expect(verifyRes.status).toBe(200);
     // 6. Check database
     const usersCollection = db.collection('users');
     const user = await usersCollection.findOne({ email: uniqueEmail });
