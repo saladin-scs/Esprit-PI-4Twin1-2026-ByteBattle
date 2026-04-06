@@ -54,6 +54,6 @@ Write-Host ""
 Write-Host "Important: at first launch, no language runtime is installed." -ForegroundColor Yellow
 Write-Host "Clone https://github.com/engineer-man/piston then run:" -ForegroundColor Yellow
 Write-Host "  cd piston/cli && npm i" -ForegroundColor Gray
-Write-Host "  node index.js -u http://127.0.0.1:2000 ppman install javascript python java c++" -ForegroundColor Gray
+Write-Host "  node index.js -u http://127.0.0.1:2000 ppman install node python java gcc" -ForegroundColor Gray
 Write-Host "(Adjust versions if needed: GET http://localhost:2000/api/v2/runtimes)" -ForegroundColor Gray
 Write-Host ""

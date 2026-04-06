@@ -51,3 +51,4 @@ uploads/
 frontend/dist/
 frontend/.env
 
+backend/mongodb-data/

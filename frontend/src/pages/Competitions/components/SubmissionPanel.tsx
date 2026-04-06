@@ -43,18 +43,17 @@ function SubmissionPanelComponent({
   className = '',
 }: SubmissionPanelProps) {
   const isActive = competition.status === 'active';
+  const hasLinkedChallenge = Boolean(challenge);
   const config = COMPETITION_TYPE_CONFIG[competition.type as keyof typeof COMPETITION_TYPE_CONFIG];
   const scoreLabel = config?.scoreUnit ?? 'score';
 
   const handleSubmit = useCallback(() => {
-    if (!submitting && isActive) onSubmit();
-  }, [onSubmit, submitting, isActive]);
-
-  if (!challenge) return null;
+    if (!submitting && isActive && hasLinkedChallenge) onSubmit();
+  }, [onSubmit, submitting, isActive, hasLinkedChallenge]);
 
   const languages = competition.supportedLanguages?.length
     ? competition.supportedLanguages
-    : challenge.languages || ['python', 'javascript'];
+    : challenge?.languages || ['python', 'javascript'];
 
   return (
     <section className={`bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5 ${className}`} aria-labelledby="submission-heading">
@@ -95,9 +94,14 @@ function SubmissionPanelComponent({
           Submissions are closed for this contest.
         </p>
       )}
+      {!hasLinkedChallenge && (
+        <p className="text-amber-400 text-sm mb-3" role="status">
+          No challenge is linked to this contest yet. You can still write code here, but submit will stay disabled.
+        </p>
+      )}
       <Button
         onClick={handleSubmit}
-        disabled={submitting || !isActive}
+        disabled={submitting || !isActive || !hasLinkedChallenge}
         loading={submitting}
         className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white border-0 focus:ring-emerald-500"
         aria-busy={submitting}

@@ -34,6 +34,9 @@ export default function CompetitionDetail() {
   const {
     competition,
     challenge,
+    challenges,
+    activeChallengeId,
+    setActiveChallengeId,
     loading,
     error,
     selectedLang,
@@ -150,6 +153,24 @@ export default function CompetitionDetail() {
                   className="bb-card [&_h2]:text-primary-600 dark:[&_h2]:text-primary-400"
                   title={challenge.title}
                 >
+                  {challenges.length > 1 && (
+                    <div className="mb-4">
+                      <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">
+                        Competition challenge
+                      </label>
+                      <select
+                        value={activeChallengeId ?? challenge._id}
+                        onChange={(e) => setActiveChallengeId(e.target.value)}
+                        className="w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                      >
+                        {challenges.map((ch) => (
+                          <option key={ch._id} value={ch._id}>
+                            {ch.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     <DifficultyBadge difficulty={challenge.difficulty} />
                     <span className="text-xs text-slate-500">Statement · submit below</span>
@@ -180,39 +201,37 @@ export default function CompetitionDetail() {
             )}
           </AnimatePresence>
 
-          {challenge && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, delay: 0.08 }}
-            >
-              <SubmissionPanel
-                competition={competition}
-                challenge={challenge}
-                code={code}
-                onCodeChange={setCode}
-                selectedLang={selectedLang}
-                onLanguageChange={setSelectedLang}
-                onSubmit={submit}
-                submitting={submitting}
-                result={submitResult}
-                error={submitError}
-                theme={theme === 'dark' ? 'dark' : 'light'}
-              />
-              {isAuthed && challenge && (
-                <div className="mt-4">
-                  <AiCodeFeedbackPanel
-                    code={code}
-                    language={selectedLang}
-                    taskDescription={`${competition.name} — ${challenge.title}\n\n${(challenge.description || '').slice(0, 8000)}`}
-                    testsPassed={submitResult?.status === 'accepted'}
-                    executionError={submitError ?? undefined}
-                    runtimeMs={submitResult?.executionTimeMs}
-                  />
-                </div>
-              )}
-            </motion.div>
-          )}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: 0.08 }}
+          >
+            <SubmissionPanel
+              competition={competition}
+              challenge={challenge}
+              code={code}
+              onCodeChange={setCode}
+              selectedLang={selectedLang}
+              onLanguageChange={setSelectedLang}
+              onSubmit={submit}
+              submitting={submitting}
+              result={submitResult}
+              error={submitError}
+              theme={theme === 'dark' ? 'dark' : 'light'}
+            />
+            {isAuthed && challenge && (
+              <div className="mt-4">
+                <AiCodeFeedbackPanel
+                  code={code}
+                  language={selectedLang}
+                  taskDescription={`${competition.name} — ${challenge.title}\n\n${(challenge.description || '').slice(0, 8000)}`}
+                  testsPassed={submitResult?.status === 'accepted'}
+                  executionError={submitError ?? undefined}
+                  runtimeMs={submitResult?.executionTimeMs}
+                />
+              </div>
+            )}
+          </motion.div>
         </div>
 
         <motion.aside

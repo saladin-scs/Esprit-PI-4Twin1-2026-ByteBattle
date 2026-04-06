@@ -5,7 +5,13 @@
 import { apiClient } from '../core/api';
 import type { ExecuteTestCase } from '../types/challenge';
 
-export { apiClient, authApi, usersApi, adminApi, type AdminReclamationRow } from '../core/api';
+export {
+  apiClient,
+  authApi,
+  usersApi,
+  adminApi,
+  type AdminReclamationRow,
+} from '../core/api';
 
 export type RecommendedChallengeItem = {
   id: string;
@@ -34,14 +40,28 @@ export const challengesApi = {
   create: (challenge: any) => apiClient.post('/challenges', challenge),
   update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
   delete: (id: string) => apiClient.delete(`/challenges/${id}`),
-  generate: (data: { difficulty: string; topic: string }) =>
-    apiClient.post('/ai/generate-challenge', data),
 };
 
 
 export const codeExecutionApi = {
   execute: (data: { code: string; language: string; testCases: ExecuteTestCase[] }) =>
     apiClient.post('/code-execution/run', data),
+};
+
+export const battleApi = {
+  getPending: () =>
+    apiClient.get<{
+      battle: null | {
+        battleId: string;
+        status: string;
+        challengeId: string;
+        durationSeconds: number;
+        startedAt: string | null;
+        endsAt: string | null;
+      };
+    }>('/battle/pending'),
+  joinQueueHttp: () => apiClient.post<{ queued: boolean; battleId?: string; challengeId?: string }>('/battle/queue', {}),
+  getSummary: (id: string) => apiClient.get(`/battle/${id}/summary`),
 };
 
 export const chatApi = {

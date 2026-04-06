@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../../store/store';
-import { fetchMe, verify2faLogin } from '../../store/slices/authSlice';
+import { fetchMe, verify2faLogin, unwrapRejectedMessage } from '../../store/slices/authSlice';
 import { PageContainer, Card, Input, Button, Alert } from '../../shared/components';
 
 function SocialCallback() {
@@ -35,7 +35,8 @@ function SocialCallback() {
         .then(() => {
           navigate('/dashboard');
         })
-        .catch(() => {
+        .catch((err) => {
+          console.warn('fetchMe after OAuth:', unwrapRejectedMessage(err, 'Session could not be loaded'));
           navigate('/');
         });
     } else {
@@ -50,8 +51,8 @@ function SocialCallback() {
     try {
       await dispatch(verify2faLogin({ twoFactorToken, code, rememberMe: true })).unwrap();
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.message || '2FA verification failed');
+    } catch (err: unknown) {
+      setError(unwrapRejectedMessage(err, '2FA verification failed'));
     }
   };
 

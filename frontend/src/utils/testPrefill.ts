@@ -1,3 +1,5 @@
+import { challengesApi } from '../services/api';
+
 const TWO_SUM_PY = `n, target = map(int, input().split())
 arr = list(map(int, input().split()))
 seen = {}
@@ -93,6 +95,14 @@ const GENERIC_BY_LANG: Record<string, string> = {
 };
 
 const TEST_PREFILL_ENABLED = import.meta.env.VITE_PREFILL_TEST_SOLUTIONS !== 'false';
+const PREFILL_FROM_SOLUTIONS = import.meta.env.VITE_PREFILL_FROM_ACCEPTED_SOLUTIONS !== 'false';
+const prefillCache = new Map<string, string>();
+
+function normalizeLanguage(lang: string): string {
+  const l = String(lang || '').toLowerCase().trim();
+  if (l === 'c++') return 'cpp';
+  return l;
+}
 
 function twoSumPrefillByLang(lang: string): string {
   if (lang === 'python') return TWO_SUM_PY;
@@ -108,5 +118,40 @@ export function getEditorPrefillCode(title: string | undefined, language: string
   if (t.includes('two sum')) return twoSumPrefillByLang(language);
   if (starterCode && starterCode.trim()) return starterCode;
   return GENERIC_BY_LANG[language] ?? '';
+}
+
+async function fetchTopSolutionCode(challengeId: string, language: string): Promise<string | null> {
+  const lang = normalizeLanguage(language);
+  const key = `${challengeId}:${lang}`;
+  if (prefillCache.has(key)) return prefillCache.get(key) ?? null;
+
+  try {
+    const res = await challengesApi.getSolutions(challengeId, { page: 1, limit: 30, sortBy: 'upvotes' });
+    const data = res.data as { solutions?: Array<{ code?: string; language?: string; upvotes?: number }> };
+    const solutions = Array.isArray(data?.solutions) ? data.solutions : [];
+    const candidates = solutions.filter((s) => normalizeLanguage(s.language || '') === lang && !!s.code?.trim());
+    if (!candidates.length) return null;
+
+    candidates.sort((a, b) => (Number(b.upvotes || 0) - Number(a.upvotes || 0)));
+    const code = String(candidates[0].code || '').trim();
+    if (!code) return null;
+
+    prefillCache.set(key, code);
+    return code;
+  } catch {
+    return null;
+  }
+}
+
+export async function getEditorPrefillCodeAsync(params: {
+  challengeId?: string;
+  title?: string;
+  language: string;
+  starterCode: string;
+}): Promise<string> {
+  const fallback = getEditorPrefillCode(params.title, params.language, params.starterCode);
+  if (!TEST_PREFILL_ENABLED || !PREFILL_FROM_SOLUTIONS || !params.challengeId) return fallback;
+  const top = await fetchTopSolutionCode(params.challengeId, params.language);
+  return top || fallback;
 }
 

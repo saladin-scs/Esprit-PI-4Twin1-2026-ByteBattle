@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { register as registerAction } from '../../store/slices/authSlice';
+import { register as registerAction, unwrapRejectedMessage } from '../../store/slices/authSlice';
 import { AppDispatch } from '../../store/store';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReCAPTCHA from 'react-google-recaptcha';
@@ -16,8 +16,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useDebounce } from 'use-debounce';
 import toast from 'react-hot-toast';
 import * as faceapi from 'face-api.js';
-import axios from 'axios';
 import { getPublicApiUrl } from '../../config/publicEnv';
+import { apiClient } from '../../core/api';
 import { setPostRegisterOnboardingFlag } from '../../shared/components';
 
 // Icons
@@ -549,7 +549,7 @@ function Register() {
             : undefined;
       const fn = formData.firstName?.trim();
       const ln = formData.lastName?.trim();
-      const response = await axios.post(`${API_URL}/auth/register`, {
+      const response = await apiClient.post('/auth/register', {
         email: formData.email,
         username: formData.username.trim(),
         password: formData.password,
@@ -559,7 +559,7 @@ function Register() {
         ...(dob ? { dateOfBirth: dob } : {}),
         newsletter: !!formData.newsletter,
         ...(formData.referralSource?.trim() ? { referralSource: formData.referralSource.trim() } : {}),
-        faceDescriptor: faceDescriptor ?? undefined,
+        ...(faceDescriptor && faceDescriptor.length === 128 ? { faceDescriptor } : {}),
       });
 
       setSuccess("Registration successful! 🎉");
@@ -640,8 +640,8 @@ function Register() {
         setPostRegisterOnboardingFlag();
         navigate('/login');
       }
-    } catch (err: any) {
-      setError(err?.message || "Registration failed. Please try again.");
+    } catch (err: unknown) {
+      setError(unwrapRejectedMessage(err, 'Registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }

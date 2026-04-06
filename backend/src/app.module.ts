@@ -11,7 +11,9 @@ import { CodeExecutionModule } from './code-execution/code-execution.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { CompetitionsModule } from './competitions/competitions.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
-import { AiModule } from './ai/ai.module';
+import { SiteRatingsModule } from './site-ratings/site-ratings.module';
+import { ChatModule } from './chat/chat.module';
+import { BattleModule } from './battle/battle.module';
 
 @Module({
   imports: [
@@ -34,7 +36,9 @@ import { AiModule } from './ai/ai.module';
     GamificationModule,
     CompetitionsModule,
     LeaderboardModule,
-    AiModule,
+    SiteRatingsModule,
+    ChatModule,
+    BattleModule,
   ],
 })
 export class AppModule {}

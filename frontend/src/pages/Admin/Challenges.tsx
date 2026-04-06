@@ -4,7 +4,7 @@ import { challengesApi } from '../../services/api';
 import { PageContainer, Card, Button, Input, Spinner } from '../../shared/components';
 import { DifficultyBadge } from '../../components/Challenges';
 import toast from 'react-hot-toast';
-import { Sparkles, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePopup } from '../../contexts/PopupContext';
 
@@ -24,32 +24,6 @@ function safeJsonParse<T>(text: string, fallback: T): T {
   }
 }
 
-function normalizeAiPayload(data: any): {
-  title?: string;
-  description?: string;
-  tags?: string[];
-  examples?: Example[];
-  testCases?: TestCase[];
-  starterCode?: StarterCode;
-} {
-  const obj = (data && typeof data === 'object') ? data : {};
-  const tags = Array.isArray(obj.tags) ? obj.tags.filter((t: any) => typeof t === 'string') : undefined;
-  const examples = Array.isArray(obj.examples) ? obj.examples : undefined;
-  const testCases = Array.isArray(obj.testCases) ? obj.testCases : undefined;
-  const starterCode =
-    obj.starterCode && typeof obj.starterCode === 'object' && !Array.isArray(obj.starterCode)
-      ? obj.starterCode
-      : undefined;
-  return {
-    title: typeof obj.title === 'string' ? obj.title : undefined,
-    description: typeof obj.description === 'string' ? obj.description : undefined,
-    tags,
-    examples,
-    testCases,
-    starterCode,
-  };
-}
-
 export default function AdminChallenges() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { confirm } = usePopup();
@@ -57,7 +31,6 @@ export default function AdminChallenges() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [generateLoading, setGenerateLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newIds, setNewIds] = useState<Record<string, number>>({});
 
@@ -70,7 +43,6 @@ export default function AdminChallenges() {
     title: '',
     description: '',
     difficulty: 'medium' as Difficulty,
-    topic: '',
     xpReward: 100,
     languages: 'javascript, python, java, cpp',
     tags: '',
@@ -120,80 +92,15 @@ export default function AdminChallenges() {
   }, []);
 
   useEffect(() => {
-    const ai = searchParams.get('ai');
     const create = searchParams.get('create');
-    if (ai === '1' || create === '1') {
+    if (create === '1') {
       resetForm();
-      if (ai === '1') {
-        setFormData((prev) => ({ ...prev, topic: prev.topic || 'Two sum' }));
-      }
       setShowModal(true);
       const next = new URLSearchParams(searchParams);
-      next.delete('ai');
       next.delete('create');
       setSearchParams(next, { replace: true });
     }
   }, [searchParams, setSearchParams]);
-
-  const handleGenerateAI = async () => {
-    if (!formData.topic) {
-      toast.error('Please provide a topic for the AI to generate');
-      return;
-    }
-    
-    setGenerateLoading(true);
-    try {
-      toast.loading('AI is generating challenge...', { id: 'ai-gen' });
-      const { data } = await challengesApi.generate({
-        difficulty: formData.difficulty,
-        topic: formData.topic,
-      });
-
-      const normalized = normalizeAiPayload(data);
-      const nextExamples = normalized.examples;
-      const nextTestCases = normalized.testCases;
-      const nextStarter = normalized.starterCode;
-
-      setFormData((prev) => {
-        const hasAnyTestCases = Array.isArray(nextTestCases) && nextTestCases.length > 0;
-        const fallbackFromExamples: TestCase[] | null =
-          Array.isArray(nextExamples) && nextExamples.length > 0
-            ? [
-                {
-                  input: String((nextExamples[0] as any)?.input ?? ''),
-                  expectedOutput: String((nextExamples[0] as any)?.output ?? ''),
-                  isHidden: false,
-                },
-              ]
-            : null;
-
-        const finalTestCases =
-          hasAnyTestCases ? nextTestCases : (fallbackFromExamples ?? safeJsonParse<TestCase[]>(prev.testCasesJson, []));
-
-        return {
-          ...prev,
-          title: normalized.title || prev.title,
-          description: normalized.description || prev.description,
-          tags: normalized.tags ? normalized.tags.join(', ') : prev.tags,
-          examplesJson: nextExamples ? JSON.stringify(nextExamples, null, 2) : prev.examplesJson,
-          testCasesJson: finalTestCases.length ? JSON.stringify(finalTestCases, null, 2) : prev.testCasesJson,
-          starterCodeJson: nextStarter ? JSON.stringify(nextStarter, null, 2) : prev.starterCodeJson,
-        };
-      });
-
-      if (!Array.isArray(nextTestCases) || nextTestCases.length === 0) {
-        toast('AI did not return test cases. I filled a basic one for you — please review before creating.', {
-          id: 'ai-gen-missing-tests',
-        });
-      }
-      toast.success('Generated successfully!', { id: 'ai-gen' });
-    } catch (err: any) {
-      console.error(err);
-      toast.error(`Error: ${err.response?.data?.message || err.message}`, { id: 'ai-gen' });
-    } finally {
-      setGenerateLoading(false);
-    }
-  };
 
   const resetForm = () => {
     setEditingId(null);
@@ -201,7 +108,6 @@ export default function AdminChallenges() {
       title: '',
       description: '',
       difficulty: 'medium' as Difficulty,
-      topic: '',
       xpReward: 100,
       languages: 'javascript, python, java, cpp',
       tags: '',
@@ -241,7 +147,6 @@ export default function AdminChallenges() {
       title: challenge.title || '',
       description: challenge.description || '',
       difficulty: (challenge.difficulty || 'medium') as Difficulty,
-      topic: '',
       xpReward: Number(challenge.xpReward || 100),
       languages: Array.isArray(challenge.languages) ? challenge.languages.join(', ') : 'javascript, python',
       tags: Array.isArray(challenge.tags) ? challenge.tags.join(', ') : '',
@@ -356,9 +261,7 @@ export default function AdminChallenges() {
       <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Challenges Management</h1>
-          <p className="text-gray-500 dark:text-gray-400">
-            Create manual challenges or let AI generate them for you.
-          </p>
+          <p className="text-gray-500 dark:text-gray-400">Create and edit practice challenges.</p>
         </div>
         <Button onClick={() => { resetForm(); setShowModal(true); }}>+ Create Challenge</Button>
       </div>
@@ -386,7 +289,7 @@ export default function AdminChallenges() {
               ) : challenges.length === 0 ? (
                 <tr>
                   <td className="p-8 text-center text-gray-500" colSpan={6}>
-                    No challenges found. Create or generate one!
+                    No challenges found. Create one to get started.
                   </td>
                 </tr>
               ) : (
@@ -464,26 +367,6 @@ export default function AdminChallenges() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <Card className="w-full max-w-xl shadow-2xl overflow-y-auto max-h-[90vh]">
             <h2 className="text-xl font-bold mb-4">{editingId ? 'Update Challenge' : 'Create New Challenge'}</h2>
-            
-            <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-lg mb-6 flex flex-col sm:flex-row gap-4 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-indigo-700 dark:text-indigo-300 mb-1">AI Topic / Idea</label>
-                <Input 
-                  placeholder="e.g. Reverse a binary tree, Matrix multiplication..." 
-                  value={formData.topic} 
-                  onChange={e => setFormData({ ...formData, topic: e.target.value })} 
-                />
-              </div>
-              <Button 
-                 type="button" 
-                 onClick={handleGenerateAI} 
-                 disabled={generateLoading}
-                 className="flex items-center gap-2 whitespace-nowrap bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                {generateLoading ? <Spinner size="sm" /> : <Sparkles className="w-4 h-4" />}
-                Autofill with AI
-              </Button>
-            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
