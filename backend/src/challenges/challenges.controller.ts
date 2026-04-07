@@ -90,6 +90,15 @@ export class ChallengeController {
     return this.challengeService.findOne(id);
   }
 
+  @Get('admin/:id/analytics')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Challenge analytics: users who solved and participated' })
+  async getChallengeAnalytics(@Param('id') id: string) {
+    return this.challengeService.getChallengeAnalytics(id);
+  }
+
   @Get('admin/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')

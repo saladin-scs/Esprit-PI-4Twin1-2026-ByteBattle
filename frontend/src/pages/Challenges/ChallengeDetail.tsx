@@ -119,7 +119,7 @@ const ChallengeDetail = () => {
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'description' | 'hints' | 'result' | 'solutions' | 'correction' | 'chat' | 'coach'
+    'description' | 'hints' | 'result' | 'solutions' | 'correction' | 'chat' | 'coach' | 'analytics'
   >('description');
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
   const isAdmin = useSelector((s: RootState) => Boolean(s.auth.user?.roles?.includes('admin')));
@@ -143,6 +143,12 @@ const ChallengeDetail = () => {
   const [submissionHistory, setSubmissionHistory] = useState<any[]>([]);
   const [showHistoryAfterAttempts, setShowHistoryAfterAttempts] = useState(false);
   const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
+  const [isEditingOfficialSolution, setIsEditingOfficialSolution] = useState(false);
+  const [editingOfficialSolutions, setEditingOfficialSolutions] = useState<Record<string, string>>({});
+  const [savingOfficialSolution, setSavingOfficialSolution] = useState(false);
+  const [usersWithSolutions, setUsersWithSolutions] = useState<Array<{ username: string; userId: string; language: string; submittedAt: string }>>([]);
+  const [usersParticipated, setUsersParticipated] = useState<Array<{ username: string; userId: string; attempts: number; lastAttempt: string }>>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
 
@@ -266,9 +272,26 @@ const ChallengeDetail = () => {
   }, [id, setCompletedLanguages]);
 
   useEffect(() => {
-    if (!id || !isSolved || !selectedLang) return;
+    // Load solution if: (resolved) OR (not resolved AND >= 10 attempts) AND has language AND not admin
+    if (!id || !selectedLang || isAdmin) return;
+    if (!isSolved && testCount < 5) {
+      return;
+    }
     loadOfficialSolution(selectedLang);
-  }, [id, isSolved, selectedLang]);
+  }, [id, isSolved, testCount, selectedLang, isAdmin]);
+
+  // Load official solution when user switches to solutions tab and has access
+  useEffect(() => {
+    // Load for: resolved users OR users with 10+ attempts (non-solved)
+    if (activeTab === 'solutions' && selectedLang && !isAdmin) {
+      const shouldLoad = isSolved || (testCount >= 5 && !isSolved);
+      if (shouldLoad && !officialSolutionLoading && !officialSolutionCode) {
+        // Load solution if not already loaded
+        loadOfficialSolution(selectedLang);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isSolved, testCount, selectedLang, isAdmin]);
 
   // Sync URL lang → store (and code) when challenge is loaded so code always matches selected language
   useEffect(() => {
@@ -303,10 +326,16 @@ const ChallengeDetail = () => {
       const res = await challengesApi.getOfficialSolution(id, { language: lang });
       const payload = res.data as { code?: string; solutions?: Array<{ language: string; code: string }> };
       const code = payload.code || payload.solutions?.find((s) => s.language === lang)?.code || '';
-      if (code) {
-        setOfficialSolutionCode(cleanSolutionCode(code, lang));
+      if (code && code.trim()) {
+        const cleaned = cleanSolutionCode(code, lang);
+        console.log('Setting official solution code:', { lang, codeLength: code.length, cleanedLength: cleaned.length, hasContent: !!cleaned.trim() });
+        setOfficialSolutionCode(cleaned);
+      } else {
+        console.log('No code found for solution');
+        setOfficialSolutionCode(null);
       }
-    } catch {
+    } catch (error) {
+      console.error('Error loading official solution:', error);
       setOfficialSolutionCode(null);
     } finally {
       setOfficialSolutionLoading(false);
@@ -318,6 +347,44 @@ const ChallengeDetail = () => {
     setSelectedLang(lang);
     setCode(challenge?.starterCode?.[lang] || '');
   };
+
+  const saveOfficialSolution = async () => {
+    if (!id) return;
+    setSavingOfficialSolution(true);
+    try {
+      await challengesApi.update(id, { officialSolution: editingOfficialSolutions });
+      setOfficialSolution(editingOfficialSolutions);
+      setIsEditingOfficialSolution(false);
+      toast.success('Official solution saved!');
+    } catch (error) {
+      console.error('Error saving official solution:', error);
+      toast.error('Error saving the official solution.');
+    } finally {
+      setSavingOfficialSolution(false);
+    }
+  };
+
+  const loadChallengeAnalytics = async () => {
+    if (!id || !isAdmin) return;
+    setAnalyticsLoading(true);
+    try {
+      const res = await challengesApi.getChallengeAnalytics(id);
+      const data = res.data as any;
+      setUsersWithSolutions(data.solved || []);
+      setUsersParticipated(data.participated || []);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      toast.error('Error loading challenge analytics.');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'analytics' && isAdmin) {
+      loadChallengeAnalytics();
+    }
+  }, [activeTab, isAdmin, id]);
 
   const handleRun = async () => {
     if (!id) return;
@@ -395,8 +462,13 @@ const ChallengeDetail = () => {
         const historyRes = await challengesApi.getMyHistory(id);
         const history = historyRes.data as any[];
         setSubmissionHistory(history);
+        setTestCount(history.length);
         if (history.length >= 5) {
           setShowHistoryAfterAttempts(true);
+          // Load official solution after 5 attempts (only for non-solved users)
+          if (!isSolved) {
+            await loadOfficialSolution(selectedLang);
+          }
         }
       } catch {
         // Ignore history refresh error
@@ -477,7 +549,7 @@ const ChallengeDetail = () => {
                     Hints
                   </button>
                 )}
-                {(displayResult?.status === 'accepted' || (completedLanguages?.length ?? 0) > 0) && (
+                {(isSolved || testCount >= 5) && (
                   <button
                     role="tab"
                     aria-selected={activeTab === 'solutions'}
@@ -491,7 +563,7 @@ const ChallengeDetail = () => {
                     Solutions
                   </button>
                 )}
-                {isAdmin && Boolean(officialSolution?.[selectedLang]) && (
+                {isAdmin && (
                   <button
                     role="tab"
                     aria-selected={activeTab === 'correction'}
@@ -502,7 +574,21 @@ const ChallengeDetail = () => {
                         : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
                       }`}
                   >
-                    Correction
+                    Official Solution
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    role="tab"
+                    aria-selected={activeTab === 'analytics'}
+                    type="button"
+                    onClick={() => setActiveTab('analytics')}
+                    className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${activeTab === 'analytics'
+                        ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-300'
+                        : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                      }`}
+                  >
+                    Analytics
                   </button>
                 )}
                 {(displayResult || submitError) && (
@@ -978,7 +1064,7 @@ const ChallengeDetail = () => {
                                       <div className="mt-3">
                                         <div className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Résultats des tests :</div>
                                         <div className="space-y-1 max-h-40 overflow-y-auto">
-                                          {sub.testResults.slice(0, 3).map((test, testIndex) => (
+                                          {sub.testResults.slice(0, 3).map((test: any, testIndex: number) => (
                                             <div key={testIndex} className={`text-xs p-2 rounded border ${
                                               test.passed
                                                 ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300'
@@ -1016,20 +1102,64 @@ const ChallengeDetail = () => {
 
                 {activeTab === 'solutions' && (
                   <div className="h-full min-h-0">
-                    <CommunitySolutions challengeId={id!} />
+                    <CommunitySolutions 
+                      challengeId={id!} 
+                      officialSolution={(isSolved || testCount >= 5) ? officialSolutionCode : undefined} 
+                      officialLanguage={DISPLAY_LANGUAGE[selectedLang] ?? selectedLang}
+                      selectedLang={selectedLang}
+                    />
                   </div>
                 )}
 
                 {activeTab === 'correction' && isAdmin && (
                   <div className="space-y-4">
-                    <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
-                      <h2 className="text-lg font-semibold text-emerald-900 dark:text-emerald-200">
-                        Correction officielle
-                      </h2>
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2">
-                        <p className="text-sm text-emerald-800/80 dark:text-emerald-100/70">
-                          Solution admin pour {DISPLAY_LANGUAGE[selectedLang] ?? selectedLang}.
-                        </p>
+                    {!isEditingOfficialSolution ? (
+                      <>
+                        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h2 className="text-lg font-semibold text-emerald-900 dark:text-emerald-200">
+                                Official Solution
+                              </h2>
+                              <p className="mt-1 text-sm text-emerald-800/80 dark:text-emerald-100/70">
+                                Admin solution for {DISPLAY_LANGUAGE[selectedLang] ?? selectedLang}.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingOfficialSolutions(officialSolution);
+                                setIsEditingOfficialSolution(true);
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 dark:bg-[#1f6feb] dark:hover:bg-[#388bfd]"
+                            >
+                              ✏️ Edit
+                            </button>
+                          </div>
+                        </div>
+                        {officialSolution?.[selectedLang] ? (
+                          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
+                            <Editor
+                              height="360px"
+                              language={MONACO_LANG[selectedLang] || 'javascript'}
+                              value={officialSolution[selectedLang]}
+                              theme={editorTheme}
+                              options={{
+                                readOnly: true,
+                                fontSize: 14,
+                                minimap: { enabled: false },
+                                scrollBeyondLastLine: false,
+                                wordWrap: 'on',
+                                automaticLayout: true,
+                                padding: { top: 16 },
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#8b949e]">
+                            Aucune correction enregistrée pour ce langage.
+                          </div>
+                        )}
                         {officialSolution?.[selectedLang] && (
                           <button
                             type="button"
@@ -1050,38 +1180,165 @@ const ChallengeDetail = () => {
                               }
 
                               setCode(cleanedCode);
-                              toast.success('Correction insérée !');
+                              toast.success('Solution inserted!');
                             }}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 dark:bg-[#238636] dark:hover:bg-[#2ea043]"
                           >
                             <Copy className="h-4 w-4" />
-                            Insérer le code
+                            Insert code
                           </button>
                         )}
+                      </>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-200">
+                                Edit official solution
+                              </h2>
+                              <p className="mt-1 text-sm text-blue-800/80 dark:text-blue-100/70">
+                                Add or edit solutions for all languages.
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingOfficialSolution(false)}
+                                disabled={savingOfficialSolution}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-[#30363d] dark:bg-[#0d1117] dark:text-[#c9d1d9] dark:hover:bg-[#161b22]"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={saveOfficialSolution}
+                                disabled={savingOfficialSolution}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 dark:bg-[#1f6feb] dark:hover:bg-[#388bfd]"
+                              >
+                                {savingOfficialSolution ? 'Saving...' : '💾 Save'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {challenge?.languages?.map((lang) => (
+                          <div key={lang} className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-900 dark:text-white">
+                              {DISPLAY_LANGUAGE[lang] ?? lang}
+                            </label>
+                            <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-[#30363d]">
+                              <Editor
+                                height="250px"
+                                language={MONACO_LANG[lang] || 'javascript'}
+                                value={editingOfficialSolutions[lang] || ''}
+                                theme={editorTheme}
+                                onChange={(value) => {
+                                  setEditingOfficialSolutions((prev) => ({
+                                    ...prev,
+                                    [lang]: value || '',
+                                  }));
+                                }}
+                                options={{
+                                  fontSize: 14,
+                                  minimap: { enabled: false },
+                                  scrollBeyondLastLine: false,
+                                  wordWrap: 'on',
+                                  automaticLayout: true,
+                                  padding: { top: 16 },
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                    {officialSolution?.[selectedLang] ? (
-                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
-                        <Editor
-                          height="360px"
-                          language={MONACO_LANG[selectedLang] || 'javascript'}
-                          value={officialSolution[selectedLang]}
-                          theme={editorTheme}
-                          options={{
-                            readOnly: true,
-                            fontSize: 14,
-                            minimap: { enabled: false },
-                            scrollBeyondLastLine: false,
-                            wordWrap: 'on',
-                            automaticLayout: true,
-                            padding: { top: 16 },
-                          }}
-                        />
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'analytics' && isAdmin && (
+                  <div className="space-y-4 overflow-y-auto">
+                    {analyticsLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent" />
                       </div>
                     ) : (
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#8b949e]">
-                        Aucune correction enregistree pour ce langage.
-                      </div>
+                      <>
+                        <div className="rounded-xl border border-blue-500/25 bg-blue-500/5 p-4">
+                          <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-200">Challenge Analytics</h2>
+                          <p className="mt-1 text-sm text-blue-800/80 dark:text-blue-100/70">
+                            Track user participation and solutions across all languages.
+                          </p>
+                        </div>
+
+                        {/* Statistics */}
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-[#30363d] dark:bg-[#161b22]">
+                            <p className="text-sm text-slate-600 dark:text-[#8b949e]">Total Solved</p>
+                            <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+                              {usersWithSolutions.length}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-[#30363d] dark:bg-[#161b22]">
+                            <p className="text-sm text-slate-600 dark:text-[#8b949e]">Participated</p>
+                            <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+                              {usersParticipated.length}
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-[#30363d] dark:bg-[#161b22]">
+                            <p className="text-sm text-slate-600 dark:text-[#8b949e]">Avg Attempts</p>
+                            <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+                              {usersParticipated.length > 0 
+                                ? (usersParticipated.reduce((sum, u) => sum + u.attempts, 0) / usersParticipated.length).toFixed(1)
+                                : '0'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Users who solved */}
+                        <div className="space-y-2">
+                          <h3 className="font-semibold text-gray-900 dark:text-white">✅ Users Who Solved ({usersWithSolutions.length})</h3>
+                          {usersWithSolutions.length > 0 ? (
+                            <div className="divide-y divide-slate-200 rounded-lg border border-slate-200 dark:divide-[#30363d] dark:border-[#30363d]">
+                              {usersWithSolutions.map((user) => (
+                                <div key={`${user.userId}-${user.language}`} className="flex items-center justify-between bg-white px-4 py-3 dark:bg-[#0d1117]">
+                                  <div>
+                                    <p className="font-medium text-slate-900 dark:text-white">{user.username}</p>
+                                    <p className="text-sm text-slate-600 dark:text-[#8b949e]">Language: {DISPLAY_LANGUAGE[user.language] ?? user.language}</p>
+                                  </div>
+                                  <p className="text-sm text-slate-600 dark:text-[#8b949e]">
+                                    {new Date(user.submittedAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-600 dark:text-[#8b949e]">No solutions submitted yet.</p>
+                          )}
+                        </div>
+
+                        {/* Users who participated */}
+                        <div className="space-y-2">
+                          <h3 className="font-semibold text-gray-900 dark:text-white">🔍 Users Who Participated ({usersParticipated.length})</h3>
+                          {usersParticipated.length > 0 ? (
+                            <div className="divide-y divide-slate-200 rounded-lg border border-slate-200 dark:divide-[#30363d] dark:border-[#30363d]">
+                              {usersParticipated.map((user) => (
+                                <div key={user.userId} className="flex items-center justify-between bg-white px-4 py-3 dark:bg-[#0d1117]">
+                                  <div>
+                                    <p className="font-medium text-slate-900 dark:text-white">{user.username}</p>
+                                    <p className="text-sm text-slate-600 dark:text-[#8b949e]">Attempts: {user.attempts}</p>
+                                  </div>
+                                  <p className="text-sm text-slate-600 dark:text-[#8b949e]">
+                                    {new Date(user.lastAttempt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-slate-600 dark:text-[#8b949e]">No participation yet.</p>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                 )}

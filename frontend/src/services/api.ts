@@ -23,6 +23,8 @@ export const challengesApi = {
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>('/challenges/recommended', { params }),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
   getOneAdmin: (id: string) => apiClient.get(`/challenges/admin/${id}`),
+  getChallengeAnalytics: (id: string) =>
+    apiClient.get(`/challenges/admin/${id}/analytics`),
   getMyCompletion: (id: string) => apiClient.get<{ completedLanguages: string[] }>(`/challenges/${id}/my-completion`),
   run: (id: string, data: { code: string; language: string }) =>
     apiClient.post(`/challenges/${id}/run`, data),

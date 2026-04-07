@@ -553,18 +553,23 @@ public class Solution {
 
   // Get official solution if user has solved the challenge (has accepted submission)
   async getOfficialSolutionIfSolved(challengeId: string, userId: string, language?: string) {
-    // Check if user has accepted submission
+    // Check if user has accepted submission or has made 5+ attempts
     const solved = await this.submissionModel.exists({
       challengeId: new Types.ObjectId(challengeId),
       userId: new Types.ObjectId(userId),
       status: 'accepted'
     });
 
-    const isUnlocked = solved;
+    const attemptCount = await this.submissionModel.countDocuments({
+      challengeId: new Types.ObjectId(challengeId),
+      userId: new Types.ObjectId(userId),
+    });
+
+    const isUnlocked = solved || attemptCount >= 5;
 
     if (!isUnlocked) {
       throw new ForbiddenException(
-        `You must solve the challenge to view the official solution.`
+        `You must solve the challenge or make at least 5 attempts to view the official solution.`
       );
     }
 
@@ -775,6 +780,105 @@ public class Solution {
         xpReward: c.xpReward,
         languages: c.languages,
       })),
+    };
+  }
+
+  async getChallengeAnalytics(challengeId: string) {
+    if (!Types.ObjectId.isValid(challengeId)) {
+      throw new BadRequestException('Invalid challenge ID');
+    }
+
+    const oid = new Types.ObjectId(challengeId);
+
+    // Get users who solved the challenge (accepted submission)
+    const solvedUsers = await this.submissionModel.aggregate([
+      {
+        $match: {
+          challengeId: oid,
+          status: 'accepted'
+        }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          language: { $first: '$language' },
+          solvedAt: { $max: '$createdAt' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true }
+      },
+      {
+        $project: {
+          _id: 0,
+          userId: '$_id',
+          username: { $ifNull: ['$userInfo.username', 'Unknown'] },
+          language: 1,
+          solvedAt: 1
+        }
+      },
+      {
+        $sort: { solvedAt: -1 }
+      }
+    ]);
+
+    // Get users who participated (any submission)
+    const participatedUsers = await this.submissionModel.aggregate([
+      {
+        $match: {
+          challengeId: oid
+        }
+      },
+      {
+        $group: {
+          _id: '$userId',
+          attempts: { $sum: 1 },
+          lastAttempt: { $max: '$createdAt' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true }
+      },
+      {
+        $project: {
+          _id: 0,
+          userId: '$_id',
+          username: { $ifNull: ['$userInfo.username', 'Unknown'] },
+          attempts: 1,
+          lastAttempt: 1
+        }
+      },
+      {
+        $sort: { lastAttempt: -1 }
+      }
+    ]);
+
+    return {
+      solved: solvedUsers,
+      participated: participatedUsers,
+      statistics: {
+        totalSolved: solvedUsers.length,
+        totalParticipated: participatedUsers.length,
+        avgAttempts: participatedUsers.length > 0 
+          ? (participatedUsers.reduce((sum, u) => sum + u.attempts, 0) / participatedUsers.length).toFixed(2)
+          : 0
+      }
     };
   }
 }
