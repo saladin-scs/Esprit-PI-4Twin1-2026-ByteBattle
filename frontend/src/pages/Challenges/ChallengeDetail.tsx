@@ -127,6 +127,8 @@ const ChallengeDetail = () => {
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState(0);
   const [officialSolution, setOfficialSolution] = useState<Record<string, string>>({});
+  const [officialSolutionCode, setOfficialSolutionCode] = useState<string | null>(null);
+  const [officialSolutionLoading, setOfficialSolutionLoading] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successModalPayload, setSuccessModalPayload] = useState<{
     xpEarned: number;
@@ -138,6 +140,8 @@ const ChallengeDetail = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [testCount, setTestCount] = useState(0);
   const [isSolved, setIsSolved] = useState(false);
+  const [submissionHistory, setSubmissionHistory] = useState<any[]>([]);
+  const [showHistoryAfterAttempts, setShowHistoryAfterAttempts] = useState(false);
 
   const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
 
@@ -251,9 +255,19 @@ const ChallengeDetail = () => {
       .then(res => {
         const history = res.data as any[];
         setTestCount(history.length);
+        setSubmissionHistory(history);
+        // Show history after 5 attempts
+        if (history.length >= 5) {
+          setShowHistoryAfterAttempts(true);
+        }
       })
       .catch(() => setTestCount(0));
   }, [id, setCompletedLanguages]);
+
+  useEffect(() => {
+    if (!id || !isSolved || !selectedLang) return;
+    loadOfficialSolution(selectedLang);
+  }, [id, isSolved, selectedLang]);
 
   // Sync URL lang → store (and code) when challenge is loaded so code always matches selected language
   useEffect(() => {
@@ -262,6 +276,41 @@ const ChallengeDetail = () => {
     const starter = challenge.starterCode?.[langFromUrl];
     if (starter != null) setCode(starter);
   }, [langFromUrl, challenge, setSelectedLang, setCode]);
+
+  const cleanSolutionCode = (rawCode: string, lang: string) => {
+    let cleanedCode = rawCode.replace(/^```[a-z]*\s*\n/i, '').replace(/\n```\s*$/i, '').trim();
+
+    if (lang === 'javascript' && !cleanedCode.includes('console.log')) {
+      const funcMatch = cleanedCode.match(/function\s+([a-zA-Z0-9_]+)/) || cleanedCode.match(/(?:const|let|var)\s+([a-zA-Z0-9_]+)\s*=\s*(?:function|\()/);
+      if (funcMatch) {
+        cleanedCode += `\n\n// Added by system to ensure correct I/O\nconst input = readline().trim();\nconsole.log(${funcMatch[1]}(input));`;
+      }
+    } else if (lang === 'python' && !cleanedCode.includes('print')) {
+      const funcMatch = cleanedCode.match(/def\s+([a-zA-Z0-9_]+)/);
+      if (funcMatch) {
+        cleanedCode += `\n\n# Added by system to ensure correct I/O\nimport sys\ninput_data = sys.stdin.read().strip()\nif input_data:\n    print(${funcMatch[1]}(input_data))`;
+      }
+    }
+
+    return cleanedCode;
+  };
+
+  const loadOfficialSolution = async (lang: string) => {
+    if (!id) return;
+    setOfficialSolutionLoading(true);
+    try {
+      const res = await challengesApi.getOfficialSolution(id, { language: lang });
+      const payload = res.data as { code?: string; solutions?: Array<{ language: string; code: string }> };
+      const code = payload.code || payload.solutions?.find((s) => s.language === lang)?.code || '';
+      if (code) {
+        setOfficialSolutionCode(cleanSolutionCode(code, lang));
+      }
+    } catch {
+      setOfficialSolutionCode(null);
+    } finally {
+      setOfficialSolutionLoading(false);
+    }
+  };
 
   const handleLangChange = (lang: string) => {
     setSearchParams({ lang });
@@ -319,6 +368,7 @@ const ChallengeDetail = () => {
       setActiveTab('result');
       if (data.status === 'accepted') {
         setIsSolved(true);
+        await loadOfficialSolution(selectedLang);
         try {
           const [comp, summary] = await Promise.all([
             challengesApi.getMyCompletion(id),
@@ -338,6 +388,17 @@ const ChallengeDetail = () => {
         } catch {
           // Modal/summary fetch failed; result is still shown
         }
+      }
+      // Refresh history after submission
+      try {
+        const historyRes = await challengesApi.getMyHistory(id);
+        const history = historyRes.data as any[];
+        setSubmissionHistory(history);
+        if (history.length >= 5) {
+          setShowHistoryAfterAttempts(true);
+        }
+      } catch {
+        // Ignore history refresh error
       }
     } catch (err: any) {
       const raw = err?.response?.data?.message;
@@ -713,6 +774,25 @@ const ChallengeDetail = () => {
                             </div>
                           )}
                         </div>
+                        {displayResult.status === 'accepted' && (
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-[#30363d] dark:bg-[#0d1117]">
+                            <div className="font-semibold text-slate-900 dark:text-slate-100">✅ Solution officielle</div>
+                            <p className="mt-2 text-slate-700 dark:text-slate-300">
+                              Voici la solution correcte pour {DISPLAY_LANGUAGE[selectedLang] ?? selectedLang}.
+                            </p>
+                            {officialSolutionLoading ? (
+                              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Chargement de la solution...</p>
+                            ) : officialSolutionCode ? (
+                              <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-md bg-black/5 p-3 text-xs text-slate-900 dark:bg-white/5 dark:text-slate-100">
+                                {officialSolutionCode}
+                              </pre>
+                            ) : (
+                              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                                Aucune solution officielle disponible pour ce langage.
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {/* Hint: empty output on all failed tests → user forgot I/O */}
                         {displayResult.status !== 'accepted' &&
                           displayResult.testResults.filter((t) => !t.passed && !t.isHiddenCase).length > 0 &&
@@ -778,6 +858,33 @@ const ChallengeDetail = () => {
                           </div>
                         ))}
                       </>
+                    )}
+                    {showHistoryAfterAttempts && submissionHistory.length > 0 && (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-[#30363d] dark:bg-[#0d1117]">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 mb-3">📋 Historique des tentatives</div>
+                        <div className="space-y-2">
+                          {submissionHistory.slice(0, 5).map((sub, i) => (
+                            <div key={sub._id} className="flex items-center justify-between p-2 rounded bg-white dark:bg-[#161b22] border border-slate-200 dark:border-[#30363d]">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">#{i + 1}</span>
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                                  sub.status === 'accepted' 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                }`}>
+                                  {sub.status === 'accepted' ? '✅ Accepté' : '❌ Échec'}
+                                </span>
+                                <span className="text-xs text-slate-600 dark:text-slate-400">
+                                  {new Date(sub.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400">
+                                {sub.executionTimeMs}ms
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
