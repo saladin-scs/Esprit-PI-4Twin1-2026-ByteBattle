@@ -862,10 +862,44 @@ const ChallengeDetail = () => {
                     )}
                     {showHistoryAfterAttempts && submissionHistory.length > 0 && (
                       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-[#30363d] dark:bg-[#0d1117]">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 mb-3">📋 Historique des tentatives</div>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100">📋 Historique des tentatives</div>
+                          <div className="text-xs text-slate-600 dark:text-slate-400">
+                            {submissionHistory.length} tentative{submissionHistory.length > 1 ? 's' : ''} au total
+                          </div>
+                        </div>
+
+                        {/* Statistiques rapides */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 p-3 bg-white dark:bg-[#161b22] rounded-lg border border-slate-200 dark:border-[#30363d]">
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                              {submissionHistory.filter(s => s.status === 'accepted').length}
+                            </div>
+                            <div className="text-xs text-slate-600 dark:text-slate-400">Réussies</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-red-600 dark:text-red-400">
+                              {submissionHistory.filter(s => s.status !== 'accepted').length}
+                            </div>
+                            <div className="text-xs text-slate-600 dark:text-slate-400">Échouées</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                              {submissionHistory.length > 0 ? Math.round(submissionHistory.reduce((sum, s) => sum + s.executionTimeMs, 0) / submissionHistory.length) : 0}ms
+                            </div>
+                            <div className="text-xs text-slate-600 dark:text-slate-400">Temps moyen</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                              {submissionHistory.length > 0 ? Math.max(...submissionHistory.map(s => s.passedTests)) : 0}/{submissionHistory.length > 0 ? submissionHistory[0].totalTests : 0}
+                            </div>
+                            <div className="text-xs text-slate-600 dark:text-slate-400">Meilleur score</div>
+                          </div>
+                        </div>
                         <div className="space-y-3">
                           {submissionHistory.slice(0, 5).map((sub, i) => {
                             const isExpanded = expandedHistoryItem === sub._id;
+                            const passedPercentage = sub.totalTests > 0 ? Math.round((sub.passedTests / sub.totalTests) * 100) : 0;
                             return (
                               <div key={sub._id} className="rounded-lg border border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#161b22] overflow-hidden">
                                 <div
@@ -887,11 +921,25 @@ const ChallengeDetail = () => {
                                     <span className="text-xs text-slate-500 dark:text-slate-400">
                                       {sub.language}
                                     </span>
+                                    <span className="text-xs text-slate-600 dark:text-slate-400">
+                                      {sub.passedTests}/{sub.totalTests} tests ({passedPercentage}%)
+                                    </span>
                                   </div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-3">
                                     <span className="text-xs text-slate-500 dark:text-slate-400">
                                       {sub.executionTimeMs}ms
                                     </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(sub.code);
+                                        toast.success('Code copié !');
+                                      }}
+                                      className="text-xs px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-[#30363d] dark:hover:bg-[#40464d] rounded text-slate-700 dark:text-slate-300 transition-colors"
+                                      title="Copier le code"
+                                    >
+                                      📋
+                                    </button>
                                     <span className={`text-xs transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
                                       ▼
                                     </span>
@@ -899,12 +947,62 @@ const ChallengeDetail = () => {
                                 </div>
                                 {isExpanded && (
                                   <div className="border-t border-slate-200 dark:border-[#30363d] p-3">
-                                    <div className="mb-2">
+                                    <div className="mb-2 flex items-center justify-between">
                                       <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Code soumis :</span>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => {
+                                            setCode(sub.code);
+                                            toast.success('Code chargé dans l\'éditeur !');
+                                          }}
+                                          className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-800/40 rounded text-blue-700 dark:text-blue-300 transition-colors"
+                                          title="Charger ce code dans l'éditeur"
+                                        >
+                                          📝 Éditer
+                                        </button>
+                                        <button
+                                          onClick={() => navigator.clipboard.writeText(sub.code)}
+                                          className="text-xs px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-[#30363d] dark:hover:bg-[#40464d] rounded text-slate-700 dark:text-slate-300 transition-colors"
+                                          title="Copier le code"
+                                        >
+                                          📋 Copier
+                                        </button>
+                                      </div>
                                     </div>
                                     <pre className="bg-slate-100 dark:bg-[#0d1117] p-3 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono text-slate-900 dark:text-slate-100 max-h-60 overflow-y-auto">
                                       {sub.code}
                                     </pre>
+
+                                    {/* Afficher les détails des tests si disponibles */}
+                                    {sub.testResults && sub.testResults.length > 0 && (
+                                      <div className="mt-3">
+                                        <div className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Résultats des tests :</div>
+                                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                                          {sub.testResults.slice(0, 3).map((test, testIndex) => (
+                                            <div key={testIndex} className={`text-xs p-2 rounded border ${
+                                              test.passed
+                                                ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300'
+                                                : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300'
+                                            }`}>
+                                              <div className="flex items-center gap-2">
+                                                <span>{test.passed ? '✅' : '❌'}</span>
+                                                <span>Test #{testIndex + 1}</span>
+                                              </div>
+                                              {test.error && (
+                                                <div className="mt-1 text-red-600 dark:text-red-400">
+                                                  Erreur: {test.error}
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                          {sub.testResults.length > 3 && (
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 text-center py-1">
+                                              ... et {sub.testResults.length - 3} autres tests
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
