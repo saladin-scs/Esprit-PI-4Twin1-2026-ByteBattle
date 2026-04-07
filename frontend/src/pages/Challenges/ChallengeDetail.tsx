@@ -19,6 +19,9 @@ import {
   MessageCircle,
   Sparkles,
   Timer,
+  Code2,
+  Clock,
+  BarChart3,
 } from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
 import { challengesApi } from '../../services/api';
@@ -149,8 +152,10 @@ const ChallengeDetail = () => {
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'description' | 'hints' | 'result' | 'solutions' | 'chat' | 'coach'
+    'description' | 'hints' | 'result' | 'solutions' | 'official-solution' | 'attempts' | 'analytics' | 'chat' | 'coach'
   >('description');
+  const [challengeAnalytics, setChallengeAnalytics] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
   const [isVimMode, setIsVimMode] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
@@ -395,6 +400,25 @@ const ChallengeDetail = () => {
     void loadOfficialSolution(selectedLang);
   }, [selectedLang, progressSolved, showHistoryAfterAttempts]);
 
+  const loadAnalytics = async () => {
+    if (!id) return;
+    setAnalyticsLoading(true);
+    try {
+      const res = await challengesApi.getChallengeAnalytics(id);
+      setChallengeAnalytics(res.data as any);
+    } catch {
+      setChallengeAnalytics(null);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'analytics' && !challengeAnalytics && !analyticsLoading && id) {
+      void loadAnalytics();
+    }
+  }, [activeTab, id]);
+
   const handleRun = async () => {
     if (!id) return;
     setRunning(true);
@@ -595,11 +619,56 @@ aria-selected={activeTab === 'solutions'}
                   Solutions
                 </button>
               )}
+              {(progressSolved || showHistoryAfterAttempts) && (
+                <button
+                  role="tab"
+                  aria-selected={activeTab === 'official-solution'}
+                  type="button"
+                  onClick={() => setActiveTab('official-solution')}
+                  className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'official-solution'
+                      ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+                      : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                  }`}
+                >
+                  <Code2 className="h-4 w-4" aria-hidden />
+                  Solution
+                </button>
+              )}
+              {showHistoryAfterAttempts && (
+                <button
+                  role="tab"
+                  aria-selected={activeTab === 'attempts'}
+                  type="button"
+                  onClick={() => setActiveTab('attempts')}
+                  className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'attempts'
+                      ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+                      : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                  }`}
+                >
+                  <Clock className="h-4 w-4" aria-hidden />
+                  Attempts
+                </button>
+              )}
+              <button
+                role="tab"
+                aria-selected={activeTab === 'analytics'}
+                type="button"
+                onClick={() => setActiveTab('analytics')}
+                className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
+                  activeTab === 'analytics'
+                    ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+                    : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                }`}
+              >
+                <BarChart3 className="h-4 w-4" aria-hidden />
+                Analytics
+              </button>
               {(displayResult || submitError) && (
                 <button
-                role="tab"
-aria-selected={activeTab === 'result'}
-                
+                  role="tab"
+                  aria-selected={activeTab === 'result'}
                   type="button"
                   onClick={() => setActiveTab('result')}
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
@@ -1000,6 +1069,136 @@ aria-selected={activeTab === 'coach'}
                   }
                   runtimeMs={displayResult?.executionTimeMs ?? runResult?.executionTimeMs}
                 />
+              )}
+
+              {activeTab === 'official-solution' && (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                      <Code2 className="h-4 w-4" />
+                      Official solution ({selectedLang})
+                    </div>
+                    {officialSolutionLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-500 border-t-transparent" />
+                        Loading official solution...
+                      </div>
+                    ) : officialSolutionCode ? (
+                      <pre className="whitespace-pre-wrap rounded-lg border border-emerald-500/20 bg-white p-3 font-mono text-xs text-slate-900 dark:border-emerald-500/20 dark:bg-[#0d1117] dark:text-[#c9d1d9]">
+                        {officialSolutionCode}
+                      </pre>
+                    ) : (
+                      <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                        Official solution not available yet for this language.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'attempts' && showHistoryAfterAttempts && submissionHistory.length > 0 && (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-primary-500/25 bg-primary-500/10 p-4 dark:border-[#1f6feb]/40 dark:bg-[#1f6feb]/10">
+                    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary-900 dark:text-primary-100">
+                      <Clock className="h-4 w-4" />
+                      Submission attempts ({submissionHistory.length})
+                    </div>
+                    <div className="mb-3 grid grid-cols-3 gap-2 text-xs text-slate-700 dark:text-[#8b949e]">
+                      <div>
+                        <div className="font-semibold text-primary-900 dark:text-primary-200">
+                          {submissionHistory.filter((s) => s.status === 'accepted').length}
+                        </div>
+                        <div>Accepted</div>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900 dark:text-[#c9d1d9]">
+                          {submissionHistory.filter((s) => s.status !== 'accepted').length}
+                        </div>
+                        <div>Failed</div>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900 dark:text-[#c9d1d9]">
+                          {(submissionHistory.reduce((acc, s) => acc + s.executionTimeMs, 0) / submissionHistory.length).toFixed(0)}ms
+                        </div>
+                        <div>Avg time</div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {submissionHistory.map((s) => (
+                        <div
+                          key={s._id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs dark:border-[#30363d] dark:bg-[#161b22]"
+                        >
+                          <div className="font-medium text-slate-900 dark:text-[#c9d1d9]">
+                            <span className={`inline-block rounded px-2 py-0.5 text-white mr-2 ${s.status === 'accepted' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                              {s.status === 'accepted' ? '✓ Accepted' : '✗ Failed'}
+                            </span>
+                            {s.passedTests}/{s.totalTests} tests
+                          </div>
+                          <span className="text-slate-600 dark:text-[#8b949e]">
+                            {s.language} · {s.executionTimeMs}ms · {new Date(s.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'analytics' && (
+                <div className="space-y-4">
+                  {analyticsLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-8 text-slate-600 dark:text-[#8b949e]">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary-500 border-t-transparent" />
+                      Loading analytics...
+                    </div>
+                  ) : challengeAnalytics ? (
+                    <>
+                      <div className="rounded-xl border border-slate-200 dark:border-[#30363d] p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-[#161b22] dark:to-[#0d1117]">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e]">TOTAL SOLVED</p>
+                            <p className="text-2xl font-bold text-primary-600 dark:text-[#58a6ff]">
+                              {challengeAnalytics.totalSolved ?? 0}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e]">TOTAL ATTEMPTED</p>
+                            <p className="text-2xl font-bold text-amber-600 dark:text-[#d29922]">
+                              {challengeAnalytics.totalParticipated ?? 0}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e]">AVG ATTEMPTS</p>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-[#c9d1d9]">
+                              {(challengeAnalytics.avgAttempts ?? 0).toFixed(1)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {challengeAnalytics.solveRate !== undefined && (
+                        <div className="rounded-xl border border-slate-200 dark:border-[#30363d] p-4">
+                          <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e] mb-2">SOLVE RATE</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 rounded-full bg-slate-200 dark:bg-[#30363d] overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-primary-500 to-primary-600 dark:from-[#58a6ff] dark:to-[#1f6feb]"
+                                style={{ width: `${Math.min(100, (challengeAnalytics.solveRate * 100))}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-semibold text-slate-900 dark:text-[#c9d1d9]">
+                              {(challengeAnalytics.solveRate * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="rounded-lg border border-slate-200 dark:border-[#30363d] p-4 text-slate-600 dark:text-[#8b949e]">
+                      <p>No analytics available yet.</p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
