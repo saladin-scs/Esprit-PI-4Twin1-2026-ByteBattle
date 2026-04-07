@@ -14,6 +14,30 @@ type Example = { input: string; output: string; explanation?: string };
 type TestCase = { input: string; expectedOutput: string; isHidden?: boolean; isPerformance?: boolean };
 type StarterCode = Record<string, string>;
 
+const DEFAULT_STARTER_CODE: StarterCode = {
+  javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\nconsole.log(a + b);',
+  python: 'a, b = map(int, input().split())\nprint(a + b)',
+  java:
+    'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n  public static void main(String[] args) throws Exception {\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n    StringTokenizer st = new StringTokenizer(br.readLine());\n    long a = Long.parseLong(st.nextToken());\n    long b = Long.parseLong(st.nextToken());\n    System.out.println(a + b);\n  }\n}\n',
+  cpp:
+    '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\n',
+};
+
+function normalizeLanguage(language: string): string {
+  const value = language.trim().toLowerCase();
+  return value === 'c++' ? 'cpp' : value;
+}
+
+function displayLanguage(language: string): string {
+  return normalizeLanguage(language) === 'cpp' ? 'C++' : normalizeLanguage(language);
+}
+
+function normalizeStarterCodeKeys(starterCode: StarterCode): StarterCode {
+  return Object.fromEntries(
+    Object.entries(starterCode).map(([language, code]) => [normalizeLanguage(language), code]),
+  );
+}
+
 function safeJsonParse<T>(text: string, fallback: T): T {
   const trimmed = text.trim();
   if (!trimmed) return fallback;
@@ -32,6 +56,7 @@ export default function AdminChallenges() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [newIds, setNewIds] = useState<Record<string, number>>({});
@@ -46,7 +71,7 @@ export default function AdminChallenges() {
     description: '',
     difficulty: 'medium' as Difficulty,
     xpReward: 100,
-    languages: 'javascript, python, java, cpp',
+    languages: 'javascript, python, java, C++',
     tags: '',
     examplesJson: JSON.stringify(
       [
@@ -64,14 +89,12 @@ export default function AdminChallenges() {
       2,
     ),
     starterCodeJson: JSON.stringify(
-      {
-        javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\nconsole.log(a + b);',
-        python: 'a, b = map(int, input().split())\nprint(a + b)',
-        java:
-          'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n  public static void main(String[] args) throws Exception {\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n    StringTokenizer st = new StringTokenizer(br.readLine());\n    long a = Long.parseLong(st.nextToken());\n    long b = Long.parseLong(st.nextToken());\n    System.out.println(a + b);\n  }\n}\n',
-        cpp:
-          '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\n',
-      } satisfies StarterCode,
+      DEFAULT_STARTER_CODE satisfies StarterCode,
+      null,
+      2,
+    ),
+    solutionCodeJson: JSON.stringify(
+      DEFAULT_STARTER_CODE satisfies StarterCode,
       null,
       2,
     ),
@@ -111,7 +134,7 @@ export default function AdminChallenges() {
       description: '',
       difficulty: 'medium' as Difficulty,
       xpReward: 100,
-      languages: 'javascript, python, java, cpp',
+      languages: 'javascript, python, java, C++',
       tags: '',
       examplesJson: JSON.stringify(
         [{ input: '1 2', output: '3', explanation: 'Add the two numbers.' }] satisfies Example[],
@@ -127,32 +150,46 @@ export default function AdminChallenges() {
         2,
       ),
       starterCodeJson: JSON.stringify(
-        {
-          javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\nconsole.log(a + b);',
-          python: 'a, b = map(int, input().split())\nprint(a + b)',
-          java:
-            'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n  public static void main(String[] args) throws Exception {\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n    StringTokenizer st = new StringTokenizer(br.readLine());\n    long a = Long.parseLong(st.nextToken());\n    long b = Long.parseLong(st.nextToken());\n    System.out.println(a + b);\n  }\n}\n',
-          cpp:
-            '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\n',
-        } satisfies StarterCode,
+        DEFAULT_STARTER_CODE satisfies StarterCode,
+        null,
+        2,
+      ),
+      solutionCodeJson: JSON.stringify(
+        DEFAULT_STARTER_CODE satisfies StarterCode,
         null,
         2,
       ),
     });
   };
 
-  const handleEdit = (challenge: any) => {
+  const handleEdit = async (challenge: any) => {
     setEditingId(challenge._id);
     setShowModal(true);
-    setFormData((prev) => ({
-      ...prev,
-      title: challenge.title || '',
-      description: challenge.description || '',
-      difficulty: (challenge.difficulty || 'medium') as Difficulty,
-      xpReward: Number(challenge.xpReward || 100),
-      languages: Array.isArray(challenge.languages) ? challenge.languages.join(', ') : 'javascript, python',
-      tags: Array.isArray(challenge.tags) ? challenge.tags.join(', ') : '',
-    }));
+    setEditLoading(true);
+    try {
+      const { data } = await challengesApi.getOneAdmin(challenge._id);
+      setFormData((prev) => ({
+        ...prev,
+        title: data.title || '',
+        description: data.description || '',
+        difficulty: (data.difficulty || 'medium') as Difficulty,
+        xpReward: Number(data.xpReward || 100),
+        languages: Array.isArray(data.languages)
+          ? data.languages.map((language: string) => displayLanguage(language)).join(', ')
+          : 'javascript, python',
+        tags: Array.isArray(data.tags) ? data.tags.join(', ') : '',
+        examplesJson: JSON.stringify(data.examples || [], null, 2),
+        testCasesJson: JSON.stringify(data.testCases || [], null, 2),
+        starterCodeJson: JSON.stringify(data.starterCode || {}, null, 2),
+        solutionCodeJson: JSON.stringify(data.officialSolution || data.starterCode || {}, null, 2),
+      }));
+    } catch {
+      toast.error('Failed to load challenge details');
+      setShowModal(false);
+      resetForm();
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -164,8 +201,12 @@ export default function AdminChallenges() {
           description: formData.description,
           difficulty: formData.difficulty,
           xpReward: Number(formData.xpReward),
-          languages: formData.languages.split(',').map((l) => l.trim()).filter(Boolean),
+          languages: formData.languages.split(',').map((l) => normalizeLanguage(l)).filter(Boolean),
           tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
+          examples: safeJsonParse<Example[]>(formData.examplesJson, []),
+          testCases: safeJsonParse<TestCase[]>(formData.testCasesJson, []),
+          starterCode: normalizeStarterCodeKeys(safeJsonParse<StarterCode>(formData.starterCodeJson, {})),
+          officialSolution: normalizeStarterCodeKeys(safeJsonParse<StarterCode>(formData.solutionCodeJson, {})),
           isPublished: true,
         };
         const res = await challengesApi.update(editingId, updatePayload);
@@ -179,7 +220,8 @@ export default function AdminChallenges() {
 
       const examples = safeJsonParse<Example[]>(formData.examplesJson, []);
       const testCases = safeJsonParse<TestCase[]>(formData.testCasesJson, []);
-      const starterCode = safeJsonParse<StarterCode>(formData.starterCodeJson, {});
+      const starterCode = normalizeStarterCodeKeys(safeJsonParse<StarterCode>(formData.starterCodeJson, {}));
+      const officialSolution = normalizeStarterCodeKeys(safeJsonParse<StarterCode>(formData.solutionCodeJson, {}));
 
       if (!Array.isArray(examples) || examples.length === 0) {
         toast.error('Examples JSON is empty or invalid. Please provide at least 1 example.');
@@ -199,12 +241,13 @@ export default function AdminChallenges() {
         description: formData.description,
         difficulty: formData.difficulty,
         xpReward: Number(formData.xpReward),
-        languages: formData.languages.split(',').map(l => l.trim()).filter(Boolean),
+        languages: formData.languages.split(',').map(l => normalizeLanguage(l)).filter(Boolean),
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
         isPublished: true,
         examples,
         testCases,
         starterCode,
+        officialSolution,
       };
       
       const res = await challengesApi.create(payload);
@@ -372,7 +415,9 @@ export default function AdminChallenges() {
                         </div>
                       </td>
                       <td className="p-3"><DifficultyBadge difficulty={c.difficulty} size="sm" /></td>
-                      <td className="p-3 text-gray-500 dark:text-gray-400">{(c.languages || []).slice(0, 3).join(', ')}</td>
+                      <td className="p-3 text-gray-500 dark:text-gray-400">
+                        {(c.languages || []).slice(0, 3).map((language: string) => displayLanguage(language)).join(', ')}
+                      </td>
                       <td className="p-3 text-amber-600 dark:text-amber-500 font-semibold">+{c.xpReward}</td>
                       <td className="p-3 text-gray-500 dark:text-gray-400">{acceptanceRate}%</td>
                       <td className="p-3 text-right">
@@ -421,6 +466,12 @@ export default function AdminChallenges() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <Card className="w-full max-w-xl shadow-2xl overflow-y-auto max-h-[90vh]">
             <h2 className="text-xl font-bold mb-4">{editingId ? 'Update Challenge' : 'Create New Challenge'}</h2>
+
+            {editLoading && (
+              <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-700 dark:text-indigo-300 mb-4">
+                Loading challenge details...
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {!editingId && (
@@ -506,6 +557,20 @@ export default function AdminChallenges() {
                 </p>
               </div>
               )}
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Solution code per language (JSON)</label>
+                <textarea
+                  required
+                  rows={6}
+                  className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white font-mono text-xs"
+                  value={formData.solutionCodeJson}
+                  onChange={(e) => setFormData({ ...formData, solutionCodeJson: e.target.value })}
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Visible for admins only. Keys should match selected languages (e.g. <code>javascript</code>, <code>python</code>, <code>java</code>, <code>c++</code>).
+                </p>
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

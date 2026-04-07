@@ -108,6 +108,16 @@ interface SubmissionResult {
   }>;
 }
 
+interface SubmissionHistoryItem {
+  _id: string;
+  status: string;
+  passedTests: number;
+  totalTests: number;
+  executionTimeMs: number;
+  language: string;
+  createdAt: string;
+}
+
 const ChallengeDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -158,6 +168,10 @@ const ChallengeDetail = () => {
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [submissionHistory, setSubmissionHistory] = useState<SubmissionHistoryItem[]>([]);
+  const [showHistoryAfterAttempts, setShowHistoryAfterAttempts] = useState(false);
+  const [officialSolutionCode, setOfficialSolutionCode] = useState<string | null>(null);
+  const [officialSolutionLoading, setOfficialSolutionLoading] = useState(false);
 
   const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
 
@@ -330,6 +344,57 @@ const ChallengeDetail = () => {
     }
   };
 
+  const loadOfficialSolution = async (lang: string) => {
+    if (!id || !lang) return;
+    setOfficialSolutionLoading(true);
+    try {
+      const res = await challengesApi.getOfficialSolution(id, { language: lang });
+      const data = res.data as any;
+      const code = typeof data?.code === 'string' ? data.code : null;
+      setOfficialSolutionCode(code);
+    } catch {
+      setOfficialSolutionCode(null);
+    } finally {
+      setOfficialSolutionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!id || !isAuthed) {
+      setSubmissionHistory([]);
+      setShowHistoryAfterAttempts(false);
+      return;
+    }
+    let cancelled = false;
+    challengesApi
+      .getMyHistory(id)
+      .then((res) => {
+        if (cancelled) return;
+        const history = (Array.isArray(res.data) ? res.data : []) as SubmissionHistoryItem[];
+        setSubmissionHistory(history);
+        setShowHistoryAfterAttempts(history.length >= 5);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSubmissionHistory([]);
+          setShowHistoryAfterAttempts(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isAuthed, result?.status]);
+
+  useEffect(() => {
+    if (!selectedLang) return;
+    const shouldLoad = progressSolved || showHistoryAfterAttempts;
+    if (!shouldLoad) {
+      setOfficialSolutionCode(null);
+      return;
+    }
+    void loadOfficialSolution(selectedLang);
+  }, [selectedLang, progressSolved, showHistoryAfterAttempts]);
+
   const handleRun = async () => {
     if (!id) return;
     setRunning(true);
@@ -387,6 +452,15 @@ const ChallengeDetail = () => {
         } catch {
           // Modal/summary fetch failed; result is still shown
         }
+      }
+
+      try {
+        const historyRes = await challengesApi.getMyHistory(id);
+        const history = (Array.isArray(historyRes.data) ? historyRes.data : []) as SubmissionHistoryItem[];
+        setSubmissionHistory(history);
+        setShowHistoryAfterAttempts(history.length >= 5);
+      } catch {
+        // Ignore history refresh failures after submit
       }
     } catch (err: any) {
       const raw = err?.response?.data?.message;
@@ -604,6 +678,50 @@ aria-selected={activeTab === 'coach'}
                       </span>
                     ))}
                   </div>
+                  {showHistoryAfterAttempts && submissionHistory.length > 0 && (
+                    <div className="mb-5 rounded-xl border border-primary-500/25 bg-primary-500/10 p-4 dark:border-[#1f6feb]/40 dark:bg-[#1f6feb]/10">
+                      <div className="mb-2 text-sm font-semibold text-primary-900 dark:text-primary-100">
+                        Attempts history unlocked ({submissionHistory.length} attempts)
+                      </div>
+                      <div className="mb-2 text-xs text-slate-700 dark:text-[#8b949e]">
+                        Accepted: {submissionHistory.filter((s) => s.status === 'accepted').length} · Failed:{' '}
+                        {submissionHistory.filter((s) => s.status !== 'accepted').length}
+                      </div>
+                      <div className="space-y-2">
+                        {submissionHistory.slice(0, 5).map((s) => (
+                          <div
+                            key={s._id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs dark:border-[#30363d] dark:bg-[#161b22]"
+                          >
+                            <span className="font-medium text-slate-900 dark:text-[#c9d1d9]">
+                              {s.status === 'accepted' ? 'Accepted' : 'Failed'} · {s.passedTests}/{s.totalTests}
+                            </span>
+                            <span className="text-slate-600 dark:text-[#8b949e]">
+                              {s.language} · {s.executionTimeMs}ms · {new Date(s.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(progressSolved || showHistoryAfterAttempts) && (
+                    <div className="mb-5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                      <div className="mb-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                        Official solution ({selectedLang})
+                      </div>
+                      {officialSolutionLoading ? (
+                        <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">Loading official solution...</p>
+                      ) : officialSolutionCode ? (
+                        <pre className="whitespace-pre-wrap rounded-lg border border-emerald-500/20 bg-white p-3 font-mono text-xs text-slate-900 dark:border-emerald-500/20 dark:bg-[#0d1117] dark:text-[#c9d1d9]">
+                          {officialSolutionCode}
+                        </pre>
+                      ) : (
+                        <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                          Official solution not available yet for this language.
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {challenge.hints && challenge.hints.length > 0 ? (
                     <button
                       type="button"

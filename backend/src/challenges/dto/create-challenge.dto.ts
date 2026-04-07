@@ -52,6 +52,11 @@ export class CreateChallengeDto {
   @IsObject()
   starterCode: Record<string, string>;
 
+  @ApiProperty({ required: false })
+  @IsObject()
+  @IsOptional()
+  officialSolution?: Record<string, string>;
+
   @ApiProperty()
   @IsArray()
   @IsString({ each: true })

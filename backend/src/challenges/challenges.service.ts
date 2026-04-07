@@ -32,6 +32,29 @@ const RECO_DIFF_ORD: Record<string, number> = { easy: 0, medium: 1, hard: 2, exp
 
 @Injectable()
 export class ChallengeService {
+  private withOfficialSolutionFallback(
+    source?: Partial<Record<Language, string>> | null,
+    fallback?: Partial<Record<Language, string>> | null,
+  ): Partial<Record<Language, string>> {
+    const next: Partial<Record<Language, string>> = {};
+    const sourceObj = source || {};
+    const fallbackObj = fallback || {};
+    const languages = new Set<Language>([
+      ...(Object.keys(fallbackObj) as Language[]),
+      ...(Object.keys(sourceObj) as Language[]),
+    ]);
+    for (const language of languages) {
+      const primary = sourceObj[language];
+      const backup = fallbackObj[language];
+      if (typeof primary === 'string' && primary.trim()) {
+        next[language] = primary;
+      } else if (typeof backup === 'string' && backup.trim()) {
+        next[language] = backup;
+      }
+    }
+    return next;
+  }
+
   constructor(
     @InjectModel(Challenge.name) private challengeModel: Model<ChallengeDocument>,
     @InjectModel(Submission.name) private submissionModel: Model<SubmissionDocument>,
@@ -329,6 +352,7 @@ public class Solution {
     if (!dto.xpReward) {
       dto.xpReward = this.XP_MAP[dto.difficulty] ?? 50;
     }
+    dto.officialSolution = this.withOfficialSolutionFallback(dto.officialSolution as any, dto.starterCode as any);
     return new this.challengeModel(dto).save();
   }
 
@@ -340,6 +364,13 @@ public class Solution {
       if (effectiveDifficulty) {
         payload.xpReward = this.XP_MAP[effectiveDifficulty] ?? 50;
       }
+    }
+
+    if ((dto as any).officialSolution !== undefined || dto.starterCode !== undefined) {
+      payload.officialSolution = this.withOfficialSolutionFallback(
+        (dto as any).officialSolution,
+        dto.starterCode as any,
+      );
     }
 
     const updated = await this.challengeModel
@@ -514,6 +545,36 @@ public class Solution {
     // Never expose raw tests to the client payload.
     delete (challenge as any).testCases;
     return { ...challenge, starterCode } as unknown as ChallengeDocument;
+  }
+
+  async findOneAdmin(id: string): Promise<ChallengeDocument> {
+    const challenge = await this.challengeModel
+      .findById(id)
+      .select('+testCases +officialSolution')
+      .lean()
+      .exec();
+    if (!challenge) throw new NotFoundException('Challenge not found');
+
+    const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
+    const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
+    const source = seedMatch?.starterCode ?? (challenge as any).starterCode;
+    const acceptedFromTests = this.buildAcceptedStarterCodeFromTests((challenge as any).testCases);
+    for (const lang of ((challenge as any).languages || []) as Language[]) {
+      if (acceptedFromTests?.[lang]) {
+        starterCode[lang] = acceptedFromTests[lang] as string;
+      } else if (source?.[lang]) {
+        starterCode[lang] = source[lang];
+      }
+    }
+
+    return {
+      ...challenge,
+      starterCode,
+      officialSolution: this.withOfficialSolutionFallback(
+        (challenge as any).officialSolution,
+        starterCode,
+      ),
+    } as unknown as ChallengeDocument;
   }
 
   // ─── Run (examples only) — single code-execution service (Piston + local fallback) ─
@@ -823,18 +884,85 @@ public class Solution {
   }
 
   // Submission history for a user
-  async getUserSubmissions(userId: string, challengeId?: string) {
+  async getUserSubmissions(userId: string, challengeId?: string, fullDetails = false) {
     const filter: any = { userId: new Types.ObjectId(userId) };
     if (challengeId) filter.challengeId = new Types.ObjectId(challengeId);
 
-    return this.submissionModel
+    const query = this.submissionModel
       .find(filter)
-      .select('-testResults')
       .populate('challengeId', 'title difficulty')
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(50);
+
+    if (!fullDetails) {
+      query.select('-testResults');
+    }
+
+    return query.lean().exec();
+  }
+
+  async getMyHistoryDetailed(challengeId: string, userId: string) {
+    const challengeObjectId = new Types.ObjectId(challengeId);
+    const submissions = await this.submissionModel
+      .find({
+        challengeId: challengeObjectId,
+        userId: new Types.ObjectId(userId),
+      })
+      .populate('challengeId', 'title difficulty')
+      .sort({ createdAt: -1 })
       .lean()
       .exec();
+
+    return submissions;
+  }
+
+  async getOfficialSolutionIfSolved(challengeId: string, userId: string, language?: string) {
+    const solved = await this.submissionModel.exists({
+      challengeId: new Types.ObjectId(challengeId),
+      userId: new Types.ObjectId(userId),
+      status: 'accepted',
+    });
+
+    const attemptCount = await this.submissionModel.countDocuments({
+      challengeId: new Types.ObjectId(challengeId),
+      userId: new Types.ObjectId(userId),
+    });
+
+    const isUnlocked = solved || attemptCount >= 5;
+
+    if (!isUnlocked) {
+      throw new ForbiddenException(
+        'You must solve the challenge or make at least 5 attempts to view the official solution.',
+      );
+    }
+
+    const challenge = await this.challengeModel
+      .findById(challengeId)
+      .select('+officialSolution')
+      .lean()
+      .exec();
+
+    if (!challenge) {
+      throw new NotFoundException('Challenge not found');
+    }
+
+    const official = this.withOfficialSolutionFallback(
+      (challenge as any).officialSolution,
+      (challenge as any).starterCode,
+    );
+
+    if (language && (official as any)[language]) {
+      return {
+        language,
+        code: (official as any)[language],
+        challengeTitle: (challenge as any).title,
+      };
+    }
+
+    return {
+      solutions: Object.entries(official).map(([lang, code]) => ({ language: lang as Language, code })),
+      challengeTitle: (challenge as any).title,
+    };
   }
 
   /** Languages in which the user solved this challenge (status accepted). */
@@ -857,6 +985,107 @@ public class Solution {
       ? Math.round((challenge.totalAccepted / challenge.totalSubmissions) * 100)
       : 0;
     return { ...challenge, acceptanceRate };
+  }
+
+  async getChallengeAnalytics(challengeId: string) {
+    if (!Types.ObjectId.isValid(challengeId)) {
+      throw new BadRequestException('Invalid challenge ID');
+    }
+
+    const oid = new Types.ObjectId(challengeId);
+
+    const solvedUsers = await this.submissionModel.aggregate([
+      {
+        $match: {
+          challengeId: oid,
+          status: 'accepted',
+        },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          language: { $first: '$language' },
+          solvedAt: { $max: '$createdAt' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      {
+        $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true },
+      },
+      {
+        $project: {
+          _id: 0,
+          userId: '$_id',
+          username: { $ifNull: ['$userInfo.username', 'Unknown'] },
+          language: 1,
+          solvedAt: 1,
+        },
+      },
+      {
+        $sort: { solvedAt: -1 },
+      },
+    ]);
+
+    const participatedUsers = await this.submissionModel.aggregate([
+      {
+        $match: {
+          challengeId: oid,
+        },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          attempts: { $sum: 1 },
+          lastAttempt: { $max: '$createdAt' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      {
+        $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true },
+      },
+      {
+        $project: {
+          _id: 0,
+          userId: '$_id',
+          username: { $ifNull: ['$userInfo.username', 'Unknown'] },
+          attempts: 1,
+          lastAttempt: 1,
+        },
+      },
+      {
+        $sort: { lastAttempt: -1 },
+      },
+    ]);
+
+    return {
+      solved: solvedUsers,
+      participated: participatedUsers,
+      statistics: {
+        totalSolved: solvedUsers.length,
+        totalParticipated: participatedUsers.length,
+        avgAttempts:
+          participatedUsers.length > 0
+            ? (
+                participatedUsers.reduce((sum, u) => sum + u.attempts, 0) /
+                participatedUsers.length
+              ).toFixed(2)
+            : 0,
+      },
+    };
   }
 
   // Community: Solutions
