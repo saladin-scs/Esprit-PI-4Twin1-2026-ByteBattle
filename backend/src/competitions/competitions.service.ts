@@ -313,7 +313,7 @@ export class CompetitionsService {
       .findById(id)
       .populate({
         path: 'challengeIds',
-        select: 'title description difficulty languages examples starterCode +testCases',
+        select: 'title description difficulty languages examples starterCode +testCases +officialSolution',
       })
       .lean()
       .exec();
@@ -323,9 +323,11 @@ export class CompetitionsService {
       ? ((competition as any).challengeIds as any[])
           .filter((c) => c && typeof c === 'object')
           .map((c) => {
+            const officialSource = (c as any).officialSolution ?? {};
             const hydrated = {
               ...c,
               starterCode: {
+                ...(officialSource || {}),
                 ...(c.starterCode || {}),
                 ...this.challengeService.buildAcceptedStarterCodeFromTests(c.testCases),
               },

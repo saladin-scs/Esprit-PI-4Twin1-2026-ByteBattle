@@ -121,6 +121,13 @@ interface SubmissionHistoryItem {
   createdAt: string;
 }
 
+interface ChallengeAnalyticsView {
+  totalSolved: number;
+  totalParticipated: number;
+  avgAttempts: number;
+  solveRate: number;
+}
+
 const ChallengeDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -177,6 +184,7 @@ const ChallengeDetail = () => {
   const [showHistoryAfterAttempts, setShowHistoryAfterAttempts] = useState(false);
   const [officialSolutionCode, setOfficialSolutionCode] = useState<string | null>(null);
   const [officialSolutionLoading, setOfficialSolutionLoading] = useState(false);
+  const [analyticsView, setAnalyticsView] = useState<ChallengeAnalyticsView | null>(null);
 
   const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
 
@@ -334,6 +342,10 @@ const ChallengeDetail = () => {
     return Date.now() - new Date(attemptStartedAt).getTime();
   }, [attemptStartedAt, progressSolved, attemptTick]);
 
+  const attemptsUsed = Math.min(submissionHistory.length, 5);
+  const runsLeft = Math.max(0, 5 - attemptsUsed);
+  const unlockAdvancedTabs = progressSolved || showHistoryAfterAttempts;
+
   const handleRevealHint = async (hintIndex: number) => {
     if (!id) return;
     if (!isAuthed) {
@@ -405,9 +417,29 @@ const ChallengeDetail = () => {
     setAnalyticsLoading(true);
     try {
       const res = await challengesApi.getChallengeAnalytics(id);
-      setChallengeAnalytics(res.data as any);
+      const data = (res.data as any) || {};
+      const stats = data.statistics || data;
+      const totalSolved = Number(stats.totalSolved ?? 0);
+      const totalParticipated = Number(stats.totalParticipated ?? 0);
+      const avgAttempts = Number(stats.avgAttempts ?? 0);
+      const solveRate = totalParticipated > 0 ? totalSolved / totalParticipated : 0;
+      setChallengeAnalytics(data);
+      setAnalyticsView({ totalSolved, totalParticipated, avgAttempts, solveRate });
     } catch {
-      setChallengeAnalytics(null);
+      try {
+        // Fallback for non-admin users: public stats endpoint.
+        const statsRes = await challengesApi.getChallengeStats(id);
+        const stats = (statsRes.data as any) || {};
+        const totalSolved = Number(stats.totalAccepted ?? 0);
+        const totalParticipated = Number(stats.totalSubmissions ?? 0);
+        const avgAttempts = 0;
+        const solveRate = Number(stats.acceptanceRate ?? 0) / 100;
+        setChallengeAnalytics(stats);
+        setAnalyticsView({ totalSolved, totalParticipated, avgAttempts, solveRate });
+      } catch {
+        setChallengeAnalytics(null);
+        setAnalyticsView(null);
+      }
     } finally {
       setAnalyticsLoading(false);
     }
@@ -619,7 +651,7 @@ aria-selected={activeTab === 'solutions'}
                   Solutions
                 </button>
               )}
-              {showHistoryAfterAttempts && (
+              {unlockAdvancedTabs && (
                 <button
                   role="tab"
                   aria-selected={activeTab === 'official-solution'}
@@ -635,7 +667,7 @@ aria-selected={activeTab === 'solutions'}
                   Solution
                 </button>
               )}
-              {showHistoryAfterAttempts && (
+              {unlockAdvancedTabs && (
                 <button
                   role="tab"
                   aria-selected={activeTab === 'attempts'}
@@ -650,7 +682,8 @@ aria-selected={activeTab === 'solutions'}
                   <Clock className="h-4 w-4" aria-hidden />
                   Attempts
                 </button>
-              )}{showHistoryAfterAttempts && (
+              )}
+{unlockAdvancedTabs && (
                             <button
                 role="tab"
                 aria-selected={activeTab === 'analytics'}
@@ -749,50 +782,6 @@ aria-selected={activeTab === 'coach'}
                       </span>
                     ))}
                   </div>
-                  {showHistoryAfterAttempts && submissionHistory.length > 0 && (
-                    <div className="mb-5 rounded-xl border border-primary-500/25 bg-primary-500/10 p-4 dark:border-[#1f6feb]/40 dark:bg-[#1f6feb]/10">
-                      <div className="mb-2 text-sm font-semibold text-primary-900 dark:text-primary-100">
-                        Attempts history unlocked ({submissionHistory.length} attempts)
-                      </div>
-                      <div className="mb-2 text-xs text-slate-700 dark:text-[#8b949e]">
-                        Accepted: {submissionHistory.filter((s) => s.status === 'accepted').length} · Failed:{' '}
-                        {submissionHistory.filter((s) => s.status !== 'accepted').length}
-                      </div>
-                      <div className="space-y-2">
-                        {submissionHistory.slice(0, 5).map((s) => (
-                          <div
-                            key={s._id}
-                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs dark:border-[#30363d] dark:bg-[#161b22]"
-                          >
-                            <span className="font-medium text-slate-900 dark:text-[#c9d1d9]">
-                              {s.status === 'accepted' ? 'Accepted' : 'Failed'} · {s.passedTests}/{s.totalTests}
-                            </span>
-                            <span className="text-slate-600 dark:text-[#8b949e]">
-                              {s.language} · {s.executionTimeMs}ms · {new Date(s.createdAt).toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {(progressSolved || showHistoryAfterAttempts) && (
-                    <div className="mb-5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                      <div className="mb-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
-                        Official solution ({selectedLang})
-                      </div>
-                      {officialSolutionLoading ? (
-                        <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">Loading official solution...</p>
-                      ) : officialSolutionCode ? (
-                        <pre className="whitespace-pre-wrap rounded-lg border border-emerald-500/20 bg-white p-3 font-mono text-xs text-slate-900 dark:border-emerald-500/20 dark:bg-[#0d1117] dark:text-[#c9d1d9]">
-                          {officialSolutionCode}
-                        </pre>
-                      ) : (
-                        <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">
-                          Official solution not available yet for this language.
-                        </p>
-                      )}
-                    </div>
-                  )}
                   {challenge.hints && challenge.hints.length > 0 ? (
                     <button
                       type="button"
@@ -1098,51 +1087,57 @@ aria-selected={activeTab === 'coach'}
                 </div>
               )}
 
-              {activeTab === 'attempts' && showHistoryAfterAttempts && submissionHistory.length > 0 && (
+              {activeTab === 'attempts' && unlockAdvancedTabs && (
                 <div className="space-y-4">
                   <div className="rounded-xl border border-primary-500/25 bg-primary-500/10 p-4 dark:border-[#1f6feb]/40 dark:bg-[#1f6feb]/10">
                     <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary-900 dark:text-primary-100">
                       <Clock className="h-4 w-4" />
                       Submission attempts ({submissionHistory.length})
                     </div>
-                    <div className="mb-3 grid grid-cols-3 gap-2 text-xs text-slate-700 dark:text-[#8b949e]">
-                      <div>
-                        <div className="font-semibold text-primary-900 dark:text-primary-200">
-                          {submissionHistory.filter((s) => s.status === 'accepted').length}
-                        </div>
-                        <div>Accepted</div>
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900 dark:text-[#c9d1d9]">
-                          {submissionHistory.filter((s) => s.status !== 'accepted').length}
-                        </div>
-                        <div>Failed</div>
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900 dark:text-[#c9d1d9]">
-                          {(submissionHistory.reduce((acc, s) => acc + s.executionTimeMs, 0) / submissionHistory.length).toFixed(0)}ms
-                        </div>
-                        <div>Avg time</div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      {submissionHistory.map((s) => (
-                        <div
-                          key={s._id}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs dark:border-[#30363d] dark:bg-[#161b22]"
-                        >
-                          <div className="font-medium text-slate-900 dark:text-[#c9d1d9]">
-                            <span className={`inline-block rounded px-2 py-0.5 text-white mr-2 ${s.status === 'accepted' ? 'bg-emerald-600' : 'bg-red-600'}`}>
-                              {s.status === 'accepted' ? '✓ Accepted' : '✗ Failed'}
-                            </span>
-                            {s.passedTests}/{s.totalTests} tests
+                    {submissionHistory.length > 0 ? (
+                      <>
+                        <div className="mb-3 grid grid-cols-3 gap-2 text-xs text-slate-700 dark:text-[#8b949e]">
+                          <div>
+                            <div className="font-semibold text-primary-900 dark:text-primary-200">
+                              {submissionHistory.filter((s) => s.status === 'accepted').length}
+                            </div>
+                            <div>Accepted</div>
                           </div>
-                          <span className="text-slate-600 dark:text-[#8b949e]">
-                            {s.language} · {s.executionTimeMs}ms · {new Date(s.createdAt).toLocaleString()}
-                          </span>
+                          <div>
+                            <div className="font-semibold text-slate-900 dark:text-[#c9d1d9]">
+                              {submissionHistory.filter((s) => s.status !== 'accepted').length}
+                            </div>
+                            <div>Failed</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-900 dark:text-[#c9d1d9]">
+                              {(submissionHistory.reduce((acc, s) => acc + s.executionTimeMs, 0) / submissionHistory.length).toFixed(0)}ms
+                            </div>
+                            <div>Avg time</div>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                        <div className="space-y-2">
+                          {submissionHistory.map((s) => (
+                            <div
+                              key={s._id}
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs dark:border-[#30363d] dark:bg-[#161b22]"
+                            >
+                              <div className="font-medium text-slate-900 dark:text-[#c9d1d9]">
+                                <span className={`inline-block rounded px-2 py-0.5 text-white mr-2 ${s.status === 'accepted' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                                  {s.status === 'accepted' ? '✓ Accepted' : '✗ Failed'}
+                                </span>
+                                {s.passedTests}/{s.totalTests} tests
+                              </div>
+                              <span className="text-slate-600 dark:text-[#8b949e]">
+                                {s.language} · {s.executionTimeMs}ms · {new Date(s.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-slate-700 dark:text-[#8b949e]">No attempts yet for this challenge.</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1154,42 +1149,42 @@ aria-selected={activeTab === 'coach'}
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary-500 border-t-transparent" />
                       Loading analytics...
                     </div>
-                  ) : challengeAnalytics ? (
+                  ) : analyticsView ? (
                     <>
                       <div className="rounded-xl border border-slate-200 dark:border-[#30363d] p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-[#161b22] dark:to-[#0d1117]">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                           <div className="space-y-1">
                             <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e]">TOTAL SOLVED</p>
                             <p className="text-2xl font-bold text-primary-600 dark:text-[#58a6ff]">
-                              {challengeAnalytics.totalSolved ?? 0}
+                              {analyticsView.totalSolved}
                             </p>
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e]">TOTAL ATTEMPTED</p>
                             <p className="text-2xl font-bold text-amber-600 dark:text-[#d29922]">
-                              {challengeAnalytics.totalParticipated ?? 0}
+                              {analyticsView.totalParticipated}
                             </p>
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e]">AVG ATTEMPTS</p>
                             <p className="text-2xl font-bold text-slate-900 dark:text-[#c9d1d9]">
-                              {(challengeAnalytics.avgAttempts ?? 0).toFixed(1)}
+                              {analyticsView.avgAttempts.toFixed(1)}
                             </p>
                           </div>
                         </div>
                       </div>
-                      {challengeAnalytics.solveRate !== undefined && (
+                      {analyticsView.solveRate !== undefined && (
                         <div className="rounded-xl border border-slate-200 dark:border-[#30363d] p-4">
                           <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e] mb-2">SOLVE RATE</p>
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-2 rounded-full bg-slate-200 dark:bg-[#30363d] overflow-hidden">
                               <div
                                 className="h-full bg-gradient-to-r from-primary-500 to-primary-600 dark:from-[#58a6ff] dark:to-[#1f6feb]"
-                                style={{ width: `${Math.min(100, (challengeAnalytics.solveRate * 100))}%` }}
+                                style={{ width: `${Math.min(100, analyticsView.solveRate * 100)}%` }}
                               />
                             </div>
                             <span className="text-sm font-semibold text-slate-900 dark:text-[#c9d1d9]">
-                              {(challengeAnalytics.solveRate * 100).toFixed(1)}%
+                              {(analyticsView.solveRate * 100).toFixed(1)}%
                             </span>
                           </div>
                         </div>
@@ -1266,7 +1261,7 @@ aria-selected={activeTab === 'coach'}
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-                      Run ({Math.max(0, 5 - submissionHistory.length)} left)
+                      Run ({runsLeft} left)
                     </div>
                     <button
                       type="button"

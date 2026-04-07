@@ -107,8 +107,8 @@ export default function BattlePage() {
       const langs = p.challenge.languages?.length ? p.challenge.languages : ['python'];
       const primary = langs[0];
       setLang(primary);
-      const sc = p.challenge.starterCode?.[primary] ?? '';
-      setCode(sc);
+      // Battle mode starts with an empty editor (no prefilled starter template).
+      setCode('');
       setTimerTick({
         remainingSeconds: p.durationSeconds,
         totalDurationSeconds: p.durationSeconds,
@@ -270,8 +270,7 @@ export default function BattlePage() {
                   type="button"
                   onClick={() => {
                     setLang(l);
-                    const sc = startPayload?.challenge.starterCode?.[l];
-                    if (sc) setCode(sc);
+                    if (!iSubmitted) setCode('');
                   }}
                   disabled={iSubmitted}
                   className={`rounded-lg px-3 py-1 text-sm font-medium ${

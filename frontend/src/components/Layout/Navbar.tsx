@@ -40,7 +40,7 @@ function Navbar() {
                   Leaderboard
                 </Link>
                 <Link to="/history" className={linkClass}>
-                  Historique
+                  History
                 </Link>
                 <Link to="/reclamation" className={linkClass}>
                   Reports

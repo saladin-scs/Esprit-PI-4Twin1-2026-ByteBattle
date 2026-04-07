@@ -31,6 +31,8 @@ export const challengesApi = {
   getOneAdmin: (id: string) => apiClient.get(`/challenges/admin/${id}`),
   getChallengeAnalytics: (id: string) =>
     apiClient.get(`/challenges/admin/${id}/analytics`),
+  getChallengeStats: (id: string) =>
+    apiClient.get(`/challenges/${id}/stats`),
   getMyCompletion: (id: string) => apiClient.get<{ completedLanguages: string[] }>(`/challenges/${id}/my-completion`),
   getChallengeProgress: (id: string) =>
     apiClient.get<{

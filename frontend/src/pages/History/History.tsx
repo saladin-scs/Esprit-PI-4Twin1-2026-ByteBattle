@@ -159,17 +159,17 @@ function History() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
               <HistoryIcon className="h-5 w-5 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Historique</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">History</h1>
           </div>
           <p className="text-gray-500 dark:text-gray-400 ml-[52px]">
-            Retrouvez vos tentatives de challenges et vos compétitions.
+            Review your challenge attempts and competitions.
           </p>
         </div>
 
         {/* ──── Stats cards ──── */}
         <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#30363d] dark:bg-[#161b22]">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Tentatives</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total Attempts</p>
             <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{totalSubs}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#30363d] dark:bg-[#161b22]">
@@ -177,11 +177,11 @@ function History() {
             <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">{accepted}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#30363d] dark:bg-[#161b22]">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Challenges Uniques</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Unique Challenges</p>
             <p className="mt-1 text-2xl font-bold text-indigo-600 dark:text-indigo-400">{uniqueChallenges}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#30363d] dark:bg-[#161b22]">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Compétitions</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Competitions</p>
             <p className="mt-1 text-2xl font-bold text-purple-600 dark:text-purple-400">{competitions.length}</p>
           </div>
         </div>
@@ -210,7 +210,7 @@ function History() {
             }`}
           >
             <Swords className="h-4 w-4" />
-            Compétitions ({competitions.length})
+            Competitions ({competitions.length})
           </button>
         </div>
 
@@ -218,7 +218,7 @@ function History() {
         {activeTab === 'challenges' && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-4 py-2.5 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200">
             <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span>Les tentatives sont <strong>illimitées</strong> — chaque soumission est enregistrée ici.</span>
+            <span>Attempts are <strong>unlimited</strong> - every submission is recorded here.</span>
           </div>
         )}
 
@@ -239,9 +239,9 @@ function History() {
             {!loadingSubs && !subsError && submissions.length === 0 && (
               <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center dark:border-[#30363d] dark:bg-[#161b22]">
                 <Code2 className="mx-auto mb-3 h-10 w-10 text-gray-400 dark:text-gray-500" />
-                <p className="text-gray-600 dark:text-gray-400 font-medium">Aucune soumission pour le moment.</p>
+                <p className="text-gray-600 dark:text-gray-400 font-medium">No submissions yet.</p>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-                  Commencez par résoudre un{' '}
+                  Start by solving a{' '}
                   <Link to="/challenges" className="text-indigo-500 hover:underline">
                     challenge
                   </Link>
@@ -273,9 +273,9 @@ function History() {
             {!loadingComps && !compsError && competitions.length === 0 && (
               <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center dark:border-[#30363d] dark:bg-[#161b22]">
                 <Trophy className="mx-auto mb-3 h-10 w-10 text-gray-400 dark:text-gray-500" />
-                <p className="text-gray-600 dark:text-gray-400 font-medium">Aucune compétition pour le moment.</p>
+                <p className="text-gray-600 dark:text-gray-400 font-medium">No competitions yet.</p>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-                  Participez à une{' '}
+                  Join a{' '}
                   <Link to="/competitions" className="text-indigo-500 hover:underline">
                     compétition
                   </Link>
@@ -359,9 +359,9 @@ function ChallengeCard({ group }: { group: { challenge: { _id: string; title: st
             </span>
           </div>
           <div className="mt-1 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-            <span>{group.submissions.length} tentative{group.submissions.length > 1 ? 's' : ''}</span>
+            <span>{group.submissions.length} attempt{group.submissions.length > 1 ? 's' : ''}</span>
             <span>•</span>
-            <span>Dernière : {timeAgo(latestSub.createdAt)}</span>
+            <span>Latest: {timeAgo(latestSub.createdAt)}</span>
           </div>
         </div>
 
@@ -371,7 +371,7 @@ function ChallengeCard({ group }: { group: { challenge: { _id: string; title: st
             onClick={(e) => e.stopPropagation()}
             className="hidden rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white dark:border-[#30363d] dark:text-gray-300 dark:hover:bg-[#21262d] sm:block"
           >
-            Aller au challenge
+            Go to challenge
           </Link>
           <div className="text-gray-400">
             {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
@@ -408,7 +408,7 @@ function SubmissionAttemptItem({ sub }: { sub: SubmissionRow }) {
   const handleCopy = () => {
     navigator.clipboard.writeText(sub.code);
     setCopied(true);
-    toast.success('Code copié !');
+    toast.success('Code copied!');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -436,7 +436,7 @@ function SubmissionAttemptItem({ sub }: { sub: SubmissionRow }) {
             onClick={() => setShowCode(!showCode)}
             className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
           >
-            {showCode ? 'Masquer le code' : 'Voir le code'}
+            {showCode ? 'Hide code' : 'View code'}
           </button>
         </div>
       </div>
@@ -454,7 +454,7 @@ function SubmissionAttemptItem({ sub }: { sub: SubmissionRow }) {
               <button
                 onClick={handleCopy}
                 className="text-slate-400 hover:text-white transition-colors"
-                title="Copier le code"
+                title="Copy code"
               >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               </button>

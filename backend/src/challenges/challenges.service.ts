@@ -525,7 +525,7 @@ public class Solution {
   async findOne(id: string): Promise<ChallengeDocument> {
     const challenge = await this.challengeModel
       .findById(id)
-      .select('+testCases')
+      .select('+testCases +officialSolution')
       .lean()
       .exec();
     if (!challenge) throw new NotFoundException('Challenge not found');
@@ -533,10 +533,13 @@ public class Solution {
     const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
     const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
     const source = seedMatch?.starterCode ?? (challenge as any).starterCode;
+    const officialSource = (challenge as any).officialSolution as Partial<Record<Language, string>> | undefined;
     const acceptedFromTests = this.buildAcceptedStarterCodeFromTests((challenge as any).testCases);
     for (const lang of (challenge.languages || []) as Language[]) {
       if (acceptedFromTests?.[lang]) {
         starterCode[lang] = acceptedFromTests[lang] as string;
+      } else if (officialSource?.[lang]) {
+        starterCode[lang] = officialSource[lang] as string;
       } else if (source?.[lang]) {
         starterCode[lang] = source[lang];
       }

@@ -96,7 +96,7 @@ const Challenges = () => {
         </p>
         {isAdmin && (
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => navigate('/admin/challenges')}>+ Create Challenge</Button>
+            <Button onClick={() => navigate('/admin/challenges')}>Challenge Management</Button>
           </div>
         )}
       </header>
