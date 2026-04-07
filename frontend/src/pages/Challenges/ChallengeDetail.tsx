@@ -619,7 +619,7 @@ aria-selected={activeTab === 'solutions'}
                   Solutions
                 </button>
               )}
-              {(progressSolved || showHistoryAfterAttempts) && (
+              {showHistoryAfterAttempts && (
                 <button
                   role="tab"
                   aria-selected={activeTab === 'official-solution'}
@@ -650,8 +650,8 @@ aria-selected={activeTab === 'solutions'}
                   <Clock className="h-4 w-4" aria-hidden />
                   Attempts
                 </button>
-              )}
-              <button
+              )}{showHistoryAfterAttempts && (
+                            <button
                 role="tab"
                 aria-selected={activeTab === 'analytics'}
                 type="button"
@@ -665,6 +665,8 @@ aria-selected={activeTab === 'solutions'}
                 <BarChart3 className="h-4 w-4" aria-hidden />
                 Analytics
               </button>
+              )}
+
               {(displayResult || submitError) && (
                 <button
                   role="tab"
@@ -1262,7 +1264,10 @@ aria-selected={activeTab === 'coach'}
                       <AlignLeft className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                      Run ({Math.max(0, 5 - submissionHistory.length)} left)
+                    </div>
                     <button
                       type="button"
                       onClick={handleRun}
