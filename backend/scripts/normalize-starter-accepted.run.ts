@@ -11,6 +11,8 @@ type TestCase = {
   expectedOutput?: string;
 };
 
+const ALL_LANGUAGES: Language[] = ['python', 'javascript', 'java', 'cpp'];
+
 function escapeJavaString(value: string): string {
   return String(value)
     .replace(/\\/g, '\\\\')
@@ -169,15 +171,17 @@ async function run() {
       continue;
     }
 
-    const nextStarter: Record<string, string> = { ...(c.starterCode || {}) };
-    const langs: Language[] = Array.isArray(c.languages) ? c.languages : [];
+    const nextStarter: Record<string, string> = {};
 
-    for (const lang of langs) {
+    for (const lang of ALL_LANGUAGES) {
       const gen = generated[lang];
       if (gen) nextStarter[lang] = gen;
     }
 
-    await ChallengeModel.updateOne({ _id: c._id }, { $set: { starterCode: nextStarter } }).exec();
+    await ChallengeModel.updateOne(
+      { _id: c._id },
+      { $set: { starterCode: nextStarter, languages: ALL_LANGUAGES } },
+    ).exec();
     updated++;
   }
 
