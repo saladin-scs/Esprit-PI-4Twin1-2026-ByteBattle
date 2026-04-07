@@ -10,6 +10,7 @@ import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { motion } from 'framer-motion';
 
 function ProfileSettings() {
   const dispatch = useDispatch<AppDispatch>();
@@ -375,6 +376,7 @@ function ProfileSettings() {
           </Button>
         </form>
       </Card>
+      </motion.div>
     </PageContainer>
   );
 }
