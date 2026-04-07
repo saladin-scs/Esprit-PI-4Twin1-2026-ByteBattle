@@ -11,6 +11,8 @@ import { Model, Types } from 'mongoose';
 import { Challenge, ChallengeDocument, Language } from './schemas/challenge.schema';
 import { Submission, SubmissionDocument } from './schemas/Submission.schema';
 import { Solution, SolutionDocument } from './schemas/solution.schema';
+import { ChallengeSession, ChallengeSessionDocument } from './schemas/challenge-session.schema';
+import { sumHintCosts, timeXpMultiplier } from './challenge-xp.util';
 import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto, UpdateChallengeDto } from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { SEED_CHALLENGES } from './seed-challenges.data';
@@ -28,6 +30,7 @@ export class ChallengeService {
     @InjectModel(Challenge.name) private challengeModel: Model<ChallengeDocument>,
     @InjectModel(Submission.name) private submissionModel: Model<SubmissionDocument>,
     @InjectModel(Solution.name) private solutionModel: Model<SolutionDocument>,
+    @InjectModel(ChallengeSession.name) private challengeSessionModel: Model<ChallengeSessionDocument>,
     private codeExecution: CodeExecutionService,
     private usersService: UsersService,
     private gamificationService: GamificationService,
@@ -285,6 +288,89 @@ public class Solution {
     };
   }
 
+  private async userHasAcceptedChallenge(userId: string, challengeId: string): Promise<boolean> {
+    const n = await this.submissionModel
+      .countDocuments({
+        userId: new Types.ObjectId(userId),
+        challengeId: new Types.ObjectId(challengeId),
+        status: 'accepted',
+      })
+      .exec();
+    return n > 0;
+  }
+
+  /** Starts or returns attempt session: timer + persisted revealed hint indices (until first solve). */
+  async getChallengeProgress(userId: string, challengeId: string) {
+    if (await this.userHasAcceptedChallenge(userId, challengeId)) {
+      return { solved: true as const, startedAt: null as string | null, revealedHintIndices: [] as number[] };
+    }
+    const ch = await this.challengeModel.findById(challengeId).select('_id').lean().exec();
+    if (!ch) throw new NotFoundException('Challenge not found');
+
+    let doc = await this.challengeSessionModel
+      .findOne({
+        userId: new Types.ObjectId(userId),
+        challengeId: new Types.ObjectId(challengeId),
+      })
+      .exec();
+
+    if (!doc) {
+      doc = await new this.challengeSessionModel({
+        userId: new Types.ObjectId(userId),
+        challengeId: new Types.ObjectId(challengeId),
+        startedAt: new Date(),
+        revealedHintIndices: [],
+      }).save();
+    }
+
+    const revealed = [...new Set(doc.revealedHintIndices || [])].sort((a, b) => a - b);
+    return {
+      solved: false as const,
+      startedAt: doc.startedAt.toISOString(),
+      revealedHintIndices: revealed,
+    };
+  }
+
+  /** Persist hint reveal (same XP penalty as on submit). */
+  async revealChallengeHint(userId: string, challengeId: string, hintIndex: number) {
+    const challenge = await this.challengeModel.findById(challengeId).select('hints').lean().exec();
+    if (!challenge) throw new NotFoundException('Challenge not found');
+    const hints = (challenge as any).hints as Array<{ cost?: number }> | undefined;
+    const nh = hints?.length ?? 0;
+    if (!nh || hintIndex < 0 || hintIndex >= nh) {
+      throw new BadRequestException('Invalid hint index');
+    }
+    if (await this.userHasAcceptedChallenge(userId, challengeId)) {
+      throw new BadRequestException('Challenge already solved');
+    }
+
+    let doc = await this.challengeSessionModel
+      .findOne({
+        userId: new Types.ObjectId(userId),
+        challengeId: new Types.ObjectId(challengeId),
+      })
+      .exec();
+
+    if (!doc) {
+      doc = await new this.challengeSessionModel({
+        userId: new Types.ObjectId(userId),
+        challengeId: new Types.ObjectId(challengeId),
+        startedAt: new Date(),
+        revealedHintIndices: [],
+      }).save();
+    }
+
+    if (!(doc.revealedHintIndices || []).includes(hintIndex)) {
+      doc.revealedHintIndices = [...(doc.revealedHintIndices || []), hintIndex].sort((a, b) => a - b);
+      await doc.save();
+    }
+
+    return {
+      startedAt: doc.startedAt.toISOString(),
+      revealedHintIndices: doc.revealedHintIndices,
+    };
+  }
+
   // ─── Submit a solution ──────────────────────────────────────────────────
   async submit(challengeId: string, userId: string, dto: SubmitChallengeDto) {
     // 1. Load the challenge WITH testCases (select: false in schema)
@@ -331,6 +417,7 @@ public class Solution {
     }));
     const allPassed = passedTests === totalTests;
     const status = allPassed ? 'accepted' : testResults.some(r => r.error) ? 'runtime_error' : 'wrong_answer';
+    const hints = ((challenge as any).hints || []) as Array<{ cost?: number }> | undefined;
 
     // 3. First acceptance for this user+challenge? (for gamification)
     const alreadyAccepted = allPassed
@@ -375,19 +462,44 @@ public class Solution {
       },
     });
 
-    // 6. Gamification: XP, badges, streaks (first acceptance only)
+    // 6. Gamification: XP, badges, streaks (first acceptance only; time + hints reduce XP)
     let badgesUnlocked: string[] = [];
+    let xpModifiers:
+      | { timeMultiplier: number; hintFlatPenalty: number; elapsedMs: number }
+      | undefined;
     if (isFirstAcceptance) {
       const difficulty = ((challenge as any).difficulty || 'easy') as 'easy' | 'medium' | 'hard' | 'expert';
+      const sessionDoc = await this.challengeSessionModel
+        .findOne({
+          userId: new Types.ObjectId(userId),
+          challengeId: new Types.ObjectId(challengeId),
+        })
+        .exec();
+      const t0 = sessionDoc?.startedAt ? new Date(sessionDoc.startedAt).getTime() : Date.now();
+      const elapsedMs = Math.max(0, Date.now() - t0);
+      const timeMult = timeXpMultiplier(elapsedMs);
+      const revealed = sessionDoc?.revealedHintIndices ?? [];
+      const hintFlatPenalty = sumHintCosts(hints, revealed);
+
       const result = await this.gamificationService.recordChallengeSolved(userId, {
         difficulty,
         language: dto.language,
         isFirstTry,
         isFirstSolver,
         challengeId,
+        xpTimeMultiplier: timeMult,
+        xpFlatPenalty: hintFlatPenalty,
       });
       xpEarned = result.xpEarned;
       badgesUnlocked = result.badgesUnlocked;
+      xpModifiers = { timeMultiplier: timeMult, hintFlatPenalty, elapsedMs };
+
+      await this.challengeSessionModel
+        .deleteMany({
+          userId: new Types.ObjectId(userId),
+          challengeId: new Types.ObjectId(challengeId),
+        })
+        .exec();
     }
     await this.submissionModel.findByIdAndUpdate(submission._id, { $set: { xpEarned } }).exec();
 
@@ -440,6 +552,7 @@ public class Solution {
       badgesUnlocked,
       executionTimeMs: Math.round(totalTimeMs / totalTests),
       testResults: clientTestResults,
+      xpModifiers,
     };
   }
 

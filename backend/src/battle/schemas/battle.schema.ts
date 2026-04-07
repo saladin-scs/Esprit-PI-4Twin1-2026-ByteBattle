@@ -5,8 +5,9 @@ import { Document, Types } from 'mongoose';
 export type BattleDocument = Battle & Document;
 
 export type BattleStatus = 'waiting' | 'active' | 'finished';
-/** Reserved for future team-vs-team battles. */
-export type BattleMode = '1v1' | 'team';
+
+/** Match format: solo duel, two teams of two, or two teams of three. */
+export type BattleMode = '1v1' | '2v2' | '3v3' | '4v4' | '5v5';
 
 @Schema({ _id: false })
 export class BattleScoreBreakdown {
@@ -51,6 +52,10 @@ export class BattlePlayer {
   @Prop({ default: 0 })
   submitAttempts: number;
 
+  /** 0 = team A, 1 = team B */
+  @Prop({ default: 0 })
+  teamIndex: number;
+
   @Prop({ type: BattleScoreBreakdownSchema, default: () => ({}) })
   scoreBreakdown: BattleScoreBreakdown;
 }
@@ -85,7 +90,7 @@ const BattleSubmissionSchema = SchemaFactory.createForClass(BattleSubmission);
 
 @Schema({ timestamps: true })
 export class Battle {
-  @Prop({ enum: ['1v1', 'team'], default: '1v1', index: true })
+  @Prop({ enum: ['1v1', '2v2', '3v3', '4v4', '5v5'], default: '1v1', index: true })
   mode: BattleMode;
 
   @Prop({ type: [BattlePlayerSchema], default: [] })
@@ -108,6 +113,10 @@ export class Battle {
 
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
   winnerId: Types.ObjectId | null;
+
+  /** Winning team (0 or 1). Set for all formats; for 1v1 aligns with the winning player’s team. */
+  @Prop({ default: null })
+  winnerTeamIndex: number | null;
 
   @Prop({ default: false })
   draw: boolean;

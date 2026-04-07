@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Sparkles, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Button, Card } from '../../shared/components';
+import { Button, Card, Modal } from '../../shared/components';
 import { DifficultyBadge } from '../../components/Challenges';
 import { Spinner } from '../../shared/components';
 import { useCompetitionDetail } from './useCompetitionDetail';
@@ -22,6 +22,7 @@ import {
 import { RootState } from '../../store/store';
 import { CollaborationChat } from '../../shared/components/CollaborationChat';
 import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
+import { SiteRatingWidget } from '../Home/SiteRatingWidget';
 
 export default function CompetitionDetail() {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +30,7 @@ export default function CompetitionDetail() {
   const { theme } = useTheme();
   const [leaderboardLang, setLeaderboardLang] = useState('');
   const [leaderboardLimit, setLeaderboardLimit] = useState(25);
+  const [showRatingModal, setShowRatingModal] = useState(false);
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
 
   const {
@@ -66,6 +68,10 @@ export default function CompetitionDetail() {
   }, [submitResult]);
 
   useEffect(() => {
+    if (submitResult) setShowRatingModal(true);
+  }, [submitResult]);
+
+  useEffect(() => {
     if (submitError) toast.error(submitError);
   }, [submitError]);
 
@@ -96,6 +102,7 @@ export default function CompetitionDetail() {
   }
 
   return (
+    <>
     <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6">
       <div className="bb-hero-gradient-detail" aria-hidden />
       <Button
@@ -267,5 +274,15 @@ export default function CompetitionDetail() {
         </motion.aside>
       </div>
     </div>
+    <Modal
+      isOpen={showRatingModal}
+      onClose={() => setShowRatingModal(false)}
+      title="Rate your competition experience"
+      description="Give a quick star rating after your submission."
+      className="max-w-lg"
+    >
+      <SiteRatingWidget compact className="max-w-none" />
+    </Modal>
+    </>
   );
 }

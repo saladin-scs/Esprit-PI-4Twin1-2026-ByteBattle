@@ -29,6 +29,16 @@ export const challengesApi = {
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>('/challenges/recommended', { params }),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
   getMyCompletion: (id: string) => apiClient.get<{ completedLanguages: string[] }>(`/challenges/${id}/my-completion`),
+  getChallengeProgress: (id: string) =>
+    apiClient.get<{
+      solved: boolean;
+      startedAt: string | null;
+      revealedHintIndices: number[];
+    }>(`/challenges/${id}/progress`),
+  revealChallengeHint: (id: string, hintIndex: number) =>
+    apiClient.post<{ startedAt: string; revealedHintIndices: number[] }>(`/challenges/${id}/progress/reveal-hint`, {
+      hintIndex,
+    }),
   run: (id: string, data: { code: string; language: string }) =>
     apiClient.post(`/challenges/${id}/run`, data),
   submit: (id: string, data: { code: string; language: string }) =>
@@ -60,7 +70,8 @@ export const battleApi = {
         endsAt: string | null;
       };
     }>('/battle/pending'),
-  joinQueueHttp: () => apiClient.post<{ queued: boolean; battleId?: string; challengeId?: string }>('/battle/queue', {}),
+  joinQueueHttp: (body?: { mode?: '1v1' | '2v2' | '3v3' | '4v4' | '5v5' }) =>
+    apiClient.post<{ queued: boolean; battleId?: string; challengeId?: string }>('/battle/queue', body ?? {}),
   getSummary: (id: string) => apiClient.get(`/battle/${id}/summary`),
 };
 

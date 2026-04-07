@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
@@ -8,7 +8,18 @@ import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { initVimMode } from 'monaco-vim';
-import { Play, Send, Keyboard, AlignLeft, Lightbulb, ArrowLeft, Target, MessageCircle, Sparkles } from 'lucide-react';
+import {
+  Play,
+  Send,
+  Keyboard,
+  AlignLeft,
+  Lightbulb,
+  ArrowLeft,
+  Target,
+  MessageCircle,
+  Sparkles,
+  Timer,
+} from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
 import { challengesApi } from '../../services/api';
 import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
@@ -16,9 +27,11 @@ import { SubmissionSuccessModal } from '../../components/Gamification/Submission
 import { useChallengeDetailStore } from '../../stores/challengeDetailStore';
 import { useGamificationStore, type RankProgress } from '../../stores/gamificationStore';
 import CommunitySolutions from './CommunitySolutions';
+import { SiteRatingWidget } from '../Home/SiteRatingWidget';
 import { RootState } from '../../store/store';
 import { CollaborationChat } from '../../shared/components/CollaborationChat';
 import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
+import { Modal } from '../../shared/components';
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -32,6 +45,15 @@ const HINT_TIER_LABEL: Record<string, string> = {
   detailed: 'Detailed hint',
   premium: 'Advanced hint',
 };
+
+function formatAttemptClock(elapsedMs: number): string {
+  const s = Math.max(0, Math.floor(elapsedMs / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
 
 interface Challenge {
   _id: string;
@@ -68,6 +90,11 @@ interface SubmissionResult {
   xpEarned: number;
   executionTimeMs: number;
   badgesUnlocked?: string[];
+  xpModifiers?: {
+    timeMultiplier: number;
+    hintFlatPenalty: number;
+    elapsedMs: number;
+  };
   testResults: Array<{
     testNumber: number;
     passed: boolean;
@@ -117,6 +144,9 @@ const ChallengeDetail = () => {
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
   const [isVimMode, setIsVimMode] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
+  const [attemptStartedAt, setAttemptStartedAt] = useState<string | null>(null);
+  const [progressSolved, setProgressSolved] = useState(false);
+  const [attemptTick, setAttemptTick] = useState(0);
   const [selectedTestCase, setSelectedTestCase] = useState(0);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successModalPayload, setSuccessModalPayload] = useState<{
@@ -127,6 +157,7 @@ const ChallengeDetail = () => {
     rankTier: string;
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
 
@@ -224,6 +255,40 @@ const ChallengeDetail = () => {
       .finally(() => setLoadingCompletion(false));
   }, [id, setCompletedLanguages, setLoadingCompletion]);
 
+  useEffect(() => {
+    if (!id || !isAuthed) {
+      setAttemptStartedAt(null);
+      setProgressSolved(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await challengesApi.getChallengeProgress(id);
+        if (cancelled) return;
+        if (data.solved) {
+          setProgressSolved(true);
+          setAttemptStartedAt(null);
+        } else {
+          setProgressSolved(false);
+          setAttemptStartedAt(data.startedAt);
+          setRevealedHints(data.revealedHintIndices ?? []);
+        }
+      } catch {
+        if (!cancelled) setAttemptStartedAt(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isAuthed]);
+
+  useEffect(() => {
+    if (!attemptStartedAt || progressSolved) return;
+    const t = window.setInterval(() => setAttemptTick((x) => x + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [attemptStartedAt, progressSolved]);
+
   // Sync URL lang → store (and code) when challenge is loaded so code always matches selected language
   useEffect(() => {
     if (!challenge || !langFromUrl || !challenge.languages?.includes(langFromUrl)) return;
@@ -242,6 +307,27 @@ const ChallengeDetail = () => {
     setSearchParams({ lang });
     setSelectedLang(lang);
     setCode(challenge?.starterCode?.[lang] || '');
+  };
+
+  const attemptElapsedMs = useMemo(() => {
+    if (!attemptStartedAt || progressSolved) return 0;
+    void attemptTick;
+    return Date.now() - new Date(attemptStartedAt).getTime();
+  }, [attemptStartedAt, progressSolved, attemptTick]);
+
+  const handleRevealHint = async (hintIndex: number) => {
+    if (!id) return;
+    if (!isAuthed) {
+      setRevealedHints((prev) => [...new Set([...prev, hintIndex])].sort((a, b) => a - b));
+      return;
+    }
+    try {
+      const { data } = await challengesApi.revealChallengeHint(id, hintIndex);
+      setAttemptStartedAt(data.startedAt);
+      setRevealedHints(data.revealedHintIndices);
+    } catch {
+      setRevealedHints((prev) => [...new Set([...prev, hintIndex])].sort((a, b) => a - b));
+    }
   };
 
   const handleRun = async () => {
@@ -278,7 +364,10 @@ const ChallengeDetail = () => {
       const data = res.data as SubmissionResult;
       setResult(data);
       setActiveTab('result');
+      setShowRatingModal(true);
       if (data.status === 'accepted') {
+        setProgressSolved(true);
+        setAttemptStartedAt(null);
         try {
           const [comp, summary] = await Promise.all([
             challengesApi.getMyCompletion(id),
@@ -601,7 +690,8 @@ aria-selected={activeTab === 'coach'}
                       <div>
                         <h2 className="text-lg font-bold text-amber-950 dark:text-amber-50">Indices</h2>
                         <p className="mt-1 text-sm text-amber-900/85 dark:text-amber-100/75">
-                          Reveal hints one by one. They guide you without giving away the full solution.
+                          Reveal hints one by one. Each hint costs XP (see cost). A longer attempt also reduces XP on
+                          your first solve — tracked from when you open the challenge.
                         </p>
                       </div>
                     </div>
@@ -654,7 +744,7 @@ aria-selected={activeTab === 'coach'}
                             </div>
                             <button
                               type="button"
-                              onClick={() => setRevealedHints([...revealedHints, i])}
+                              onClick={() => void handleRevealHint(i)}
                               className="shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-amber-950 shadow-sm hover:bg-amber-400 dark:bg-amber-600 dark:text-white dark:hover:bg-amber-500"
                             >
                               Show hint
@@ -699,6 +789,13 @@ aria-selected={activeTab === 'coach'}
                               </span>
                             ))}
                           </div>
+                        )}
+                        {displayResult.status === 'accepted' && displayResult.xpModifiers && (
+                          <p className="mt-2 text-xs text-slate-600 dark:text-[#8b949e]">
+                            XP (first solve): time factor ×{displayResult.xpModifiers.timeMultiplier.toFixed(2)} · hint
+                            penalty −{displayResult.xpModifiers.hintFlatPenalty} XP · time on challenge{' '}
+                            {formatAttemptClock(displayResult.xpModifiers.elapsedMs)}
+                          </p>
                         )}
                       </div>
                       {displayResult.testResults.map((t) => (
@@ -796,6 +893,15 @@ aria-selected={activeTab === 'coach'}
               <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
                 <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
                   <div className="flex flex-wrap items-center gap-2">
+                    {attemptStartedAt && !progressSolved && langFromUrl && (
+                      <div
+                        className="mr-2 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-mono text-slate-800 dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9]"
+                        title="Time since you started this attempt (first open while unsolved). XP decreases over time on first solve."
+                      >
+                        <Timer className="h-3.5 w-3.5 shrink-0 text-primary-600 dark:text-primary-400" aria-hidden />
+                        <span aria-live="polite">{formatAttemptClock(attemptElapsedMs)}</span>
+                      </div>
+                    )}
                     {challenge.languages.map((lang) => (
                       <button
                         key={lang}
@@ -950,6 +1056,15 @@ aria-selected={activeTab === 'coach'}
         rankTier={successModalPayload.rankTier}
       />
     )}
+    <Modal
+      isOpen={showRatingModal}
+      onClose={() => setShowRatingModal(false)}
+      title="Rate your challenge experience"
+      description="Give a quick star rating after your submission."
+      className="max-w-lg"
+    >
+      <SiteRatingWidget compact className="max-w-none" />
+    </Modal>
     </>
   );
 };

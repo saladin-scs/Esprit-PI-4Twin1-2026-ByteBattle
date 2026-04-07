@@ -12,7 +12,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { verify } from 'jsonwebtoken';
-import { BattleService } from './battle.service';
+import { BattleService, normalizeBattleQueueMode, type BattleQueueMode } from './battle.service';
 import { BattleRealtimeService } from './battle-realtime.service';
 
 @WebSocketGateway({
@@ -107,9 +107,7 @@ export class BattleGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     @MessageBody() body: { mode?: string },
   ): Promise<{ ok: boolean; queued?: boolean; battleId?: string; error?: string }> {
     if (!client.data.user) return { ok: false, error: 'Not authenticated' };
-    if (body?.mode && body.mode !== '1v1') {
-      return { ok: false, error: 'Only 1v1 is supported currently' };
-    }
+    const mode: BattleQueueMode = normalizeBattleQueueMode(body?.mode);
     const { userId, username } = client.data.user;
 
     try {
@@ -117,6 +115,7 @@ export class BattleGateway implements OnGatewayInit, OnGatewayConnection, OnGate
         userId,
         username,
         socketId: client.id,
+        mode,
       });
       if (battle) {
         await this.battleService.notifyBattleMatched(battle);

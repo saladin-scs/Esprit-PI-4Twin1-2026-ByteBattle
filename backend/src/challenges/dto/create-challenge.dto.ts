@@ -1,5 +1,17 @@
 /* eslint-disable prettier/prettier */
-import { IsString, IsEnum, IsArray, IsOptional, IsNumber, IsBoolean, IsObject, MinLength, MaxLength, Min, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsArray,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsObject,
+  MinLength,
+  MaxLength,
+  IsInt,
+  Min,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -88,6 +100,13 @@ export class CreateChallengeDto {
 
 /** Aligned with CODE_EXECUTION_MAX_CODE_CHARS (execution rejects beyond this). */
 const SUBMIT_CODE_MAX = Number(process.env.CODE_EXECUTION_MAX_CODE_CHARS || 20000);
+
+export class RevealHintDto {
+  @ApiProperty({ description: 'Index of the hint in challenge.hints (0-based)' })
+  @IsInt()
+  @Min(0)
+  hintIndex: number;
+}
 
 export class SubmitChallengeDto {
   @ApiProperty()

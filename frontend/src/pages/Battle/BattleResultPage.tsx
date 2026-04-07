@@ -6,6 +6,15 @@ import { battleApi } from '../../services/api';
 import type { BattleResultPayload } from '../../hooks/useBattleSocket';
 import { RootState } from '../../store/store';
 
+function userWonBattle(result: BattleResultPayload, myId: string): boolean {
+  if (result.draw || !myId) return false;
+  const myTeam = result.players.find((p) => p.userId === myId)?.teamIndex;
+  if (result.winnerTeamIndex != null && result.winnerTeamIndex !== undefined && myTeam != null) {
+    return result.winnerTeamIndex === myTeam;
+  }
+  return result.winnerId === myId;
+}
+
 export default function BattleResultPage() {
   const { battleId } = useParams<{ battleId: string }>();
   const location = useLocation();
@@ -53,8 +62,9 @@ export default function BattleResultPage() {
     );
   }
 
-  const won = result.winnerId === myId;
-  const isDraw = result.draw || !result.winnerId;
+  const won = userWonBattle(result, myId);
+  const isDraw = !!result.draw;
+  const teamMode = !!result.mode && result.mode !== '1v1';
   const fmtDateTime = (iso?: string | null) => {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -110,6 +120,11 @@ export default function BattleResultPage() {
                   {p.username}
                   {p.userId === myId ? ' (you)' : ''}
                 </td>
+                {teamMode && (
+                  <td className="px-3 py-2 text-gray-600 dark:text-gray-300">
+                    {p.teamIndex === 0 ? 'A' : p.teamIndex === 1 ? 'B' : '—'}
+                  </td>
+                )}
                 <td className="px-3 py-2 text-gray-600 dark:text-gray-300">
                   {p.submitted ? (p.passed ? 'Passed all tests' : 'Submitted') : 'No submission'}
                 </td>
