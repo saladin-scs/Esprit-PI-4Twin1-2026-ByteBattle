@@ -1,30 +1,35 @@
 /* eslint-disable prettier/prettier */
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsDateString, IsObject, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsObject, IsOptional, IsString, IsUrl, MaxLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class SocialLinksDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsUrl()
+  @MaxLength(500)
   github?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsUrl()
+  @MaxLength(500)
   linkedin?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsUrl()
+  @MaxLength(500)
   twitter?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @IsUrl()
+  @MaxLength(500)
   portfolio?: string;
 }
 
@@ -85,11 +90,14 @@ export class UpdateMeDto {
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
   links?: string[];
 
   @ApiPropertyOptional({ type: SocialLinksDto })
   @IsOptional()
   @IsObject()
+  @ValidateNested()
+  @Type(() => SocialLinksDto)
   socialLinks?: SocialLinksDto;
 
   @ApiPropertyOptional()
@@ -101,4 +109,3 @@ export class UpdateMeDto {
   @IsOptional()
   preferences?: Record<string, any>;
 }
-

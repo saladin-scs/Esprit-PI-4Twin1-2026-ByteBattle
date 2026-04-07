@@ -1,7 +1,8 @@
 /* eslint-disable prettier/prettier */
-import { IsString, IsEnum, IsArray, IsOptional, IsNumber, IsBoolean, IsObject, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsEnum, IsArray, IsOptional, IsNumber, IsBoolean, IsObject, MinLength, MaxLength, Min, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { PartialType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 export type Language = 'javascript' | 'python' | 'java' | 'cpp';
@@ -10,10 +11,12 @@ export class CreateChallengeDto {
   @ApiProperty()
   @IsString()
   @MinLength(3)
+  @MaxLength(100)
   title: string;
 
   @ApiProperty()
   @IsString()
+  @MaxLength(3000)
   description: string;
 
   @ApiProperty()
@@ -28,8 +31,9 @@ export class CreateChallengeDto {
   @IsEnum(['easy', 'medium', 'hard', 'expert'])
   difficulty: Difficulty;
 
-  @ApiProperty()
+  @ApiProperty({ enum: ['javascript', 'python', 'java', 'cpp'], isArray: true })
   @IsArray()
+  @IsEnum(['javascript', 'python', 'java', 'cpp'], { each: true })
   languages: Language[];
 
   @ApiProperty()
@@ -38,16 +42,19 @@ export class CreateChallengeDto {
 
   @ApiProperty()
   @IsArray()
+  @IsString({ each: true })
   @IsOptional()
   tags?: string[];
 
   @ApiProperty()
   @IsNumber()
+  @Min(0)
   @IsOptional()
   xpReward?: number;
 
   @ApiProperty()
   @IsArray()
+  @IsString({ each: true })
   @IsOptional()
   constraints?: string[];
 
@@ -58,11 +65,13 @@ export class CreateChallengeDto {
 
   @ApiProperty()
   @IsNumber()
+  @Min(1)
   @IsOptional()
   timeLimit?: number;
 
   @ApiProperty()
   @IsNumber()
+  @Min(1)
   @IsOptional()
   memoryLimit?: number;
 

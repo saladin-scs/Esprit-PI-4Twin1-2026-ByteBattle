@@ -7,6 +7,9 @@ import toast from 'react-hot-toast';
 import { Sparkles, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePopup } from '../../contexts/PopupContext';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 
 type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 
@@ -50,6 +53,45 @@ function normalizeAiPayload(data: any): {
   };
 }
 
+const challengeSchema = yup.object().shape({
+  topic: yup.string(),
+  title: yup.string().required('Title is required').max(100, 'Title cannot exceed 100 characters'),
+  description: yup.string().required('Description is required').max(3000, 'Description is too long'),
+  difficulty: yup.mixed<Difficulty>().oneOf(['easy', 'medium', 'hard', 'expert']).required('Difficulty is required'),
+  xpReward: yup.number().positive('XP must be positive').typeError('Must be a number').required('XP reward is required'),
+  languages: yup.string().required('At least one language is required (comma separated)'),
+  tags: yup.string(),
+  examplesJson: yup.string().test('is-json', 'Must be valid JSON array', function(val) {
+    if (!val) return true;
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed);
+    } catch {
+      return false;
+    }
+  }),
+  testCasesJson: yup.string().test('is-json', 'Must be valid JSON array', function(val) {
+    if (!val) return true;
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed);
+    } catch {
+      return false;
+    }
+  }),
+  starterCodeJson: yup.string().test('is-json', 'Must be valid JSON object', function(val) {
+    if (!val) return true;
+    try {
+      const parsed = JSON.parse(val);
+      return typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null;
+    } catch {
+      return false;
+    }
+  }),
+});
+
+type ChallengeFormData = yup.InferType<typeof challengeSchema>;
+
 export default function AdminChallenges() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { confirm } = usePopup();
@@ -61,47 +103,30 @@ export default function AdminChallenges() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newIds, setNewIds] = useState<Record<string, number>>({});
 
+  const { register, handleSubmit, setValue, getValues, reset, formState: { errors } } = useForm<ChallengeFormData>({
+    resolver: yupResolver(challengeSchema) as any,
+    defaultValues: {
+      topic: '',
+      title: '',
+      description: '',
+      difficulty: 'medium',
+      xpReward: 100,
+      languages: 'javascript, python, java, cpp',
+      tags: '',
+      examplesJson: JSON.stringify([{ input: '1 2', output: '3', explanation: 'Add the two numbers.' }], null, 2),
+      testCasesJson: JSON.stringify([{ input: '1 2', expectedOutput: '3', isHidden: false }, { input: '100 250', expectedOutput: '350', isHidden: true }], null, 2),
+      starterCodeJson: JSON.stringify({
+        javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\nconsole.log(a + b);',
+        python: 'a, b = map(int, input().split())\nprint(a + b)',
+        java: 'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n  public static void main(String[] args) throws Exception {\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n    StringTokenizer st = new StringTokenizer(br.readLine());\n    long a = Long.parseLong(st.nextToken());\n    long b = Long.parseLong(st.nextToken());\n    System.out.println(a + b);\n  }\n}\n',
+        cpp: '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\n'
+      }, null, 2)
+    }
+  });
+
   const isNew = useMemo(() => {
     return (id: string) => typeof newIds[id] === 'number';
   }, [newIds]);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    difficulty: 'medium' as Difficulty,
-    topic: '',
-    xpReward: 100,
-    languages: 'javascript, python, java, cpp',
-    tags: '',
-    examplesJson: JSON.stringify(
-      [
-        { input: '1 2', output: '3', explanation: 'Add the two numbers.' },
-      ] satisfies Example[],
-      null,
-      2,
-    ),
-    testCasesJson: JSON.stringify(
-      [
-        { input: '1 2', expectedOutput: '3', isHidden: false },
-        { input: '100 250', expectedOutput: '350', isHidden: true },
-      ] satisfies TestCase[],
-      null,
-      2,
-    ),
-    starterCodeJson: JSON.stringify(
-      {
-        javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\nconsole.log(a + b);',
-        python: 'a, b = map(int, input().split())\nprint(a + b)',
-        java:
-          'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n  public static void main(String[] args) throws Exception {\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n    StringTokenizer st = new StringTokenizer(br.readLine());\n    long a = Long.parseLong(st.nextToken());\n    long b = Long.parseLong(st.nextToken());\n    System.out.println(a + b);\n  }\n}\n',
-        cpp:
-          '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\n',
-      } satisfies StarterCode,
-      null,
-      2,
-    ),
-  });
 
   const loadData = async () => {
     setLoading(true);
@@ -119,13 +144,18 @@ export default function AdminChallenges() {
     loadData();
   }, []);
 
+  const resetForm = () => {
+    setEditingId(null);
+    reset();
+  };
+
   useEffect(() => {
     const ai = searchParams.get('ai');
     const create = searchParams.get('create');
     if (ai === '1' || create === '1') {
       resetForm();
       if (ai === '1') {
-        setFormData((prev) => ({ ...prev, topic: prev.topic || 'Two sum' }));
+        setValue('topic', 'Two sum');
       }
       setShowModal(true);
       const next = new URLSearchParams(searchParams);
@@ -136,7 +166,8 @@ export default function AdminChallenges() {
   }, [searchParams, setSearchParams]);
 
   const handleGenerateAI = async () => {
-    if (!formData.topic) {
+    const topic = getValues('topic');
+    if (!topic) {
       toast.error('Please provide a topic for the AI to generate');
       return;
     }
@@ -145,8 +176,8 @@ export default function AdminChallenges() {
     try {
       toast.loading('AI is generating challenge...', { id: 'ai-gen' });
       const { data } = await challengesApi.generate({
-        difficulty: formData.difficulty,
-        topic: formData.topic,
+        difficulty: getValues('difficulty'),
+        topic: topic,
       });
 
       const normalized = normalizeAiPayload(data);
@@ -154,32 +185,28 @@ export default function AdminChallenges() {
       const nextTestCases = normalized.testCases;
       const nextStarter = normalized.starterCode;
 
-      setFormData((prev) => {
-        const hasAnyTestCases = Array.isArray(nextTestCases) && nextTestCases.length > 0;
-        const fallbackFromExamples: TestCase[] | null =
-          Array.isArray(nextExamples) && nextExamples.length > 0
-            ? [
-                {
-                  input: String((nextExamples[0] as any)?.input ?? ''),
-                  expectedOutput: String((nextExamples[0] as any)?.output ?? ''),
-                  isHidden: false,
-                },
-              ]
-            : null;
+      const hasAnyTestCases = Array.isArray(nextTestCases) && nextTestCases.length > 0;
+      const fallbackFromExamples: TestCase[] | null =
+        Array.isArray(nextExamples) && nextExamples.length > 0
+          ? [
+              {
+                input: String((nextExamples[0] as any)?.input ?? ''),
+                expectedOutput: String((nextExamples[0] as any)?.output ?? ''),
+                isHidden: false,
+              },
+            ]
+          : null;
 
-        const finalTestCases =
-          hasAnyTestCases ? nextTestCases : (fallbackFromExamples ?? safeJsonParse<TestCase[]>(prev.testCasesJson, []));
+      const prevTestCasesJson = getValues('testCasesJson');
+      const finalTestCases =
+        hasAnyTestCases ? nextTestCases : (fallbackFromExamples ?? safeJsonParse<TestCase[]>(prevTestCasesJson || '', []));
 
-        return {
-          ...prev,
-          title: normalized.title || prev.title,
-          description: normalized.description || prev.description,
-          tags: normalized.tags ? normalized.tags.join(', ') : prev.tags,
-          examplesJson: nextExamples ? JSON.stringify(nextExamples, null, 2) : prev.examplesJson,
-          testCasesJson: finalTestCases.length ? JSON.stringify(finalTestCases, null, 2) : prev.testCasesJson,
-          starterCodeJson: nextStarter ? JSON.stringify(nextStarter, null, 2) : prev.starterCodeJson,
-        };
-      });
+      if (normalized.title) setValue('title', normalized.title);
+      if (normalized.description) setValue('description', normalized.description);
+      if (normalized.tags) setValue('tags', normalized.tags.join(', '));
+      if (nextExamples) setValue('examplesJson', JSON.stringify(nextExamples, null, 2));
+      if (finalTestCases.length) setValue('testCasesJson', JSON.stringify(finalTestCases, null, 2));
+      if (nextStarter) setValue('starterCodeJson', JSON.stringify(nextStarter, null, 2));
 
       if (!Array.isArray(nextTestCases) || nextTestCases.length === 0) {
         toast('AI did not return test cases. I filled a basic one for you — please review before creating.', {
@@ -195,49 +222,10 @@ export default function AdminChallenges() {
     }
   };
 
-  const resetForm = () => {
-    setEditingId(null);
-    setFormData({
-      title: '',
-      description: '',
-      difficulty: 'medium' as Difficulty,
-      topic: '',
-      xpReward: 100,
-      languages: 'javascript, python, java, cpp',
-      tags: '',
-      examplesJson: JSON.stringify(
-        [{ input: '1 2', output: '3', explanation: 'Add the two numbers.' }] satisfies Example[],
-        null,
-        2,
-      ),
-      testCasesJson: JSON.stringify(
-        [
-          { input: '1 2', expectedOutput: '3', isHidden: false },
-          { input: '100 250', expectedOutput: '350', isHidden: true },
-        ] satisfies TestCase[],
-        null,
-        2,
-      ),
-      starterCodeJson: JSON.stringify(
-        {
-          javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\nconsole.log(a + b);',
-          python: 'a, b = map(int, input().split())\nprint(a + b)',
-          java:
-            'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n  public static void main(String[] args) throws Exception {\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n    StringTokenizer st = new StringTokenizer(br.readLine());\n    long a = Long.parseLong(st.nextToken());\n    long b = Long.parseLong(st.nextToken());\n    System.out.println(a + b);\n  }\n}\n',
-          cpp:
-            '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\n',
-        } satisfies StarterCode,
-        null,
-        2,
-      ),
-    });
-  };
-
   const handleEdit = (challenge: any) => {
     setEditingId(challenge._id);
     setShowModal(true);
-    setFormData((prev) => ({
-      ...prev,
+    reset({
       title: challenge.title || '',
       description: challenge.description || '',
       difficulty: (challenge.difficulty || 'medium') as Difficulty,
@@ -245,20 +233,22 @@ export default function AdminChallenges() {
       xpReward: Number(challenge.xpReward || 100),
       languages: Array.isArray(challenge.languages) ? challenge.languages.join(', ') : 'javascript, python',
       tags: Array.isArray(challenge.tags) ? challenge.tags.join(', ') : '',
-    }));
+      examplesJson: JSON.stringify(challenge.examples || [], null, 2),
+      testCasesJson: JSON.stringify(challenge.testCases || [], null, 2),
+      starterCodeJson: JSON.stringify(challenge.starterCode || {}, null, 2)
+    });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: ChallengeFormData) => {
     try {
       if (editingId) {
         const updatePayload = {
-          title: formData.title,
-          description: formData.description,
-          difficulty: formData.difficulty,
-          xpReward: Number(formData.xpReward),
-          languages: formData.languages.split(',').map((l) => l.trim()).filter(Boolean),
-          tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
+          title: data.title,
+          description: data.description,
+          difficulty: data.difficulty,
+          xpReward: Number(data.xpReward),
+          languages: data.languages.split(',').map((l: string) => l.trim()).filter(Boolean),
+          tags: (data.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean),
           isPublished: true,
         };
         const res = await challengesApi.update(editingId, updatePayload);
@@ -270,9 +260,9 @@ export default function AdminChallenges() {
         return;
       }
 
-      const examples = safeJsonParse<Example[]>(formData.examplesJson, []);
-      const testCases = safeJsonParse<TestCase[]>(formData.testCasesJson, []);
-      const starterCode = safeJsonParse<StarterCode>(formData.starterCodeJson, {});
+      const examples = safeJsonParse<Example[]>(data.examplesJson || '', []);
+      const testCases = safeJsonParse<TestCase[]>(data.testCasesJson || '', []);
+      const starterCode = safeJsonParse<StarterCode>(data.starterCodeJson || '', {});
 
       if (!Array.isArray(examples) || examples.length === 0) {
         toast.error('Examples JSON is empty or invalid. Please provide at least 1 example.');
@@ -288,12 +278,12 @@ export default function AdminChallenges() {
       }
 
       const payload = {
-        title: formData.title,
-        description: formData.description,
-        difficulty: formData.difficulty,
-        xpReward: Number(formData.xpReward),
-        languages: formData.languages.split(',').map(l => l.trim()).filter(Boolean),
-        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+        title: data.title,
+        description: data.description,
+        difficulty: data.difficulty,
+        xpReward: Number(data.xpReward),
+        languages: data.languages.split(',').map((l: string) => l.trim()).filter(Boolean),
+        tags: (data.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean),
         isPublished: true,
         examples,
         testCases,
@@ -309,7 +299,7 @@ export default function AdminChallenges() {
         setNewIds((prev) => ({ ...prev, [created._id]: Date.now() }));
         window.setTimeout(() => {
           setNewIds((prev) => {
-            const { [created._id]: _drop, ...rest } = prev;
+            const { [created._id]: drop, ...rest } = prev;
             return rest;
           });
         }, 9000);
@@ -317,7 +307,7 @@ export default function AdminChallenges() {
         loadData();
       }
       resetForm();
-    } catch (err) {
+    } catch (err: any) {
       toast.error(editingId ? 'Failed to update challenge' : 'Failed to create challenge');
     }
   };
@@ -340,7 +330,7 @@ export default function AdminChallenges() {
       await challengesApi.delete(id);
       setChallenges((prev) => prev.filter((c) => c?._id !== id));
       setNewIds((prev) => {
-        const { [id]: _drop, ...rest } = prev;
+        const { [id]: drop, ...rest } = prev;
         return rest;
       });
       toast.success('Challenge deleted.');
@@ -459,7 +449,6 @@ export default function AdminChallenges() {
         </div>
       </Card>
 
-      {/* Modal View */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <Card className="w-full max-w-xl shadow-2xl overflow-y-auto max-h-[90vh]">
@@ -470,8 +459,7 @@ export default function AdminChallenges() {
                 <label className="block text-sm font-medium text-indigo-700 dark:text-indigo-300 mb-1">AI Topic / Idea</label>
                 <Input 
                   placeholder="e.g. Reverse a binary tree, Matrix multiplication..." 
-                  value={formData.topic} 
-                  onChange={e => setFormData({ ...formData, topic: e.target.value })} 
+                  {...register('topic')}
                 />
               </div>
               <Button 
@@ -485,36 +473,35 @@ export default function AdminChallenges() {
               </Button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Title</label>
-                <Input required value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
+                <Input {...register('title')} />
+                {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title.message}</p>}
               </div>
               
               <div>
                 <label className="block text-sm font-medium mb-1">Description</label>
                 <textarea 
-                  required
                   rows={4}
                   className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white" 
-                  value={formData.description} 
-                  onChange={e => setFormData({ ...formData, description: e.target.value })} 
+                  {...register('description')}
                 />
+                {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>}
               </div>
 
               {!editingId && (
               <div>
                 <label className="block text-sm font-medium mb-1">Examples (JSON)</label>
                 <textarea
-                  required
                   rows={5}
                   className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white font-mono text-xs"
-                  value={formData.examplesJson}
-                  onChange={(e) => setFormData({ ...formData, examplesJson: e.target.value })}
+                  {...register('examplesJson')}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Format: <code>[{"{"}"input":"1 2","output":"3","explanation":"..."{"}"}]</code>
                 </p>
+                {errors.examplesJson && <p className="text-red-500 text-sm mt-1">{errors.examplesJson.message}</p>}
               </div>
               )}
 
@@ -522,15 +509,14 @@ export default function AdminChallenges() {
               <div>
                 <label className="block text-sm font-medium mb-1">Test cases (JSON)</label>
                 <textarea
-                  required
                   rows={6}
                   className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white font-mono text-xs"
-                  value={formData.testCasesJson}
-                  onChange={(e) => setFormData({ ...formData, testCasesJson: e.target.value })}
+                  {...register('testCasesJson')}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Format: <code>[{"{"}"input":"1 2","expectedOutput":"3","isHidden":false{"}"}]</code>
                 </p>
+                {errors.testCasesJson && <p className="text-red-500 text-sm mt-1">{errors.testCasesJson.message}</p>}
               </div>
               )}
 
@@ -538,15 +524,14 @@ export default function AdminChallenges() {
               <div>
                 <label className="block text-sm font-medium mb-1">Starter code per language (JSON)</label>
                 <textarea
-                  required
                   rows={6}
                   className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white font-mono text-xs"
-                  value={formData.starterCodeJson}
-                  onChange={(e) => setFormData({ ...formData, starterCodeJson: e.target.value })}
+                  {...register('starterCodeJson')}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Keys should match selected languages (e.g. <code>javascript</code>, <code>python</code>, <code>java</code>, <code>cpp</code>).
                 </p>
+                {errors.starterCodeJson && <p className="text-red-500 text-sm mt-1">{errors.starterCodeJson.message}</p>}
               </div>
               )}
 
@@ -555,29 +540,32 @@ export default function AdminChallenges() {
                   <label className="block text-sm font-medium mb-1">Difficulty</label>
                   <select 
                     className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white"
-                    value={formData.difficulty}
-                    onChange={(e) => setFormData({ ...formData, difficulty: e.target.value as Difficulty })}
+                    {...register('difficulty')}
                   >
                     <option value="easy">Easy</option>
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
                     <option value="expert">Expert</option>
                   </select>
+                  {errors.difficulty && <p className="text-red-500 text-sm mt-1">{errors.difficulty.message}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">XP Reward</label>
-                  <Input type="number" required value={formData.xpReward} onChange={e => setFormData({ ...formData, xpReward: parseInt(e.target.value) || 0 })} />
+                  <Input type="number" {...register('xpReward')} />
+                  {errors.xpReward && <p className="text-red-500 text-sm mt-1">{errors.xpReward.message}</p>}
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Supported Languages (comma separated)</label>
-                <Input required value={formData.languages} onChange={e => setFormData({ ...formData, languages: e.target.value })} />
+                <Input {...register('languages')} />
+                {errors.languages && <p className="text-red-500 text-sm mt-1">{errors.languages.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Tags (comma separated)</label>
-                <Input placeholder="algorithms, math" value={formData.tags} onChange={e => setFormData({ ...formData, tags: e.target.value })} />
+                <Input placeholder="algorithms, math" {...register('tags')} />
+                {errors.tags && <p className="text-red-500 text-sm mt-1">{errors.tags.message}</p>}
               </div>
 
               <div className="flex justify-end gap-3 mt-8">

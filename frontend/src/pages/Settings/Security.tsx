@@ -5,32 +5,79 @@ import { AppDispatch, RootState } from '../../store/store';
 import { fetchMe, logout } from '../../store/slices/authSlice';
 import { Button, Input, Card, Alert, PageContainer } from '../../shared/components';
 import { usePopup } from '../../contexts/PopupContext';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+
+const changePasswordSchema = yup.object().shape({
+  currentPassword: yup.string().required('Current password is required'),
+  newPassword: yup.string()
+    .required('New password is required')
+    .min(8, 'Password must be at least 8 characters')
+    .matches(/[A-Z]/, 'Must contain at least one uppercase letter')
+    .matches(/[a-z]/, 'Must contain at least one lowercase letter')
+    .matches(/[0-9]/, 'Must contain at least one number')
+    .matches(/[^A-Za-z0-9]/, 'Must contain at least one special character'),
+  confirmNewPassword: yup.string()
+    .required('Please confirm your new password')
+    .oneOf([yup.ref('newPassword')], 'Passwords must match'),
+});
+
+const twoFactorCodeSchema = yup.object().shape({
+  code: yup.string().required('Code is required').matches(/^\d{6}$/, 'Code must be 6 digits')
+});
+
+const twoFactorDisableSchema = yup.object().shape({
+  code: yup.string().required('Code is required')
+});
+
+const emailResendSchema = yup.object().shape({
+  email: yup.string().email('Invalid email format').required('Email is required')
+});
+
+type ChangePasswordFormData = yup.InferType<typeof changePasswordSchema>;
+type TwoFactorFormData = yup.InferType<typeof twoFactorCodeSchema>;
+type TwoFactorDisableFormData = yup.InferType<typeof twoFactorDisableSchema>;
+type EmailResendFormData = yup.InferType<typeof emailResendSchema>;
 
 function SecuritySettings() {
   const dispatch = useDispatch<AppDispatch>();
   const { confirm } = usePopup();
   const { user, refreshToken } = useSelector((s: RootState) => s.auth);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [email, setEmail] = useState(user?.email || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const [twofaSetup, setTwofaSetup] = useState<{ qrDataUrl: string; backupCodes: string[] } | null>(null);
-  const [twofaCode, setTwofaCode] = useState('');
-  const [twofaDisableCode, setTwofaDisableCode] = useState('');
 
-  const onChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const pwdForm = useForm<ChangePasswordFormData>({
+    resolver: yupResolver(changePasswordSchema),
+    defaultValues: { currentPassword: '', newPassword: '', confirmNewPassword: '' }
+  });
+
+  const emailForm = useForm<EmailResendFormData>({
+    resolver: yupResolver(emailResendSchema),
+    defaultValues: { email: user?.email || '' }
+  });
+
+  const enable2faForm = useForm<TwoFactorFormData>({
+    resolver: yupResolver(twoFactorCodeSchema),
+    defaultValues: { code: '' }
+  });
+
+  const disable2faForm = useForm<TwoFactorDisableFormData>({
+    resolver: yupResolver(twoFactorDisableSchema),
+    defaultValues: { code: '' }
+  });
+
+  const onChangePassword = async (data: ChangePasswordFormData) => {
     setError('');
     setSuccess('');
     setLoading(true);
     try {
-      await usersApi.changePassword({ currentPassword, newPassword });
-      setCurrentPassword('');
-      setNewPassword('');
-      setSuccess('Password changed.');
+      await usersApi.changePassword({ currentPassword: data.currentPassword, newPassword: data.newPassword });
+      pwdForm.reset();
+      setSuccess('Password changed successfully.');
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || 'Error');
     } finally {
@@ -38,12 +85,12 @@ function SecuritySettings() {
     }
   };
 
-  const onResendVerification = async () => {
+  const onResendVerification = async (data: EmailResendFormData) => {
     setError('');
     setSuccess('');
     setLoading(true);
     try {
-      await authApi.resendVerification(email || user?.email || '');
+      await authApi.resendVerification(data.email);
       setSuccess('Verification email sent (if the account exists).');
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || 'Error');
@@ -84,16 +131,15 @@ function SecuritySettings() {
     }
   };
 
-  const onEnable2fa = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onEnable2fa = async (data: TwoFactorFormData) => {
     setError('');
     setSuccess('');
     setLoading(true);
     try {
-      await authApi.twofaEnable(twofaCode);
+      await authApi.twofaEnable(data.code);
       setSuccess('2FA enabled.');
       setTwofaSetup(null);
-      setTwofaCode('');
+      enable2faForm.reset();
       await dispatch(fetchMe());
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || 'Error');
@@ -102,15 +148,14 @@ function SecuritySettings() {
     }
   };
 
-  const onDisable2fa = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onDisable2fa = async (data: TwoFactorDisableFormData) => {
     setError('');
     setSuccess('');
     setLoading(true);
     try {
-      await authApi.twofaDisable(twofaDisableCode);
+      await authApi.twofaDisable(data.code);
       setSuccess('2FA disabled.');
-      setTwofaDisableCode('');
+      disable2faForm.reset();
       setTwofaSetup(null);
       await dispatch(fetchMe());
     } catch (err: any) {
@@ -136,39 +181,52 @@ function SecuritySettings() {
           <p className="text-gray-700 dark:text-gray-300 mb-4">
             Status: {user?.emailVerifiedAt ? 'Verified' : 'Not verified'}
           </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              className="flex-1"
-            />
-            <Button onClick={onResendVerification} disabled={loading} loading={loading}>
-              Resend
-            </Button>
-            <Button variant="secondary" onClick={() => dispatch(fetchMe())}>
-              Refresh
-            </Button>
-          </div>
+          <form onSubmit={emailForm.handleSubmit(onResendVerification)} className="flex flex-col sm:flex-row gap-3 items-start">
+            <div className="flex-1 w-full">
+              <Input
+                {...emailForm.register('email')}
+                placeholder="Email"
+                className="w-full"
+              />
+              {emailForm.formState.errors.email && <p className="text-red-500 text-sm mt-1">{emailForm.formState.errors.email.message}</p>}
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button type="submit" disabled={loading} loading={loading} className="whitespace-nowrap">
+                Resend
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => dispatch(fetchMe())} className="whitespace-nowrap">
+                Refresh
+              </Button>
+            </div>
+          </form>
         </Card>
 
         <Card title="Change password">
-          <form onSubmit={onChangePassword} className="space-y-4">
-            <Input
-              label="Current password"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-            />
-            <Input
-              label="New password"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={8}
-            />
+          <form onSubmit={pwdForm.handleSubmit(onChangePassword)} className="space-y-4">
+            <div>
+              <Input
+                label="Current password"
+                type="password"
+                {...pwdForm.register('currentPassword')}
+              />
+              {pwdForm.formState.errors.currentPassword && <p className="text-red-500 text-sm mt-1">{pwdForm.formState.errors.currentPassword.message}</p>}
+            </div>
+            <div>
+              <Input
+                label="New password"
+                type="password"
+                {...pwdForm.register('newPassword')}
+              />
+              {pwdForm.formState.errors.newPassword && <p className="text-red-500 text-sm mt-1">{pwdForm.formState.errors.newPassword.message}</p>}
+            </div>
+            <div>
+              <Input
+                label="Confirm new password"
+                type="password"
+                {...pwdForm.register('confirmNewPassword')}
+              />
+              {pwdForm.formState.errors.confirmNewPassword && <p className="text-red-500 text-sm mt-1">{pwdForm.formState.errors.confirmNewPassword.message}</p>}
+            </div>
             <Button type="submit" disabled={loading} loading={loading}>
               Update
             </Button>
@@ -203,14 +261,15 @@ function SecuritySettings() {
                   ))}
                 </div>
               </div>
-              <form onSubmit={onEnable2fa} className="space-y-3">
-                <Input
-                  label="Code 2FA"
-                  type="text"
-                  value={twofaCode}
-                  onChange={(e) => setTwofaCode(e.target.value)}
-                  required
-                />
+              <form onSubmit={enable2faForm.handleSubmit(onEnable2fa)} className="space-y-3">
+                <div>
+                  <Input
+                    label="Code 2FA"
+                    type="text"
+                    {...enable2faForm.register('code')}
+                  />
+                  {enable2faForm.formState.errors.code && <p className="text-red-500 text-sm mt-1">{enable2faForm.formState.errors.code.message}</p>}
+                </div>
                 <Button type="submit" disabled={loading} loading={loading}>
                   Enable 2FA
                 </Button>
@@ -219,17 +278,18 @@ function SecuritySettings() {
           )}
 
           {user?.twoFactorEnabled && (
-            <form onSubmit={onDisable2fa} className="space-y-3">
+            <form onSubmit={disable2faForm.handleSubmit(onDisable2fa)} className="space-y-3">
               <p className="text-gray-700 dark:text-gray-300">
                 To disable 2FA, enter a valid code (TOTP or backup code).
               </p>
-              <Input
-                label="Code 2FA"
-                type="text"
-                value={twofaDisableCode}
-                onChange={(e) => setTwofaDisableCode(e.target.value)}
-                required
-              />
+              <div>
+                <Input
+                  label="Code 2FA"
+                  type="text"
+                  {...disable2faForm.register('code')}
+                />
+                {disable2faForm.formState.errors.code && <p className="text-red-500 text-sm mt-1">{disable2faForm.formState.errors.code.message}</p>}
+              </div>
               <Button type="submit" variant="danger" disabled={loading} loading={loading}>
                 Disable 2FA
               </Button>
