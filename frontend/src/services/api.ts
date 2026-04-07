@@ -72,6 +72,16 @@ export const battleApi = {
     }>('/battle/pending'),
   joinQueueHttp: (body?: { mode?: '1v1' | '2v2' | '3v3' | '4v4' | '5v5' }) =>
     apiClient.post<{ queued: boolean; battleId?: string; challengeId?: string }>('/battle/queue', body ?? {}),
+  cancelQueueHttp: () => apiClient.post<{ ok: true }>('/battle/queue/cancel', {}),
+  joinBattleHttp: (id: string) =>
+    apiClient.post<{
+      battleId: string;
+      status: string;
+      challengeId: string;
+      durationSeconds: number;
+      startedAt: string | null;
+      endsAt: string | null;
+    }>(`/battle/${id}/join`),
   getSummary: (id: string) => apiClient.get(`/battle/${id}/summary`),
 };
 

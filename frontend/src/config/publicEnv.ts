@@ -29,11 +29,11 @@ export function getPublicApiUrl(): string {
 }
 
 /**
- * For Socket.IO: `undefined` = same origin as page (dev + `/socket.io` proxy).
- * Otherwise explicit backend URL.
+ * For Socket.IO we always prefer an explicit backend origin in dev.
+ * This avoids noisy Vite ws-proxy ECONNABORTED logs when sockets reconnect/disconnect rapidly.
  */
 export function getSocketIoServerUrl(): string | undefined {
   const explicit = trimmedApiEnv();
-  if (import.meta.env.DEV && !explicit) return undefined;
+  if (import.meta.env.DEV && !explicit) return 'http://127.0.0.1:3000';
   return getHttpApiBaseUrl();
 }

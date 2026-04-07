@@ -1,7 +1,6 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, lazy, Suspense } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import Editor from '@monaco-editor/react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -26,12 +25,18 @@ import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
 import { SubmissionSuccessModal } from '../../components/Gamification/SubmissionSuccessModal';
 import { useChallengeDetailStore } from '../../stores/challengeDetailStore';
 import { useGamificationStore, type RankProgress } from '../../stores/gamificationStore';
-import CommunitySolutions from './CommunitySolutions';
 import { SiteRatingWidget } from '../Home/SiteRatingWidget';
 import { RootState } from '../../store/store';
-import { CollaborationChat } from '../../shared/components/CollaborationChat';
-import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
 import { Modal } from '../../shared/components';
+
+const CommunitySolutions = lazy(() => import('./CommunitySolutions'));
+const MonacoEditor = lazy(() => import('@monaco-editor/react'));
+const CollaborationChat = lazy(() =>
+  import('../../shared/components/CollaborationChat').then((m) => ({ default: m.CollaborationChat })),
+);
+const AiCodeFeedbackPanel = lazy(() =>
+  import('../../shared/components/AiCodeFeedbackPanel').then((m) => ({ default: m.AiCodeFeedbackPanel })),
+);
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -851,35 +856,41 @@ aria-selected={activeTab === 'coach'}
 
               {activeTab === 'solutions' && (
                 <div className="h-full min-h-0">
-                  <CommunitySolutions challengeId={id!} />
+                  <Suspense fallback={<p className="text-sm text-slate-500 dark:text-[#8b949e]">Loading solutions…</p>}>
+                    <CommunitySolutions challengeId={id!} />
+                  </Suspense>
                 </div>
               )}
 
               {activeTab === 'chat' && isAuthed && id && (
-                <CollaborationChat
-                  room={`challenge:${id}`}
-                  title="Challenge chat"
-                  className="h-[min(420px,calc(100vh-12rem))]"
-                  enabled
-                />
+                <Suspense fallback={<p className="text-sm text-slate-500 dark:text-[#8b949e]">Loading chat…</p>}>
+                  <CollaborationChat
+                    room={`challenge:${id}`}
+                    title="Challenge chat"
+                    className="h-[min(420px,calc(100vh-12rem))]"
+                    enabled
+                  />
+                </Suspense>
               )}
 
               {activeTab === 'coach' && isAuthed && challenge && (
-                <AiCodeFeedbackPanel
-                  code={code}
-                  language={selectedLang}
-                  taskDescription={`${challenge.title}\n\n${(challenge.description || '').slice(0, 12_000)}`}
-                  testsPassed={displayResult?.status === 'accepted'}
-                  executionError={
-                    submitError ??
-                    (() => {
-                      const f = displayResult?.testResults?.find((t) => !t.passed);
-                      return f?.error ?? f?.message;
-                    })() ??
-                    undefined
-                  }
-                  runtimeMs={displayResult?.executionTimeMs ?? runResult?.executionTimeMs}
-                />
+                <Suspense fallback={<p className="text-sm text-slate-500 dark:text-[#8b949e]">Loading AI coach…</p>}>
+                  <AiCodeFeedbackPanel
+                    code={code}
+                    language={selectedLang}
+                    taskDescription={`${challenge.title}\n\n${(challenge.description || '').slice(0, 12_000)}`}
+                    testsPassed={displayResult?.status === 'accepted'}
+                    executionError={
+                      submitError ??
+                      (() => {
+                        const f = displayResult?.testResults?.find((t) => !t.passed);
+                        return f?.error ?? f?.message;
+                      })() ??
+                      undefined
+                    }
+                    runtimeMs={displayResult?.executionTimeMs ?? runResult?.executionTimeMs}
+                  />
+                </Suspense>
               )}
             </div>
           </div>
@@ -963,25 +974,27 @@ aria-selected={activeTab === 'coach'}
                   </div>
                 </div>
                 <div className="flex-1 min-h-0 relative">
-                  <Editor
-                    key={selectedLang}
-                    height="100%"
-                    onMount={handleEditorDidMount}
-                    language={MONACO_LANG[selectedLang] || 'javascript'}
-                    value={code}
-                    onChange={(val) => setCode(val ?? '')}
-                    theme={editorTheme}
-                    options={{
-                      fontSize: 14,
-                      minimap: { enabled: false },
-                      scrollBeyondLastLine: false,
-                      accessibilitySupport: 'on',
-                      tabSize: 2,
-                      wordWrap: 'on',
-                      automaticLayout: true,
-                      padding: { top: 16 },
-                    }}
-                  />
+                  <Suspense fallback={<div className="p-4 text-sm text-slate-500 dark:text-[#8b949e]">Loading editor…</div>}>
+                    <MonacoEditor
+                      key={selectedLang}
+                      height="100%"
+                      onMount={handleEditorDidMount}
+                      language={MONACO_LANG[selectedLang] || 'javascript'}
+                      value={code}
+                      onChange={(val) => setCode(val ?? '')}
+                      theme={editorTheme}
+                      options={{
+                        fontSize: 14,
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        accessibilitySupport: 'on',
+                        tabSize: 2,
+                        wordWrap: 'on',
+                        automaticLayout: true,
+                        padding: { top: 16 },
+                      }}
+                    />
+                  </Suspense>
                   <div id="vim-status-node" className={`flex h-6 items-center bg-primary-600 px-2 font-mono text-xs text-white ${isVimMode ? '' : 'hidden'}`} />
                 </div>
               </div>

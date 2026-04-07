@@ -95,25 +95,35 @@ export type BattleTimerTickPayload = {
   serverTime: string;
 };
 
+export type BattleSocketConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'error';
+
+type SubmitCodeAck =
+  | { ok: true; passed: boolean; executionTimeMs: number; overall: { passed: number; total: number } }
+  | { ok: false; error?: string };
+
 export function useBattleSocket(enabled: boolean) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState<BattleSocketConnectionState>('idle');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!enabled) {
       setSocket(null);
       setConnected(false);
+      setConnectionState('idle');
       return;
     }
     const token = localStorage.getItem('token');
     if (!token) {
       setError('Authentication required');
       setSocket(null);
+      setConnectionState('error');
       return;
     }
 
     setError(null);
+    setConnectionState('connecting');
     const serverUrl = getSocketIoServerUrl();
     const s = serverUrl
       ? io(serverUrl, {
@@ -121,20 +131,35 @@ export function useBattleSocket(enabled: boolean) {
           transports: ['websocket', 'polling'],
           reconnectionAttempts: 20,
           reconnectionDelay: 600,
+          reconnectionDelayMax: 5000,
+          timeout: 8000,
         })
       : io({
           auth: { token },
           transports: ['websocket', 'polling'],
           reconnectionAttempts: 20,
           reconnectionDelay: 600,
+          reconnectionDelayMax: 5000,
+          timeout: 8000,
         });
 
     setSocket(s);
 
-    s.on('connect', () => setConnected(true));
-    s.on('disconnect', () => setConnected(false));
+    s.on('connect', () => {
+      setConnected(true);
+      setConnectionState('connected');
+      setError(null);
+    });
+    s.on('disconnect', () => {
+      setConnected(false);
+      setConnectionState('reconnecting');
+    });
+    s.on('reconnect_attempt', () => {
+      setConnectionState('reconnecting');
+    });
     s.on('connect_error', (err: Error) => {
       setError(err?.message || 'Connection failed');
+      setConnectionState('error');
     });
     s.on('error', (payload: { message?: string; code?: string }) => {
       if (payload?.message) {
@@ -148,6 +173,7 @@ export function useBattleSocket(enabled: boolean) {
       s.disconnect();
       setSocket(null);
       setConnected(false);
+      setConnectionState('idle');
     };
   }, [enabled]);
 
@@ -177,11 +203,8 @@ export function useBattleSocket(enabled: boolean) {
   const submitCode = useCallback(
     (battleId: string, code: string, language: string) => {
       if (!socket?.connected) return Promise.resolve({ ok: false as const, error: 'Not connected' });
-      return new Promise<
-        | { ok: true; passed: boolean; executionTimeMs: number; overall: { passed: number; total: number } }
-        | { ok: false; error: string }
-      >((resolve) => {
-        socket.emit('submit_code', { battleId, code, language }, (ack: any) => {
+      return new Promise<SubmitCodeAck>((resolve) => {
+        socket.emit('submit_code', { battleId, code, language }, (ack: SubmitCodeAck | undefined) => {
           if (ack?.ok) resolve(ack);
           else resolve({ ok: false, error: ack?.error || 'Submit failed' });
         });
@@ -200,6 +223,7 @@ export function useBattleSocket(enabled: boolean) {
   return {
     socket,
     connected,
+    connectionState,
     error,
     joinQueue,
     leaveQueue,

@@ -14,6 +14,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { SiteRatingsModule } from './site-ratings/site-ratings.module';
 import { ChatModule } from './chat/chat.module';
 import { BattleModule } from './battle/battle.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { BattleModule } from './battle/battle.module';
     CompetitionsModule,
     LeaderboardModule,
     SiteRatingsModule,
+    FeedbackModule,
     ChatModule,
     BattleModule,
   ],

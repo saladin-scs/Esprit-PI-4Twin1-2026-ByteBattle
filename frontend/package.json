@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "test:ci": "echo \"No frontend unit tests yet\"",
     "audit:ci": "npm audit --audit-level=high"
   },
@@ -16,6 +18,9 @@
     "@icons-pack/react-simple-icons": "^13.11.1",
     "@monaco-editor/react": "^4.7.0",
     "@nestjs/swagger": "^11.2.6",
+    "@radix-ui/react-progress": "^1.1.8",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@reduxjs/toolkit": "^2.11.2",
     "axios": "^1.13.3",
     "face-api.js": "^0.22.2",
@@ -46,6 +51,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/node": "^25.3.0",
     "@types/react": "^18.3.27",
     "@types/react-datepicker": "^6.2.0",

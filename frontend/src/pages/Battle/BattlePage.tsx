@@ -13,6 +13,7 @@ import {
 import { RootState } from '../../store/store';
 import { useBattleStore } from '../../stores/battleStore';
 import { BattleTimer } from './BattleTimer';
+import { battleApi } from '../../services/api';
 
 function isRivalSubmission(payload: BattleStartPayload | null, myId: string, otherUserId: string): boolean {
   if (!myId || !otherUserId) return false;
@@ -71,7 +72,9 @@ export default function BattlePage() {
     }
   }, [languages, lang]);
 
-  useEffect(() => reset, [reset]);
+  useEffect(() => {
+    reset();
+  }, [reset]);
 
   const playSubmitFeedback = useCallback(() => {
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
@@ -104,6 +107,10 @@ export default function BattlePage() {
     const applyStart = (p: BattleStartPayload) => {
       setStartPayload(p);
       setPhase('active');
+      setSubmitError(null);
+      setISubmitted(false);
+      setLastRunSummary(null);
+      setOpponentSubmitted(false);
       const langs = p.challenge.languages?.length ? p.challenge.languages : ['python'];
       const primary = langs[0];
       setLang(primary);
@@ -181,6 +188,46 @@ export default function BattlePage() {
     if (connected && battleId) void doJoin();
   }, [connected, battleId, doJoin]);
 
+  useEffect(() => {
+    if (!battleId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const pollSummary = async () => {
+      try {
+        const { data } = await battleApi.getSummary(battleId);
+        if (cancelled || !data) return;
+        const summary = data as BattleResultPayload & { status?: string; durationSeconds?: number };
+        if (summary.status === 'finished') {
+          setPhase('done');
+          setResultModal(summary);
+          navigate(`/battle/result/${battleId}`, { state: { result: summary } });
+          if (timer) clearInterval(timer);
+          timer = null;
+          return;
+        }
+        setPhase('waiting');
+      } catch {
+        /* ignore polling failures */
+      }
+    };
+
+    // Fallback join path: if socket is unavailable, still mark ready through HTTP.
+    if (!connected) {
+      void battleApi.joinBattleHttp(battleId).catch(() => undefined);
+      setPhase('waiting');
+      timer = setInterval(() => {
+        void pollSummary();
+      }, 3000);
+      void pollSummary();
+    }
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [battleId, connected, navigate, setPhase]);
+
   const handleSubmit = async () => {
     if (!battleId || iSubmitted || submitting || phase !== 'active') return;
     setSubmitting(true);
@@ -188,7 +235,7 @@ export default function BattlePage() {
     try {
       const out = await submitCode(battleId, code, lang);
       if (!out.ok) {
-        setSubmitError(out.error);
+        setSubmitError(out.error || 'Submit failed');
         return;
       }
       setISubmitted(true);
