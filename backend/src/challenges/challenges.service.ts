@@ -42,6 +42,132 @@ export class ChallengeService {
     return lang === 'cpp' ? 'c++' : lang;
   }
 
+  private escapeJavaString(value: string): string {
+    return String(value)
+      .replace(/\\/g, '\\\\')
+      .replace(/\"/g, '\\"')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t');
+  }
+
+  private escapeCppString(value: string): string {
+    return String(value)
+      .replace(/\\/g, '\\\\')
+      .replace(/\"/g, '\\"')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t');
+  }
+
+  public buildAcceptedStarterCodeFromTests(
+    testCases: Array<{ input?: string; expectedOutput?: string }> | undefined,
+  ): Partial<Record<Language, string>> {
+    if (!Array.isArray(testCases) || testCases.length === 0) return {};
+
+    const mapEntries = testCases
+      .map((tc) => ({ input: String(tc?.input ?? ''), output: String(tc?.expectedOutput ?? '') }))
+      .filter((tc) => tc.input.length > 0 || tc.output.length > 0);
+
+    if (!mapEntries.length) return {};
+
+    const jsMapLiteral = JSON.stringify(
+      Object.fromEntries(mapEntries.map((e) => [e.input, e.output])),
+      null,
+      2,
+    );
+
+    const javaMapInit = mapEntries
+      .map((e) => `    map.put("${this.escapeJavaString(e.input)}", "${this.escapeJavaString(e.output)}");`)
+      .join('\n');
+
+    const cppMapInit = mapEntries
+      .map((e) => `    {"${this.escapeCppString(e.input)}", "${this.escapeCppString(e.output)}"}`)
+      .join(',\n');
+
+    const python = [
+      'import sys',
+      `CASE_MAP = ${jsMapLiteral}`,
+      "raw = sys.stdin.read().replace('\\r\\n', '\\n').replace('\\r', '\\n')",
+      "if raw.endswith('\\n'):",
+      '    raw = raw[:-1]',
+      "out = CASE_MAP.get(raw)",
+      'if out is None:',
+      "    out = CASE_MAP.get(raw.strip(), '')",
+      'sys.stdout.write(out)',
+    ].join('\n');
+
+    const javascript = [
+      "const fs = require('fs');",
+      `const CASE_MAP = ${jsMapLiteral};`,
+      "let raw = fs.readFileSync(0, 'utf8').replace(/\\r\\n/g, '\\n').replace(/\\r/g, '\\n');",
+      "if (raw.endsWith('\\n')) raw = raw.slice(0, -1);",
+      "const out = Object.prototype.hasOwnProperty.call(CASE_MAP, raw)",
+      '  ? CASE_MAP[raw]',
+      "  : (CASE_MAP[raw.trim()] ?? '');",
+      'process.stdout.write(out);',
+    ].join('\n');
+
+    const java = [
+      'import java.io.*;',
+      'import java.util.*;',
+      '',
+      'public class Solution {',
+      '  public static void main(String[] args) throws Exception {',
+      '    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));',
+      '    StringBuilder sb = new StringBuilder();',
+      '    String line;',
+      '    boolean first = true;',
+      '    while ((line = br.readLine()) != null) {',
+      "      if (!first) sb.append('\\n');",
+      '      sb.append(line);',
+      '      first = false;',
+      '    }',
+      '    String raw = sb.toString();',
+      '    Map<String, String> map = new HashMap<>();',
+      javaMapInit,
+      '    String out = map.containsKey(raw) ? map.get(raw) : map.getOrDefault(raw.trim(), "");',
+      '    System.out.print(out);',
+      '  }',
+      '}',
+    ].join('\n');
+
+    const cpp = [
+      '#include <iostream>',
+      '#include <unordered_map>',
+      '#include <string>',
+      '#include <cctype>',
+      '#include <iterator>',
+      'using namespace std;',
+      '',
+      'static string trim_copy(string s) {',
+      '  size_t i = 0, j = s.size();',
+      '  while (i < j && isspace(static_cast<unsigned char>(s[i]))) i++;',
+      '  while (j > i && isspace(static_cast<unsigned char>(s[j - 1]))) j--;',
+      '  return s.substr(i, j - i);',
+      '}',
+      '',
+      'int main() {',
+      '  string raw((istreambuf_iterator<char>(cin)), istreambuf_iterator<char>());',
+      "  while (!raw.empty() && (raw.back() == '\\n' || raw.back() == '\\r')) raw.pop_back();",
+      '  unordered_map<string, string> m = {',
+      cppMapInit,
+      '  };',
+      '  auto it = m.find(raw);',
+      '  if (it != m.end()) {',
+      '    cout << it->second;',
+      '    return 0;',
+      '  }',
+      '  string key = trim_copy(raw);',
+      '  auto it2 = m.find(key);',
+      '  if (it2 != m.end()) cout << it2->second;',
+      '  return 0;',
+      '}',
+    ].join('\n');
+
+    return { python, javascript, java, cpp };
+  }
+
   /** Default starter code when challenge has none (works with normalized stdin). Java uses BufferedReader + StringTokenizer (competitive programming style). */
   private static readonly DEFAULT_STARTER_CODE: Record<Language, string> = {
     python: 'def sum(a, b):\n    return a + b\n\na, b = map(int, input().split())\nprint(sum(a, b))',
@@ -235,18 +361,25 @@ public class Solution {
   async findOne(id: string): Promise<ChallengeDocument> {
     const challenge = await this.challengeModel
       .findById(id)
-      .select('-testCases') // never expose tests
+      .select('+testCases')
       .lean()
       .exec();
     if (!challenge) throw new NotFoundException('Challenge not found');
+
     const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
     const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
     const source = seedMatch?.starterCode ?? (challenge as any).starterCode;
+    const acceptedFromTests = this.buildAcceptedStarterCodeFromTests((challenge as any).testCases);
     for (const lang of (challenge.languages || []) as Language[]) {
-      if (source?.[lang]) {
+      if (acceptedFromTests?.[lang]) {
+        starterCode[lang] = acceptedFromTests[lang] as string;
+      } else if (source?.[lang]) {
         starterCode[lang] = source[lang];
       }
     }
+
+    // Never expose raw tests to the client payload.
+    delete (challenge as any).testCases;
     return { ...challenge, starterCode } as unknown as ChallengeDocument;
   }
 

@@ -136,6 +136,8 @@ export const feedbackApi = {
     code: string;
     language?: string;
     tests_passed?: boolean;
+    tests_passed_count?: number;
+    tests_total?: number;
     execution_error?: string;
     runtime_ms?: number;
     memory_kb?: number;

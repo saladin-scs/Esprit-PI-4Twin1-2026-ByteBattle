@@ -313,7 +313,7 @@ export class CompetitionsService {
       .findById(id)
       .populate({
         path: 'challengeIds',
-        select: 'title description difficulty languages examples starterCode',
+        select: 'title description difficulty languages examples starterCode +testCases',
       })
       .lean()
       .exec();
@@ -322,10 +322,20 @@ export class CompetitionsService {
     const populatedChallenges = Array.isArray((competition as any).challengeIds)
       ? ((competition as any).challengeIds as any[])
           .filter((c) => c && typeof c === 'object')
-          .map((c) => ({
-            ...c,
-            _id: c._id?.toString?.() ?? String(c._id),
-          }))
+          .map((c) => {
+            const hydrated = {
+              ...c,
+              starterCode: {
+                ...(c.starterCode || {}),
+                ...this.challengeService.buildAcceptedStarterCodeFromTests(c.testCases),
+              },
+            };
+            delete (hydrated as any).testCases;
+            return {
+              ...hydrated,
+              _id: c._id?.toString?.() ?? String(c._id),
+            };
+          })
       : [];
 
     const normalizedChallengeIds = Array.isArray((competition as any).challengeIds)

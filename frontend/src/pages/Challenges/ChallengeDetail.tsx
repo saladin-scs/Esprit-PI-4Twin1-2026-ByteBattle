@@ -870,6 +870,8 @@ aria-selected={activeTab === 'coach'}
                   language={selectedLang}
                   taskDescription={`${challenge.title}\n\n${(challenge.description || '').slice(0, 12_000)}`}
                   testsPassed={displayResult?.status === 'accepted'}
+                  testsPassedCount={displayResult?.passedTests}
+                  testsTotal={displayResult?.totalTests}
                   executionError={
                     submitError ??
                     (() => {
