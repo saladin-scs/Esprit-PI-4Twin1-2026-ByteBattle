@@ -16,10 +16,11 @@ export function NotificationBell() {
     setLoading(true);
     try {
       const { data } = await notificationsApi.list({ page: 1, limit: 15 });
-      setItems(data.items);
-      setUnreadCount(data.unreadCount);
+      setItems(Array.isArray(data?.items) ? data.items : []);
+      setUnreadCount(typeof data?.unreadCount === 'number' ? data.unreadCount : 0);
     } catch {
       setItems([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }

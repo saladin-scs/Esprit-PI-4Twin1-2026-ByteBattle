@@ -23,6 +23,8 @@ export interface FullProfile {
   _id: string;
   username: string;
   displayName?: string;
+  firstName?: string;
+  lastName?: string;
   bio?: string;
   country?: string;
   avatarUrl?: string;

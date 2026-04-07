@@ -122,6 +122,11 @@ function Leaderboard() {
     user && (u.username === (user as { username?: string }).username);
 
   const podium = page === 1 && !searchQuery.trim() ? items.slice(0, 3) : [];
+  const podiumSlots = [
+    { index: 1, place: 2, h: 'md:mt-8', icon: Medal, ring: 'from-slate-300 to-slate-400' },
+    { index: 0, place: 1, h: '', icon: Crown, ring: 'from-amber-400 to-yellow-500' },
+    { index: 2, place: 3, h: 'md:mt-10', icon: Medal, ring: 'from-amber-600 to-orange-700' },
+  ].filter((slot) => podium[slot.index]);
 
   const handleResetFilters = () => {
     setPage(1);
@@ -164,13 +169,12 @@ function Leaderboard() {
         )}
       </div>
 
-      {podium.length >= 3 && (
+      {podium.length >= 1 && (
         <div className="relative mb-10 grid grid-cols-3 gap-2 sm:gap-4 md:gap-6">
-          {[
-            { u: podium[1], place: 2, h: 'md:mt-8', icon: Medal, ring: 'from-slate-300 to-slate-400' },
-            { u: podium[0], place: 1, h: '', icon: Crown, ring: 'from-amber-400 to-yellow-500' },
-            { u: podium[2], place: 3, h: 'md:mt-10', icon: Medal, ring: 'from-amber-600 to-orange-700' },
-          ].map(({ u, place, h, icon: Icon, ring }, idx) => (
+          {podiumSlots.map(({ index, place, h, icon: Icon, ring }, idx) => {
+            const u = podium[index];
+            if (!u) return null;
+            return (
             <motion.div
               key={place}
               initial={{ opacity: 0, y: 20 }}
@@ -203,7 +207,8 @@ function Leaderboard() {
                 {u.xp?.toLocaleString() ?? 0} <span className="text-sm font-normal text-slate-500">XP</span>
               </p>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
       )}
 

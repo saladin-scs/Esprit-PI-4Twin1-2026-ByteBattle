@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiKeysApi, usersApi, type ApiKeyRow } from '../../services/api';
 import { Alert, Button, Card, Input, PageContainer, Spinner } from '../../shared/components';
-import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
 
 type CreatedKey = {
   id: string;
@@ -23,32 +20,17 @@ function downloadJson(filename: string, data: unknown) {
   URL.revokeObjectURL(url);
 }
 
-const createApiKeySchema = yup.object().shape({
-  name: yup.string()
-    .required('Key name is required')
-    .min(1, 'Key name cannot be empty')
-    .max(50, 'Key name cannot exceed 50 characters')
-});
-
-type CreateApiKeyFormData = yup.InferType<typeof createApiKeySchema>;
-
 export default function DeveloperSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [name, setName] = useState('My integration key');
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [created, setCreated] = useState<CreatedKey | null>(null);
 
   const hasKeys = useMemo(() => keys.length > 0, [keys.length]);
-
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateApiKeyFormData>({
-    resolver: yupResolver(createApiKeySchema),
-    defaultValues: {
-      name: 'My integration key'
-    }
-  });
 
   const loadKeys = async () => {
     setLoading(true);
@@ -67,16 +49,16 @@ export default function DeveloperSettings() {
     void loadKeys();
   }, []);
 
-  const onCreate = async (data: CreateApiKeyFormData) => {
+  const onCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
     setSaving(true);
     setError('');
     setSuccess('');
     setCreated(null);
     try {
-      const res = await apiKeysApi.create(data.name.trim() || 'My integration key');
+      const res = await apiKeysApi.create(name.trim() || 'My integration key');
       setCreated(res.data);
       setSuccess('API key created. Save the secret now; it will not be shown again.');
-      reset();
       await loadKeys();
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || 'Unable to create API key.');
@@ -136,20 +118,17 @@ export default function DeveloperSettings() {
 
       <div className="space-y-6">
         <Card title="API keys">
-          <form onSubmit={handleSubmit(onCreate)} className="mb-4">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="flex-1 w-full flex flex-col items-start">
-                <Input
-                  {...register('name')}
-                  placeholder="My integration key"
-                  className="w-full flex-1"
-                />
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
-              </div>
-              <Button type="submit" disabled={saving} loading={saving}>
-                Create key
-              </Button>
-            </div>
+          <form onSubmit={onCreate} className="mb-4 flex flex-col gap-3 sm:flex-row">
+            <Input
+              label="Key name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My integration key"
+              className="flex-1"
+            />
+            <Button type="submit" disabled={saving} loading={saving} className="sm:mt-6">
+              Create key
+            </Button>
           </form>
 
           {created && (

@@ -30,15 +30,13 @@ export default function CompetitionDetail() {
   const [leaderboardLang, setLeaderboardLang] = useState('');
   const [leaderboardLimit, setLeaderboardLimit] = useState(25);
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
-  const hasToken = !!localStorage.getItem('token');
-  const canUseProtectedActions = isAuthed && hasToken;
 
   const {
     competition,
     challenge,
     challenges,
-    selectedChallengeId,
-    setSelectedChallengeId,
+    activeChallengeId,
+    setActiveChallengeId,
     loading,
     error,
     selectedLang,
@@ -72,15 +70,6 @@ export default function CompetitionDetail() {
   }, [submitError]);
 
   const handleBack = () => navigate('/competitions');
-
-  const handleSubmit = () => {
-    if (!canUseProtectedActions) {
-      toast.error('Please sign in to submit your solution.');
-      navigate('/login');
-      return;
-    }
-    submit();
-  };
 
   if (loading || !id) {
     return (
@@ -165,23 +154,18 @@ export default function CompetitionDetail() {
                   title={challenge.title}
                 >
                   {challenges.length > 1 && (
-                    <div className="mb-3">
-                      <label
-                        htmlFor="statement-challenge"
-                        className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300"
-                      >
-                        Challenge in this competition
+                    <div className="mb-4">
+                      <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">
+                        Competition challenge
                       </label>
                       <select
-                        id="statement-challenge"
-                        value={selectedChallengeId || challenge._id}
-                        onChange={(e) => setSelectedChallengeId(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-                        aria-label="Select challenge in statement"
+                        value={activeChallengeId ?? challenge._id}
+                        onChange={(e) => setActiveChallengeId(e.target.value)}
+                        className="w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                       >
-                        {challenges.map((c) => (
-                          <option key={c._id} value={c._id}>
-                            {c.title}
+                        {challenges.map((ch) => (
+                          <option key={ch._id} value={ch._id}>
+                            {ch.title}
                           </option>
                         ))}
                       </select>
@@ -225,20 +209,17 @@ export default function CompetitionDetail() {
             <SubmissionPanel
               competition={competition}
               challenge={challenge}
-              challenges={challenges}
-              selectedChallengeId={selectedChallengeId}
-              onChallengeChange={setSelectedChallengeId}
               code={code}
               onCodeChange={setCode}
               selectedLang={selectedLang}
               onLanguageChange={setSelectedLang}
-              onSubmit={handleSubmit}
+              onSubmit={submit}
               submitting={submitting}
               result={submitResult}
               error={submitError}
               theme={theme === 'dark' ? 'dark' : 'light'}
             />
-            {canUseProtectedActions && challenge && (
+            {isAuthed && challenge && (
               <div className="mt-4">
                 <AiCodeFeedbackPanel
                   code={code}
@@ -248,11 +229,6 @@ export default function CompetitionDetail() {
                   executionError={submitError ?? undefined}
                   runtimeMs={submitResult?.executionTimeMs}
                 />
-              </div>
-            )}
-            {!canUseProtectedActions && (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-                Sign in to use AI coach and submit solutions.
               </div>
             )}
           </motion.div>
@@ -266,7 +242,7 @@ export default function CompetitionDetail() {
         >
           <LeaderboardTable
             entries={leaderboardEntries}
-            type={competition.type}
+            type={competition.type as any}
             loading={leaderboardLoading}
             languageFilter={leaderboardLang}
             onLanguageFilterChange={setLeaderboardLang}
@@ -274,7 +250,7 @@ export default function CompetitionDetail() {
             onLimitChange={setLeaderboardLimit}
             supportedLanguages={competition.supportedLanguages ?? []}
           />
-          {canUseProtectedActions && (
+          {isAuthed && (
             <div className="mt-6">
               <p className="mb-2 flex items-center gap-2 text-xs font-medium text-emerald-800 dark:text-emerald-200">
                 <MessageCircle className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />

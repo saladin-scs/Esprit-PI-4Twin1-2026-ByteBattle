@@ -20,6 +20,8 @@ import { GamificationService } from '../gamification/gamification.service';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
+const RECO_DIFF_ORD: Record<string, number> = { easy: 0, medium: 1, hard: 2, expert: 3 };
+
 @Injectable()
 export class ChallengeService {
   constructor(
@@ -210,6 +212,20 @@ public class Solution {
       .exec();
     if (!challenge) throw new NotFoundException('Challenge not found');
     return challenge;
+  }
+
+  /** Random published challenge for 1v1 battles (no hidden tests in return). */
+  async pickRandomPublishedChallengeForBattle(): Promise<{ _id: Types.ObjectId; title: string } | null> {
+    const rows = await this.challengeModel
+      .aggregate<{ _id: Types.ObjectId; title: string }>([
+        { $match: { isPublished: true } },
+        { $sample: { size: 1 } },
+        { $project: { title: 1 } },
+      ])
+      .exec();
+    if (!rows.length) return null;
+    const r = rows[0];
+    return { _id: r._id, title: r.title };
   }
 
   // Challenge details
@@ -549,79 +565,115 @@ public class Solution {
     return updated;
   }
 
-  /** Simple recommendations: unsolved challenges, weighted by recent accepted tags/difficulty. */
+  private preferredDifficulty(user: {
+    problemsByDifficulty?: { easy?: number; medium?: number; hard?: number; expert?: number };
+  } | null): string {
+    if (!user?.problemsByDifficulty) return 'medium';
+    const p = user.problemsByDifficulty;
+    const scores: [string, number][] = [
+      ['easy', p.easy || 0],
+      ['medium', p.medium || 0],
+      ['hard', p.hard || 0],
+      ['expert', p.expert || 0],
+    ];
+    scores.sort((a, b) => b[1] - a[1]);
+    return scores[0][1] > 0 ? scores[0][0] : 'medium';
+  }
+
+  private tagOverlapScore(challengeTags: string[], tagWeights: Map<string, number>): number {
+    if (!challengeTags.length || !tagWeights.size) return 0;
+    let s = 0;
+    let w = 0;
+    for (const t of challengeTags) {
+      const wt = tagWeights.get(t);
+      if (wt) {
+        s += wt;
+        w += wt;
+      }
+    }
+    return w > 0 ? s / Math.sqrt(challengeTags.length * w) : 0;
+  }
+
+  private skillMatchScore(difficulty: string, preferred: string): number {
+    const a = RECO_DIFF_ORD[difficulty] ?? 1;
+    const b = RECO_DIFF_ORD[preferred] ?? 1;
+    const dist = Math.abs(a - b);
+    return Math.max(0, 1 - dist * 0.35);
+  }
+
+  /** Heuristic picks from recent activity (tags, difficulty, popularity) — no external ML. */
   async recommendForUser(userId: string, limit = 12) {
     const lim = Math.min(24, Math.max(1, limit));
     const oid = new Types.ObjectId(userId);
-    const solved = await this.submissionModel.distinct('challengeId', { userId: oid, status: 'accepted' });
-    const solvedSet = new Set(solved.map((id) => String(id)));
-    const nin = [...solvedSet].filter((id) => Types.ObjectId.isValid(id)).map((id) => new Types.ObjectId(id));
+    const [userDoc, solvedIds, recentSubs, publishedChallenges] = await Promise.all([
+      this.usersService.findOne(userId),
+      this.submissionModel.distinct('challengeId', { userId: oid, status: 'accepted' }),
+      this.submissionModel
+        .find({ userId: oid })
+        .sort({ createdAt: -1 })
+        .limit(40)
+        .populate({ path: 'challengeId', select: 'difficulty tags title' })
+        .lean()
+        .exec(),
+      this.challengeModel
+        .find({ isPublished: true })
+        .select('-testCases')
+        .lean()
+        .exec(),
+    ]);
 
-    const baseFilter: Record<string, unknown> = { isPublished: true };
-    if (nin.length) baseFilter._id = { $nin: nin };
-
-    const recentSubs = await this.submissionModel
-      .find({ userId: oid, status: 'accepted' })
-      .sort({ createdAt: -1 })
-      .limit(8)
-      .populate({ path: 'challengeId', select: 'difficulty tags' })
-      .lean()
-      .exec();
-
+    const solvedSet = new Set(solvedIds.map((id) => String(id)));
     const tagWeights = new Map<string, number>();
-    const diffWeights = new Map<string, number>();
-    for (const s of recentSubs) {
-      const ch = s.challengeId as { difficulty?: string; tags?: string[] } | null;
-      if (!ch) continue;
-      if (ch.difficulty) diffWeights.set(ch.difficulty, (diffWeights.get(ch.difficulty) || 0) + 1);
-      for (const t of ch.tags || []) tagWeights.set(t, (tagWeights.get(t) || 0) + 1);
-    }
-    const topTags = [...tagWeights.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t).slice(0, 6);
-    let preferredDiffs = [...diffWeights.entries()].sort((a, b) => b[1] - a[1]).map(([d]) => d);
-    if (!preferredDiffs.length) preferredDiffs = ['easy', 'medium', 'hard', 'expert'];
-
-    let list: any[] = [];
-    if (topTags.length) {
-      list = await this.challengeModel
-        .find({
-          ...baseFilter,
-          tags: { $in: topTags },
-          difficulty: { $in: preferredDiffs },
-        })
-        .select('-testCases')
-        .sort({ createdAt: -1 })
-        .limit(lim)
-        .lean()
-        .exec();
-    }
-    if (list.length < lim) {
-      const more = await this.challengeModel
-        .find(baseFilter)
-        .select('-testCases')
-        .sort({ createdAt: -1 })
-        .limit(lim * 2)
-        .lean()
-        .exec();
-      const seen = new Set(list.map((c) => String(c._id)));
-      for (const c of more) {
-        if (list.length >= lim) break;
-        const id = String(c._id);
-        if (!seen.has(id)) {
-          seen.add(id);
-          list.push(c);
-        }
-      }
-    }
-
-    return {
-      challenges: list.slice(0, lim).map((c: any) => ({
-        id: String(c._id),
-        title: c.title,
-        difficulty: c.difficulty,
-        tags: c.tags || [],
-        xpReward: c.xpReward,
-        languages: c.languages,
-      })),
+    const statusWeights: Record<string, number> = {
+      accepted: 1,
+      wrong_answer: 0.35,
+      runtime_error: 0.2,
+      time_limit: 0.2,
+      pending: 0.1,
     };
+    for (const s of recentSubs) {
+      const st = statusWeights[s.status] ?? 0.15;
+      const ch = s.challengeId as { difficulty?: string; tags?: string[] } | null;
+      if (!ch?.tags) continue;
+      for (const t of ch.tags) tagWeights.set(t, (tagWeights.get(t) || 0) + st);
+    }
+
+    const preferredDiff = this.preferredDifficulty(userDoc);
+    const prefLang = userDoc?.preferences?.preferredLanguage as string | undefined;
+
+    type Scored = { score: number; c: (typeof publishedChallenges)[0] };
+    const ranked: Scored[] = [];
+    for (const c of publishedChallenges) {
+      const id = String(c._id);
+      if (solvedSet.has(id)) continue;
+
+      const wTag = 0.45;
+      const wSkill = 0.35;
+      const wPop = 0.15;
+      const wLang = 0.05;
+
+      const tagPart = this.tagOverlapScore(c.tags || [], tagWeights);
+      const skillPart = this.skillMatchScore(c.difficulty, preferredDiff);
+      const pop = Math.log1p((c as { totalAccepted?: number }).totalAccepted || 0);
+      const popN = Math.min(1, pop / 6);
+      let score = wTag * tagPart + wSkill * skillPart + wPop * popN;
+      if (prefLang && Array.isArray(c.languages) && c.languages.includes(prefLang as Language)) {
+        score += wLang;
+      }
+
+      ranked.push({ score, c });
+    }
+
+    ranked.sort((a, b) => b.score - a.score);
+    const challenges = ranked.slice(0, lim).map(({ c }) => ({
+      id: String(c._id),
+      title: c.title,
+      difficulty: c.difficulty,
+      tags: c.tags || [],
+      xpReward: c.xpReward,
+      languages: c.languages,
+    }));
+
+    return { challenges };
   }
 }

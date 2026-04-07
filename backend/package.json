@@ -20,6 +20,10 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed:challenges": "ts-node scripts/seed-challenges.run.ts",
     "seed:competitions": "ts-node -r tsconfig-paths/register scripts/seed-competitions.run.ts",
+    "extend:competitions": "ts-node -r tsconfig-paths/register scripts/extend-competitions.run.ts",
+    "seed:admin": "ts-node -r tsconfig-paths/register scripts/seed-admin.ts",
+    "seed:platform-demo": "ts-node -r tsconfig-paths/register scripts/seed-platform-demo.run.ts",
+    "make-admin": "ts-node -r tsconfig-paths/register scripts/make-admin.run.ts",
     "test:ci": "jest --ci --coverage --passWithNoTests",
     "audit:ci": "npm audit --audit-level=high"
   },
@@ -51,7 +55,6 @@
     "multer": "^2.1.1",
     "nest-winston": "^1.10.2",
     "nodemailer": "^8.0.3",
-    "openai": "^6.16.0",
     "otplib": "^12.0.1",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
@@ -108,7 +111,10 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        { "tsconfig": "<rootDir>/../tsconfig.spec.json" }
+      ]
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

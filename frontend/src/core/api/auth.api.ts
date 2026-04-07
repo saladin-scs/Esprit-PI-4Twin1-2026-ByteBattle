@@ -7,8 +7,18 @@ export const authApi = {
     apiClient.post('/auth/face-login', data),
   verify2faLogin: (data: { twoFactorToken: string; code: string; rememberMe?: boolean }) =>
     apiClient.post('/auth/2fa/verify-login', data),
-  register: (userData: { email: string; username: string; password: string }) =>
-    apiClient.post('/auth/register', userData),
+  register: (userData: {
+    email: string;
+    username: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    newsletter?: boolean;
+    referralSource?: string;
+    faceDescriptor?: number[];
+  }) => apiClient.post('/auth/register', userData),
   getProfile: () => apiClient.get('/auth/profile'),
   refresh: (refresh_token?: string) =>
     apiClient.post('/auth/refresh', refresh_token ? { refresh_token } : {}),

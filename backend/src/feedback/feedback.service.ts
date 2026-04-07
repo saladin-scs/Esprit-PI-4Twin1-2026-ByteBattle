@@ -3,7 +3,6 @@
 
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
-import { AiService } from '../ai/ai.service';
 
 interface FeedbackPoint {
   title: string;
@@ -38,45 +37,31 @@ export class FeedbackService {
     duration: 3600,
   });
 
-  constructor(private readonly aiService: AiService) {}
-
   /**
-   * Sends code to the Python AI service and returns structured analysis.
-   * @param request Code analysis request with code and optional context
-   * @returns FeedbackResponse object
+   * Code feedback is not available without an external analysis service.
    */
-  async getFeedback(request: CodeAnalysisRequest, userId: string): Promise<FeedbackResponse> {
+  async getFeedback(_request: CodeAnalysisRequest, userId: string): Promise<FeedbackResponse> {
     try {
       await this.userLimiter.consume(userId, 1);
     } catch {
       throw new HttpException(
-        'AI analysis limit reached for this hour. Please try again later.',
+        'Analysis limit reached for this hour. Please try again later.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    try {
-      return await this.aiService.analyzeCode(request as any);
-    } catch (error: any) {
-      this.logger.error(
-        'Error calling AI service:',
-        error?.message ?? error,
-      );
-
-      // Return a safe fallback response
-      return {
-        overall_score: 0,
-        summary: 'Error: unable to analyze code. Please try again later.',
-        points: [
-          {
-            title: 'Service unavailable',
-            description:
-              'The AI analysis service is currently unavailable. Please check your code manually.',
-            category: 'improvement',
-            severity: 'high',
-          },
-        ],
-      };
-    }
+    this.logger.debug('Feedback requested (analysis disabled)');
+    return {
+      overall_score: 0,
+      summary: 'Automated code analysis is not enabled on this deployment.',
+      points: [
+        {
+          title: 'Manual review',
+          description: 'Review your solution against the problem statement and run the provided tests.',
+          category: 'improvement',
+          severity: 'low',
+        },
+      ],
+    };
   }
 
   /**

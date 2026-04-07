@@ -11,6 +11,7 @@ import { ChatNavHint } from './ChatNavHint';
 const navLinks = [
   { to: '/explore', label: 'Explore', authOnly: false },
   { to: '/challenges', label: 'Challenges', authOnly: true },
+  { to: '/battle/matchmaking', label: '1v1 Battle', authOnly: true },
   { to: '/competitions', label: 'Competitions', authOnly: true },
   { to: '/leaderboard', label: 'Leaderboard', authOnly: true },
   { to: '/reclamation', label: 'Reports', authOnly: true },

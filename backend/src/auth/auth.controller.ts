@@ -37,13 +37,22 @@ export class AuthController {
   ) {}
 
   @Post('register')
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
+    const meta = {
+      ip: (req as any).ip || (req as any).connection?.remoteAddress,
+      userAgent: (req as any).headers?.['user-agent'],
+    };
+    return this.authService.register(registerDto, meta);
   }
 
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+    const meta = {
+      ip: (req as any).ip || (req as any).connection?.remoteAddress,
+      userAgent: (req as any).headers?.['user-agent'],
+      rememberMe: loginDto.rememberMe,
+    };
+    return this.authService.login(loginDto, meta);
   }
 
   @Post('face-login')

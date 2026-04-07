@@ -129,6 +129,16 @@ export class CodeExecutionService {
     return `${prelude}\n${userCode}`;
   }
 
+  /** Normalize Java entry class for Piston (file is Main.java). */
+  private wrapJavaForPiston(userCode: string): string {
+    const src = String(userCode || '');
+    if (/\bpublic\s+class\s+Main\b/.test(src)) return src;
+    if (/\bpublic\s+class\s+Solution\b/.test(src)) {
+      return src.replace(/\bpublic\s+class\s+Solution\b/, 'public class Main');
+    }
+    return src;
+  }
+
   private getPistonFileName(lang: string): string {
     switch (lang) {
       case 'python': return 'main.py';
@@ -302,13 +312,16 @@ export class CodeExecutionService {
         }
 
         const codeForPiston =
-          lang === 'javascript' ? this.wrapJavaScriptForPiston(code) : code;
+          lang === 'javascript'
+            ? this.wrapJavaScriptForPiston(code)
+            : lang === 'java'
+              ? this.wrapJavaForPiston(code)
+              : code;
         const payload = {
           language: lang,
           version: pistonVersion,
           files: [{ name: this.getPistonFileName(lang), content: codeForPiston }],
           stdin,
-          run_timeout: Math.min(this.requestTimeoutMs, 15000),
         };
 
         const apiKey = process.env.PISTON_API_KEY?.trim();
@@ -334,8 +347,9 @@ export class CodeExecutionService {
           e.pistonHttpStatus = response.status;
           throw e;
         }
+        const compileCode = response.data?.compile?.code;
         const compileErr = response.data?.compile?.stderr || response.data?.compile?.output;
-        if (compileErr && String(compileErr).trim()) {
+        if (compileCode !== undefined && compileCode !== null && compileCode !== 0) {
           throw new Error(`PISTON_COMPILE: ${String(compileErr).slice(0, 200)}`);
         }
 
@@ -384,6 +398,9 @@ export class CodeExecutionService {
         const pistonHttp = err?.pistonHttpStatus as number | undefined;
         if (pistonHttp === 401 || pistonHttp === 403 || pistonHttp === 429) {
           this.logger.warn(`Piston HTTP ${pistonHttp}: ${msg.slice(0, 200)}`);
+          if (this.canRunLanguageLocally(lang)) {
+            return this.runAllTestCasesLocally(code, lang, testCases);
+          }
           return this.allTestsFailed(testCases, msg);
         }
         const isPistonUnavailable =
@@ -406,7 +423,7 @@ export class CodeExecutionService {
           const hint =
             `Piston unavailable (${msg.slice(0, 240)}). ` +
             `Start an executor: from repository root run .\\scripts\\start-piston.ps1 (Docker), ` +
-            `then install runtimes (piston CLI: ppman install javascript python java c++). ` +
+            `then install runtimes (piston CLI: ppman install node python java gcc). ` +
             `Check PISTON_ENDPOINT in backend/.env (default http://127.0.0.1:2000/api/v2/execute). ` +
             `The public emkc.org API has been allowlist-only since 2026 - use a self-hosted instance or API key.`;
           return this.allTestsFailed(testCases, hint);
