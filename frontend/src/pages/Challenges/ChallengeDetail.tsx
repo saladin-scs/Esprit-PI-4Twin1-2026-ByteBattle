@@ -142,6 +142,7 @@ const ChallengeDetail = () => {
   const [isSolved, setIsSolved] = useState(false);
   const [submissionHistory, setSubmissionHistory] = useState<any[]>([]);
   const [showHistoryAfterAttempts, setShowHistoryAfterAttempts] = useState(false);
+  const [expandedHistoryItem, setExpandedHistoryItem] = useState<string | null>(null);
 
   const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
 
@@ -862,27 +863,53 @@ const ChallengeDetail = () => {
                     {showHistoryAfterAttempts && submissionHistory.length > 0 && (
                       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-[#30363d] dark:bg-[#0d1117]">
                         <div className="font-semibold text-slate-900 dark:text-slate-100 mb-3">📋 Historique des tentatives</div>
-                        <div className="space-y-2">
-                          {submissionHistory.slice(0, 5).map((sub, i) => (
-                            <div key={sub._id} className="flex items-center justify-between p-2 rounded bg-white dark:bg-[#161b22] border border-slate-200 dark:border-[#30363d]">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">#{i + 1}</span>
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                                  sub.status === 'accepted' 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                                }`}>
-                                  {sub.status === 'accepted' ? '✅ Accepté' : '❌ Échec'}
-                                </span>
-                                <span className="text-xs text-slate-600 dark:text-slate-400">
-                                  {new Date(sub.createdAt).toLocaleString()}
-                                </span>
+                        <div className="space-y-3">
+                          {submissionHistory.slice(0, 5).map((sub, i) => {
+                            const isExpanded = expandedHistoryItem === sub._id;
+                            return (
+                              <div key={sub._id} className="rounded-lg border border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#161b22] overflow-hidden">
+                                <div
+                                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#21262d]"
+                                  onClick={() => setExpandedHistoryItem(isExpanded ? null : sub._id)}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">#{i + 1}</span>
+                                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                                      sub.status === 'accepted'
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                    }`}>
+                                      {sub.status === 'accepted' ? '✅ Accepté' : '❌ Échec'}
+                                    </span>
+                                    <span className="text-xs text-slate-600 dark:text-slate-400">
+                                      {new Date(sub.createdAt).toLocaleString()}
+                                    </span>
+                                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                                      {sub.language}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                                      {sub.executionTimeMs}ms
+                                    </span>
+                                    <span className={`text-xs transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                                      ▼
+                                    </span>
+                                  </div>
+                                </div>
+                                {isExpanded && (
+                                  <div className="border-t border-slate-200 dark:border-[#30363d] p-3">
+                                    <div className="mb-2">
+                                      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Code soumis :</span>
+                                    </div>
+                                    <pre className="bg-slate-100 dark:bg-[#0d1117] p-3 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono text-slate-900 dark:text-slate-100 max-h-60 overflow-y-auto">
+                                      {sub.code}
+                                    </pre>
+                                  </div>
+                                )}
                               </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400">
-                                {sub.executionTimeMs}ms
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
