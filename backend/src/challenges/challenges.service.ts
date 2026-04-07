@@ -22,6 +22,29 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ChallengeService {
+  private withOfficialSolutionFallback(
+    source?: Partial<Record<Language, string>> | null,
+    fallback?: Partial<Record<Language, string>> | null,
+  ): Partial<Record<Language, string>> {
+    const next: Partial<Record<Language, string>> = {};
+    const sourceObj = source || {};
+    const fallbackObj = fallback || {};
+    const languages = new Set<Language>([
+      ...(Object.keys(fallbackObj) as Language[]),
+      ...(Object.keys(sourceObj) as Language[]),
+    ]);
+    for (const language of languages) {
+      const primary = sourceObj[language];
+      const backup = fallbackObj[language];
+      if (typeof primary === 'string' && primary.trim()) {
+        next[language] = primary;
+      } else if (typeof backup === 'string' && backup.trim()) {
+        next[language] = backup;
+      }
+    }
+    return next;
+  }
+
   constructor(
     @InjectModel(Challenge.name) private challengeModel: Model<ChallengeDocument>,
     @InjectModel(Submission.name) private submissionModel: Model<SubmissionDocument>,
@@ -65,6 +88,7 @@ public class Solution {
     if (!dto.xpReward) {
       dto.xpReward = this.XP_MAP[dto.difficulty] ?? 50;
     }
+    dto.officialSolution = this.withOfficialSolutionFallback(dto.officialSolution, dto.starterCode);
     return new this.challengeModel(dto).save();
   }
 
@@ -76,6 +100,13 @@ public class Solution {
       if (effectiveDifficulty) {
         payload.xpReward = this.XP_MAP[effectiveDifficulty] ?? 50;
       }
+    }
+
+    if (dto.officialSolution !== undefined || dto.starterCode !== undefined) {
+      payload.officialSolution = this.withOfficialSolutionFallback(
+        dto.officialSolution,
+        dto.starterCode,
+      );
     }
 
     const updated = await this.challengeModel
@@ -231,8 +262,35 @@ public class Solution {
     return { ...challenge, starterCode } as unknown as ChallengeDocument;
   }
 
+  async findOneAdmin(id: string): Promise<ChallengeDocument> {
+    const challenge = await this.challengeModel
+      .findById(id)
+      .select('+testCases +officialSolution')
+      .lean()
+      .exec();
+    if (!challenge) throw new NotFoundException('Challenge not found');
+
+    const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
+    const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
+    const starterSource = seedMatch?.starterCode ?? (challenge as any).starterCode;
+    for (const lang of ((challenge as any).languages || []) as Language[]) {
+      if (starterSource?.[lang]) {
+        starterCode[lang] = starterSource[lang];
+      }
+    }
+
+    return {
+      ...challenge,
+      starterCode,
+      officialSolution: this.withOfficialSolutionFallback(
+        (challenge as any).officialSolution,
+        starterCode,
+      ),
+    } as unknown as ChallengeDocument;
+  }
+
   // ─── Run (examples only) — single code-execution service (Piston + local fallback) ─
-  async run(challengeId: string, dto: SubmitChallengeDto) {
+  async run(challengeId: string, dto: SubmitChallengeDto, userId: string) {
     const challenge = await this.challengeModel.findById(challengeId).exec();
     if (!challenge) throw new NotFoundException('Challenge not found');
     if (!challenge.languages.includes(dto.language as any)) {
@@ -258,10 +316,25 @@ public class Solution {
       passed: r.passed,
       input: testCases[i]?.input,
       expectedOutput: testCases[i]?.expectedOutput,
-      actualOutput: r.passed ? undefined : (r.output ?? ''),
+      actualOutput: r.output ?? '', // always show output for Runs if present
       error: r.error,
       executionTimeMs: r.executionTime ?? 0,
     }));
+
+    /** The user requested that every "Run" or "Test" also be submitted/saved in history. */
+    await new this.submissionModel({
+      userId: new Types.ObjectId(userId),
+      challengeId: new Types.ObjectId(challengeId),
+      code: dto.code,
+      language: dto.language,
+      status: out.overall.passed === out.overall.total ? 'accepted' : 'wrong_answer',
+      testResults: results,
+      passedTests: out.overall.passed,
+      totalTests: out.overall.total,
+      xpEarned: 0,
+      executionTimeMs: Math.round(totalTimeMs / (out.overall.total || 1)),
+    }).save();
+
     return {
       results,
       overall: out.overall,
@@ -297,50 +370,67 @@ public class Solution {
       expectedOutput: String(tc?.expectedOutput ?? '').trim(),
     }));
     const language = this.mapLanguage(dto.language);
-    const out = await this.codeExecution.executeCode({
-      code: dto.code,
-      language,
-      testCases,
-    });
 
-    const totalTests = rawTestCases.length;
-    const passedTests = out.overall.passed;
-    const totalTimeMs = out.results.reduce((sum: number, r: any) => sum + (r.executionTime || 0), 0);
-    const testResults = out.results.map((r: any, i: number) => ({
-      input: testCases[i]?.input,
-      expectedOutput: testCases[i]?.expectedOutput,
-      actualOutput: r.passed ? undefined : (r.output ?? ''),
-      passed: r.passed,
-      error: r.error,
-    }));
-    const allPassed = passedTests === totalTests;
-    const status = allPassed ? 'accepted' : testResults.some(r => r.error) ? 'runtime_error' : 'wrong_answer';
+    let passedTests = 0;
+    let totalTests = rawTestCases.length;
+    let totalTimeMs = 0;
+    let testResults: any[] = [];
+    let status = 'runtime_error'; // Default if it crashes early
 
-    // 3. First acceptance for this user+challenge? (for gamification)
-    const alreadyAccepted = allPassed
-      ? await this.submissionModel.findOne({
-          userId: new Types.ObjectId(userId),
-          challengeId: new Types.ObjectId(challengeId),
-          status: 'accepted',
-        })
-      : null;
+    try {
+      const out = await this.codeExecution.executeCode({
+        code: dto.code,
+        language,
+        testCases,
+      });
+
+      passedTests = out.overall.passed;
+      totalTimeMs = out.results.reduce((sum: number, r: any) => sum + (r.executionTime || 0), 0);
+      testResults = out.results.map((r: any, i: number) => ({
+        input: testCases[i]?.input,
+        expectedOutput: testCases[i]?.expectedOutput,
+        actualOutput: r.output ?? '',
+        passed: r.passed,
+        error: r.error,
+      }));
+      const allPassed = passedTests === totalTests;
+      status = allPassed ? 'accepted' : testResults.some(r => r.error) ? 'runtime_error' : 'wrong_answer';
+    } catch (err: any) {
+      // Still save the record even if execution/compilation fails
+      status = 'runtime_error';
+      testResults = [{ error: err?.message || 'Execution error' }];
+    }
+
+    // 3. First acceptance for this user+challenge?
+    const challengeObjectId = new Types.ObjectId(challengeId);
+    const userObjectId = new Types.ObjectId(userId);
+
+    const [alreadyAccepted, totalAttempts, totalAcceptedForChallenge] = await Promise.all([
+      this.submissionModel.findOne({
+        userId: userObjectId,
+        challengeId: challengeObjectId,
+        status: 'accepted',
+      }).lean().exec(),
+      this.submissionModel.countDocuments({
+        userId: userObjectId,
+        challengeId: challengeObjectId,
+      }),
+      this.submissionModel.countDocuments({
+        challengeId: challengeObjectId,
+        status: 'accepted',
+      }),
+    ]);
+
+    const allPassed = status === 'accepted';
     const isFirstAcceptance = allPassed && !alreadyAccepted;
-    const previousSubmissionCount = await this.submissionModel.countDocuments({
-      userId: new Types.ObjectId(userId),
-      challengeId: new Types.ObjectId(challengeId),
-    }).exec();
-    const isFirstTry = allPassed && previousSubmissionCount === 0;
-    const acceptedBeforeCount = await this.submissionModel.countDocuments({
-      challengeId: new Types.ObjectId(challengeId),
-      status: 'accepted',
-    }).exec();
-    const isFirstSolver = allPassed && acceptedBeforeCount === 0;
+    const isFirstTry = allPassed && totalAttempts === 0;
+    const isFirstSolver = allPassed && totalAcceptedForChallenge === 0;
 
-    // 4. Save the submission
+    // 4. Save the submission ALWAYS
     let xpEarned = 0;
     const submission = await new this.submissionModel({
-      userId: new Types.ObjectId(userId),
-      challengeId: new Types.ObjectId(challengeId),
+      userId: userObjectId,
+      challengeId: challengeObjectId,
       code: dto.code,
       language: dto.language,
       status,
@@ -348,7 +438,7 @@ public class Solution {
       passedTests,
       totalTests,
       xpEarned: 0,
-      executionTimeMs: Math.round(totalTimeMs / totalTests),
+      executionTimeMs: Math.round(totalTimeMs / (totalTests || 1)),
     }).save();
 
     // 5. Update challenge stats
@@ -427,19 +517,82 @@ public class Solution {
     };
   }
 
-  // Submission history for a user
-  async getUserSubmissions(userId: string, challengeId?: string) {
+  // Submission history for a user (with optional full details)
+  async getUserSubmissions(userId: string, challengeId?: string, fullDetails = false) {
     const filter: any = { userId: new Types.ObjectId(userId) };
     if (challengeId) filter.challengeId = new Types.ObjectId(challengeId);
 
-    return this.submissionModel
+    const query = this.submissionModel
       .find(filter)
-      .select('-testResults')
       .populate('challengeId', 'title difficulty')
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(50);
+
+    if (!fullDetails) {
+      query.select('-testResults');
+    }
+
+    return query.lean().exec();
+  }
+
+  // Detailed history for specific challenge (full test results)
+  async getMyHistoryDetailed(challengeId: string, userId: string) {
+    const challengeObjectId = new Types.ObjectId(challengeId);
+    const submissions = await this.submissionModel
+      .find({
+        challengeId: challengeObjectId,
+        userId: new Types.ObjectId(userId)
+      })
+      .populate('challengeId', 'title difficulty')
+      .sort({ createdAt: -1 })
       .lean()
       .exec();
+
+    return submissions;
+  }
+
+  // Get official solution if user has solved the challenge (has accepted submission)
+  async getOfficialSolutionIfSolved(challengeId: string, userId: string, language?: string) {
+    // Check if user has accepted submission
+    const solved = await this.submissionModel.exists({
+      challengeId: new Types.ObjectId(challengeId),
+      userId: new Types.ObjectId(userId),
+      status: 'accepted'
+    });
+
+    const isUnlocked = solved;
+
+    if (!isUnlocked) {
+      throw new ForbiddenException(
+        `You must solve the challenge to view the official solution.`
+      );
+    }
+
+    const challenge = await this.challengeModel
+      .findById(challengeId)
+      .select('+officialSolution')
+      .lean()
+      .exec();
+
+    if (!challenge) {
+      throw new NotFoundException('Challenge not found');
+    }
+
+    const official = challenge.officialSolution || {};
+    
+    if (language && official[language]) {
+      return {
+        language,
+        code: official[language],
+        challengeTitle: challenge.title
+      };
+    }
+
+    // Return all languages if no specific language requested
+    return {
+      solutions: Object.entries(official).map(([lang, code]) => ({ language: lang as Language, code })),
+      challengeTitle: challenge.title
+    };
   }
 
   /** Languages in which the user solved this challenge (status accepted). */

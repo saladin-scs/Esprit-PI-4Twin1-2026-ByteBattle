@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../services/api';
 import { CompetitionStatusBadge } from '../Competitions/components/CompetitionStatusBadge';
 import { CompetitionTypeBadge } from '../Competitions/components/CompetitionTypeBadge';
@@ -34,6 +35,8 @@ interface FormData {
 }
 
 export default function AdminCompetitions() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [challenges, setChallenges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +79,17 @@ export default function AdminCompetitions() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1') return;
+    resetForm();
+    setShowCreateModal(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('create');
+      return next;
+    }, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const resetForm = () => {
     setFormData({
@@ -140,7 +154,7 @@ export default function AdminCompetitions() {
       
       toast.success('Competition created successfully!');
       setShowCreateModal(false);
-      loadData();
+      navigate('/competitions', { replace: true });
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create competition');
     }

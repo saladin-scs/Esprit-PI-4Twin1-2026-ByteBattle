@@ -14,6 +14,55 @@ type Example = { input: string; output: string; explanation?: string };
 type TestCase = { input: string; expectedOutput: string; isHidden?: boolean; isPerformance?: boolean };
 type StarterCode = Record<string, string>;
 
+const DEFAULT_STARTER_CODE: StarterCode = {
+  javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\nconsole.log(a + b);',
+  python: 'a, b = map(int, input().split())\nprint(a + b)',
+  java:
+    'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n  public static void main(String[] args) throws Exception {\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n    StringTokenizer st = new StringTokenizer(br.readLine());\n    long a = Long.parseLong(st.nextToken());\n    long b = Long.parseLong(st.nextToken());\n    System.out.println(a + b);\n  }\n}\n',
+  'c++':
+    '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\n',
+};
+
+function displayLanguage(language: string): string {
+  return language.trim().toLowerCase() === 'cpp' ? 'C++' : language;
+}
+
+function normalizeLanguage(language: string): string {
+  const value = language.trim().toLowerCase();
+  return value === 'c++' ? 'cpp' : value;
+}
+
+function displayLanguagesInput(text: string): string {
+  return text
+    .split(',')
+    .map((language) => displayLanguage(language.trim()))
+    .filter(Boolean)
+    .join(', ');
+}
+
+function normalizeStarterCodeKeys(starterCode: StarterCode): StarterCode {
+  return Object.fromEntries(
+    Object.entries(starterCode).map(([language, code]) => [normalizeLanguage(language), code]),
+  );
+}
+
+function sanitizeExamples(examples: any[]): Example[] {
+  return examples.map((example) => ({
+    input: String(example?.input ?? ''),
+    output: String(example?.output ?? ''),
+    ...(example?.explanation != null ? { explanation: String(example.explanation) } : {}),
+  }));
+}
+
+function sanitizeTestCases(testCases: any[]): TestCase[] {
+  return testCases.map((testCase) => ({
+    input: String(testCase?.input ?? ''),
+    expectedOutput: String(testCase?.expectedOutput ?? ''),
+    ...(typeof testCase?.isHidden === 'boolean' ? { isHidden: testCase.isHidden } : {}),
+    ...(typeof testCase?.isPerformance === 'boolean' ? { isPerformance: testCase.isPerformance } : {}),
+  }));
+}
+
 function safeJsonParse<T>(text: string, fallback: T): T {
   const trimmed = text.trim();
   if (!trimmed) return fallback;
@@ -31,6 +80,7 @@ function normalizeAiPayload(data: any): {
   examples?: Example[];
   testCases?: TestCase[];
   starterCode?: StarterCode;
+  officialSolution?: StarterCode;
 } {
   const obj = (data && typeof data === 'object') ? data : {};
   const tags = Array.isArray(obj.tags) ? obj.tags.filter((t: any) => typeof t === 'string') : undefined;
@@ -40,6 +90,10 @@ function normalizeAiPayload(data: any): {
     obj.starterCode && typeof obj.starterCode === 'object' && !Array.isArray(obj.starterCode)
       ? obj.starterCode
       : undefined;
+  const officialSolution =
+    obj.officialSolution && typeof obj.officialSolution === 'object' && !Array.isArray(obj.officialSolution)
+      ? obj.officialSolution
+      : undefined;
   return {
     title: typeof obj.title === 'string' ? obj.title : undefined,
     description: typeof obj.description === 'string' ? obj.description : undefined,
@@ -47,7 +101,19 @@ function normalizeAiPayload(data: any): {
     examples,
     testCases,
     starterCode,
+    officialSolution,
   };
+}
+
+function isAiErrorPayload(payload: ReturnType<typeof normalizeAiPayload>): boolean {
+  const title = payload.title?.trim().toLowerCase();
+  const description = payload.description?.trim().toLowerCase() || '';
+  return (
+    title === 'api key missing' ||
+    description.includes('openrouter_api_key') ||
+    description.includes('generate challenges') ||
+    description.includes('challenge generation is unavailable')
+  );
 }
 
 export default function AdminChallenges() {
@@ -58,6 +124,7 @@ export default function AdminChallenges() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [generateLoading, setGenerateLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newIds, setNewIds] = useState<Record<string, number>>({});
 
@@ -72,7 +139,7 @@ export default function AdminChallenges() {
     difficulty: 'medium' as Difficulty,
     topic: '',
     xpReward: 100,
-    languages: 'javascript, python, java, cpp',
+    languages: 'javascript, python, java, C++',
     tags: '',
     examplesJson: JSON.stringify(
       [
@@ -90,14 +157,12 @@ export default function AdminChallenges() {
       2,
     ),
     starterCodeJson: JSON.stringify(
-      {
-        javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\nconsole.log(a + b);',
-        python: 'a, b = map(int, input().split())\nprint(a + b)',
-        java:
-          'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n  public static void main(String[] args) throws Exception {\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n    StringTokenizer st = new StringTokenizer(br.readLine());\n    long a = Long.parseLong(st.nextToken());\n    long b = Long.parseLong(st.nextToken());\n    System.out.println(a + b);\n  }\n}\n',
-        cpp:
-          '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\n',
-      } satisfies StarterCode,
+      DEFAULT_STARTER_CODE satisfies StarterCode,
+      null,
+      2,
+    ),
+    solutionCodeJson: JSON.stringify(
+      DEFAULT_STARTER_CODE satisfies StarterCode,
       null,
       2,
     ),
@@ -150,9 +215,15 @@ export default function AdminChallenges() {
       });
 
       const normalized = normalizeAiPayload(data);
-      const nextExamples = normalized.examples;
-      const nextTestCases = normalized.testCases;
-      const nextStarter = normalized.starterCode;
+      if (isAiErrorPayload(normalized)) {
+        throw new Error('AI challenge generation is not configured correctly on the server.');
+      }
+      const nextExamples = normalized.examples ? sanitizeExamples(normalized.examples) : undefined;
+      const nextTestCases = normalized.testCases ? sanitizeTestCases(normalized.testCases) : undefined;
+      const nextStarter = normalized.starterCode ? normalizeStarterCodeKeys(normalized.starterCode) : undefined;
+      const nextSolution = normalized.officialSolution
+        ? normalizeStarterCodeKeys(normalized.officialSolution)
+        : nextStarter;
 
       setFormData((prev) => {
         const hasAnyTestCases = Array.isArray(nextTestCases) && nextTestCases.length > 0;
@@ -178,6 +249,7 @@ export default function AdminChallenges() {
           examplesJson: nextExamples ? JSON.stringify(nextExamples, null, 2) : prev.examplesJson,
           testCasesJson: finalTestCases.length ? JSON.stringify(finalTestCases, null, 2) : prev.testCasesJson,
           starterCodeJson: nextStarter ? JSON.stringify(nextStarter, null, 2) : prev.starterCodeJson,
+          solutionCodeJson: nextSolution ? JSON.stringify(nextSolution, null, 2) : prev.solutionCodeJson,
         };
       });
 
@@ -189,7 +261,7 @@ export default function AdminChallenges() {
       toast.success('Generated successfully!', { id: 'ai-gen' });
     } catch (err: any) {
       console.error(err);
-      toast.error(`Error: ${err.response?.data?.message || err.message}`, { id: 'ai-gen' });
+      toast.error(`Error: ${err.response?.data?.message || err.message || 'AI generation failed'}`, { id: 'ai-gen' });
     } finally {
       setGenerateLoading(false);
     }
@@ -203,7 +275,7 @@ export default function AdminChallenges() {
       difficulty: 'medium' as Difficulty,
       topic: '',
       xpReward: 100,
-      languages: 'javascript, python, java, cpp',
+      languages: 'javascript, python, java, C++',
       tags: '',
       examplesJson: JSON.stringify(
         [{ input: '1 2', output: '3', explanation: 'Add the two numbers.' }] satisfies Example[],
@@ -219,33 +291,55 @@ export default function AdminChallenges() {
         2,
       ),
       starterCodeJson: JSON.stringify(
-        {
-          javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\nconsole.log(a + b);',
-          python: 'a, b = map(int, input().split())\nprint(a + b)',
-          java:
-            'import java.io.*;\nimport java.util.*;\n\npublic class Solution {\n  public static void main(String[] args) throws Exception {\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n    StringTokenizer st = new StringTokenizer(br.readLine());\n    long a = Long.parseLong(st.nextToken());\n    long b = Long.parseLong(st.nextToken());\n    System.out.println(a + b);\n  }\n}\n',
-          cpp:
-            '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\n',
-        } satisfies StarterCode,
+        DEFAULT_STARTER_CODE satisfies StarterCode,
+        null,
+        2,
+      ),
+      solutionCodeJson: JSON.stringify(
+        DEFAULT_STARTER_CODE satisfies StarterCode,
         null,
         2,
       ),
     });
   };
 
-  const handleEdit = (challenge: any) => {
+  const isOfficialSolutionValidationError = (err: any) => {
+    const message = err?.response?.data?.message;
+    if (Array.isArray(message)) {
+      return message.some((entry) => String(entry).toLowerCase().includes('officialsolution'));
+    }
+    return String(message || '').toLowerCase().includes('officialsolution');
+  };
+
+  const handleEdit = async (challenge: any) => {
     setEditingId(challenge._id);
     setShowModal(true);
-    setFormData((prev) => ({
-      ...prev,
-      title: challenge.title || '',
-      description: challenge.description || '',
-      difficulty: (challenge.difficulty || 'medium') as Difficulty,
-      topic: '',
-      xpReward: Number(challenge.xpReward || 100),
-      languages: Array.isArray(challenge.languages) ? challenge.languages.join(', ') : 'javascript, python',
-      tags: Array.isArray(challenge.tags) ? challenge.tags.join(', ') : '',
-    }));
+    setEditLoading(true);
+    try {
+      const { data } = await challengesApi.getOneAdmin(challenge._id);
+        setFormData((prev) => ({
+          ...prev,
+        title: data.title || '',
+        description: data.description || '',
+        difficulty: (data.difficulty || 'medium') as Difficulty,
+        topic: '',
+        xpReward: Number(data.xpReward || 100),
+        languages: Array.isArray(data.languages)
+          ? data.languages.map((language: string) => displayLanguage(language)).join(', ')
+          : 'javascript, python',
+        tags: Array.isArray(data.tags) ? data.tags.join(', ') : '',
+        examplesJson: JSON.stringify(data.examples || [], null, 2),
+        testCasesJson: JSON.stringify(data.testCases || [], null, 2),
+        starterCodeJson: JSON.stringify(data.starterCode || {}, null, 2),
+        solutionCodeJson: JSON.stringify(data.officialSolution || data.starterCode || {}, null, 2),
+        }));
+    } catch (err) {
+      toast.error('Failed to load challenge details');
+      setShowModal(false);
+      resetForm();
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -257,11 +351,27 @@ export default function AdminChallenges() {
           description: formData.description,
           difficulty: formData.difficulty,
           xpReward: Number(formData.xpReward),
-          languages: formData.languages.split(',').map((l) => l.trim()).filter(Boolean),
+          languages: formData.languages.split(',').map((l) => normalizeLanguage(l)).filter(Boolean),
           tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
+          examples: safeJsonParse<Example[]>(formData.examplesJson, []),
+          testCases: safeJsonParse<TestCase[]>(formData.testCasesJson, []),
+          starterCode: normalizeStarterCodeKeys(safeJsonParse<StarterCode>(formData.starterCodeJson, {})),
+          officialSolution: normalizeStarterCodeKeys(safeJsonParse<StarterCode>(formData.solutionCodeJson, {})),
           isPublished: true,
         };
-        const res = await challengesApi.update(editingId, updatePayload);
+        let res;
+        try {
+          res = await challengesApi.update(editingId, updatePayload);
+        } catch (err: any) {
+          if (!isOfficialSolutionValidationError(err)) {
+            throw err;
+          }
+          const { officialSolution, ...legacyPayload } = updatePayload;
+          res = await challengesApi.update(editingId, legacyPayload);
+          toast('Challenge mis a jour. Redemarre le backend pour enregistrer aussi la solution admin.', {
+            id: 'official-solution-compat-update',
+          });
+        }
         const updated = (res as any)?.data;
         setChallenges((prev) => prev.map((c) => (c?._id === editingId ? { ...c, ...(updated || updatePayload) } : c)));
         toast.success('Challenge updated successfully!');
@@ -270,9 +380,14 @@ export default function AdminChallenges() {
         return;
       }
 
-      const examples = safeJsonParse<Example[]>(formData.examplesJson, []);
-      const testCases = safeJsonParse<TestCase[]>(formData.testCasesJson, []);
-      const starterCode = safeJsonParse<StarterCode>(formData.starterCodeJson, {});
+      const examples = sanitizeExamples(safeJsonParse<Example[]>(formData.examplesJson, []));
+      const testCases = sanitizeTestCases(safeJsonParse<TestCase[]>(formData.testCasesJson, []));
+      const starterCode = normalizeStarterCodeKeys(
+        safeJsonParse<StarterCode>(formData.starterCodeJson, {}),
+      );
+      const officialSolution = normalizeStarterCodeKeys(
+        safeJsonParse<StarterCode>(formData.solutionCodeJson, {}),
+      );
 
       if (!Array.isArray(examples) || examples.length === 0) {
         toast.error('Examples JSON is empty or invalid. Please provide at least 1 example.');
@@ -292,15 +407,28 @@ export default function AdminChallenges() {
         description: formData.description,
         difficulty: formData.difficulty,
         xpReward: Number(formData.xpReward),
-        languages: formData.languages.split(',').map(l => l.trim()).filter(Boolean),
+        languages: formData.languages.split(',').map(l => normalizeLanguage(l)).filter(Boolean),
         tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
         isPublished: true,
         examples,
         testCases,
         starterCode,
+        officialSolution,
       };
-      
-      const res = await challengesApi.create(payload);
+
+      let res;
+      try {
+        res = await challengesApi.create(payload);
+      } catch (err: any) {
+        if (!isOfficialSolutionValidationError(err)) {
+          throw err;
+        }
+        const { officialSolution: _officialSolution, ...legacyPayload } = payload;
+        res = await challengesApi.create(legacyPayload);
+        toast('Challenge cree. Redemarre le backend pour enregistrer aussi la solution admin.', {
+          id: 'official-solution-compat-create',
+        });
+      }
       const created = (res as any)?.data;
       toast.success('Challenge created successfully!');
       setShowModal(false);
@@ -317,8 +445,8 @@ export default function AdminChallenges() {
         loadData();
       }
       resetForm();
-    } catch (err) {
-      toast.error(editingId ? 'Failed to update challenge' : 'Failed to create challenge');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || (editingId ? 'Failed to update challenge' : 'Failed to create challenge'));
     }
   };
 
@@ -415,7 +543,9 @@ export default function AdminChallenges() {
                         </div>
                       </td>
                       <td className="p-3"><DifficultyBadge difficulty={c.difficulty} size="sm" /></td>
-                      <td className="p-3 text-gray-500 dark:text-gray-400">{(c.languages || []).slice(0, 3).join(', ')}</td>
+                      <td className="p-3 text-gray-500 dark:text-gray-400">
+                        {(c.languages || []).slice(0, 3).map((language: string) => displayLanguage(language)).join(', ')}
+                      </td>
                       <td className="p-3 text-amber-600 dark:text-amber-500 font-semibold">+{c.xpReward}</td>
                       <td className="p-3 text-gray-500 dark:text-gray-400">{acceptanceRate}%</td>
                       <td className="p-3 text-right">
@@ -486,6 +616,11 @@ export default function AdminChallenges() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {editLoading && (
+                <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-700 dark:text-indigo-300">
+                  Loading challenge details...
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1">Title</label>
                 <Input required value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />
@@ -502,7 +637,6 @@ export default function AdminChallenges() {
                 />
               </div>
 
-              {!editingId && (
               <div>
                 <label className="block text-sm font-medium mb-1">Examples (JSON)</label>
                 <textarea
@@ -516,9 +650,7 @@ export default function AdminChallenges() {
                   Format: <code>[{"{"}"input":"1 2","output":"3","explanation":"..."{"}"}]</code>
                 </p>
               </div>
-              )}
 
-              {!editingId && (
               <div>
                 <label className="block text-sm font-medium mb-1">Test cases (JSON)</label>
                 <textarea
@@ -532,23 +664,20 @@ export default function AdminChallenges() {
                   Format: <code>[{"{"}"input":"1 2","expectedOutput":"3","isHidden":false{"}"}]</code>
                 </p>
               </div>
-              )}
 
-              {!editingId && (
               <div>
-                <label className="block text-sm font-medium mb-1">Starter code per language (JSON)</label>
+                <label className="block text-sm font-medium mb-1">Solution code per language (JSON)</label>
                 <textarea
                   required
                   rows={6}
                   className="w-full px-4 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white font-mono text-xs"
-                  value={formData.starterCodeJson}
-                  onChange={(e) => setFormData({ ...formData, starterCodeJson: e.target.value })}
+                  value={formData.solutionCodeJson}
+                  onChange={(e) => setFormData({ ...formData, solutionCodeJson: e.target.value })}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Keys should match selected languages (e.g. <code>javascript</code>, <code>python</code>, <code>java</code>, <code>cpp</code>).
+                  Visible for admins only. Keys should match selected languages (e.g. <code>javascript</code>, <code>python</code>, <code>java</code>, <code>c++</code>).
                 </p>
               </div>
-              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -572,7 +701,11 @@ export default function AdminChallenges() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">Supported Languages (comma separated)</label>
-                <Input required value={formData.languages} onChange={e => setFormData({ ...formData, languages: e.target.value })} />
+                <Input
+                  required
+                  value={formData.languages}
+                  onChange={e => setFormData({ ...formData, languages: displayLanguagesInput(e.target.value) })}
+                />
               </div>
 
               <div>

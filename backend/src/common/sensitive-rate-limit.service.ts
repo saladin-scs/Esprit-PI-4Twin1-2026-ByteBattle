@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 export type RateLimitActionKind =
+  | 'code_run'
   | 'challenge_run'
   | 'challenge_submit'
   | 'reclamation_submit'

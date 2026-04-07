@@ -1,7 +1,7 @@
 // pages/Auth.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -329,6 +329,7 @@ type AuthMode = 'login' | 'register' | '2fa' | 'face-login';
 function Auth() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
@@ -345,6 +346,8 @@ function Auth() {
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const redirectTarget =
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/dashboard';
   
   // Hooks
   const { modelsLoaded, isLoading: faceModelsLoading, error: faceError, detectFace } = useFaceRecognition();
@@ -522,7 +525,7 @@ function Auth() {
         return;
       }
 
-      navigate('/dashboard');
+      navigate(redirectTarget, { replace: true });
       toast.success('Login successful!');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
@@ -547,7 +550,7 @@ function Auth() {
         })
       ).unwrap();
 
-      navigate('/dashboard');
+      navigate(redirectTarget, { replace: true });
       toast.success('2FA verification successful!');
     } catch (err: any) {
       setError(err.message || '2FA verification failed');

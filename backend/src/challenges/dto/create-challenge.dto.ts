@@ -37,6 +37,11 @@ export class CreateChallengeDto {
   starterCode: Record<string, string>;
 
   @ApiProperty()
+  @IsObject()
+  @IsOptional()
+  officialSolution?: Record<string, string>;
+
+  @ApiProperty()
   @IsArray()
   @IsOptional()
   tags?: string[];

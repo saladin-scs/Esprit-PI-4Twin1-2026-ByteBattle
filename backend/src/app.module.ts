@@ -3,6 +3,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { validateConfig } from './config/validation';
@@ -17,7 +18,14 @@ import { AiModule } from './ai/ai.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: [
+        join(process.cwd(), '.env.local'),
+        join(process.cwd(), '.env'),
+        join(process.cwd(), 'backend', '.env.local'),
+        join(process.cwd(), 'backend', '.env'),
+        join(process.cwd(), '..', '.env.local'),
+        join(process.cwd(), '..', '.env'),
+      ],
       validate: validateConfig,
     }),
     MongooseModule.forRootAsync({

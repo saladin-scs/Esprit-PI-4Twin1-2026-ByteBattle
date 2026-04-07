@@ -45,9 +45,29 @@ export class ChallengeController {
   @Get('me/submissions')
   @UseGuards(JwtOrApiKeyAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'My submissions' })
-  async mySubmissions(@Req() req: any, @Query('challengeId') challengeId?: string) {
-    return this.challengeService.getUserSubmissions(req.user.userId, challengeId);
+  @ApiOperation({ summary: 'My submissions (add ?details=true for full test results)' })
+  async mySubmissions(@Req() req: any, @Query('challengeId') challengeId?: string, @Query('details') details?: string) {
+    return this.challengeService.getUserSubmissions(req.user.userId, challengeId, details === 'true');
+  }
+
+  @Get(':id/my-history')
+  @UseGuards(JwtOrApiKeyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'My detailed submission history for this challenge (code + full test results)' })
+  async myHistory(@Param('id') challengeId: string, @Req() req: any) {
+    return this.challengeService.getMyHistoryDetailed(challengeId, req.user.userId);
+  }
+
+  @Get(':id/official-solution')
+  @UseGuards(JwtOrApiKeyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Official solution (revealed only after solving the challenge). Optional ?language=javascript' })
+  async officialSolution(
+    @Param('id') challengeId: string, 
+    @Req() req: any, 
+    @Query('language') language?: string
+  ) {
+    return this.challengeService.getOfficialSolutionIfSolved(challengeId, req.user.userId, language);
   }
 
   @Get(':id/stats')
@@ -70,6 +90,15 @@ export class ChallengeController {
     return this.challengeService.findOne(id);
   }
 
+  @Get('admin/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Challenge details for admin' })
+  async findOneAdmin(@Param('id') id: string) {
+    return this.challengeService.findOneAdmin(id);
+  }
+
   // Protected routes (JWT or API key)
 
   @Post(':id/run')
@@ -77,8 +106,8 @@ export class ChallengeController {
   @RateLimitAction('challenge_run')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Run code against examples only (without saving)' })
-  async run(@Param('id') id: string, @Body() dto: SubmitChallengeDto) {
-    return this.challengeService.run(id, dto);
+  async run(@Param('id') id: string, @Body() dto: SubmitChallengeDto, @Req() req: any) {
+    return this.challengeService.run(id, dto, req.user.userId);
   }
 
   @Post(':id/submit')

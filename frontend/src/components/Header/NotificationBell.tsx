@@ -16,14 +16,17 @@ export function NotificationBell() {
     setLoading(true);
     try {
       const { data } = await notificationsApi.list({ page: 1, limit: 15 });
-      setItems(data.items);
-      setUnreadCount(data.unreadCount);
+      setItems(Array.isArray(data?.items) ? data.items : []);
+      setUnreadCount(typeof data?.unreadCount === 'number' ? data.unreadCount : 0);
     } catch {
       setItems([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const safeItems = Array.isArray(items) ? items : [];
 
   useEffect(() => {
     load();
@@ -97,12 +100,12 @@ export function NotificationBell() {
         )}
       </div>
       <div className="max-h-[min(60vh,340px)] overflow-y-auto py-1">
-        {loading && items.length === 0 ? (
+        {loading && safeItems.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-gray-500">Loading...</p>
-        ) : items.length === 0 ? (
+        ) : safeItems.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-gray-500">No notifications</p>
         ) : (
-          items.map((n) => (
+          safeItems.map((n) => (
             <button
               key={n.id}
               type="button"

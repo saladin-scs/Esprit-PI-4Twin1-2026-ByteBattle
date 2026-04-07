@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 // src/ai/ai.service.ts
-import { Injectable, Logger } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
@@ -41,23 +41,10 @@ export class AiService {
 
   private async callOpenRouter(prompt: string): Promise<string> {
     if (!this.apiKey) {
-      this.logger.warn('OPENROUTER_API_KEY is not set. Challenge generation may fail.');
-      return JSON.stringify({
-        title: 'API Key Missing',
-        description: 'Please configure OPENROUTER_API_KEY to generate challenges.',
-        difficulty: 'medium',
-        examples: [{ input: '1 2', output: '3', explanation: 'Add the two numbers.' }],
-        testCases: [{ input: '1 2', expectedOutput: '3', isHidden: false }],
-        starterCode: {
-          javascript: 'const [a, b] = readline().trim().split(/\\s+/).map(Number);\\nconsole.log(a + b);',
-          python: 'a, b = map(int, input().split())\\nprint(a + b)',
-          java:
-            'import java.io.*;\\nimport java.util.*;\\n\\npublic class Solution {\\n  public static void main(String[] args) throws Exception {\\n    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\\n    StringTokenizer st = new StringTokenizer(br.readLine());\\n    long a = Long.parseLong(st.nextToken());\\n    long b = Long.parseLong(st.nextToken());\\n    System.out.println(a + b);\\n  }\\n}\\n',
-          cpp:
-            '#include <bits/stdc++.h>\\nusing namespace std;\\nint main(){ long long a,b; if(!(cin>>a>>b)) return 0; cout << (a+b); }\\n',
-        },
-        tags: [],
-      });
+      this.logger.warn('OPENROUTER_API_KEY is not set. Challenge generation is unavailable.');
+      throw new ServiceUnavailableException(
+        'Challenge generation is unavailable because OPENROUTER_API_KEY is not configured.',
+      );
     }
 
     const url = 'https://openrouter.ai/api/v1/chat/completions';
@@ -87,7 +74,10 @@ export class AiService {
       return text ?? 'Error: No text generated';
     } catch (err: any) {
       this.logger.error('OpenRouter API error:', err.response?.data ?? err.message);
-      return 'Error: Unable to generate response from AI model';
+      throw new BadGatewayException(
+        err.response?.data?.error?.message ||
+          'Unable to generate a challenge from the AI provider right now.',
+      );
     }
   }
 
@@ -156,7 +146,8 @@ export class AiService {
 - examples (array with {input, output, explanation?})
 - testCases (array with {input, expectedOutput, isHidden})
 - tags
-- starterCode (object mapping languages to code. Use keys: javascript, python, java, cpp)
+- starterCode (object mapping languages to starter skeleton code. Use keys: javascript, python, java, cpp)
+- officialSolution (object mapping languages to complete working solutions that pass the test cases. IMPORTANT: The solution code MUST read from standard input and write to standard output. For JavaScript, use 'readline()' to read strings and 'console.log()' to print. For Python, use 'sys.stdin.read()' or 'input()' to read and 'print()' to output. For Java, use 'Scanner(System.in)' and 'System.out.println()'. For C++, use 'cin' and 'cout'.  Use keys: javascript, python, java, cpp)
 Return ONLY valid JSON.`;
 
     let resultText = await this.callOpenRouter(prompt);
@@ -167,18 +158,16 @@ Return ONLY valid JSON.`;
     }
 
     try {
-      return JSON.parse(resultText);
+      const parsed = JSON.parse(resultText);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('AI returned an invalid challenge payload.');
+      }
+      return parsed;
     } catch (err) {
-      return {
-        title: 'Error parsing AI output',
-        description: resultText,
-        difficulty,
-        testCases: [],
-        starterCode: '',
-        tags: [topic, difficulty],
-        solvedCount: 0,
-        attemptCount: 0,
-      };
+      this.logger.error('Failed to parse AI challenge payload:', resultText);
+      throw new BadGatewayException(
+        'The AI returned an invalid challenge format. Please try again.',
+      );
     }
   }
 }

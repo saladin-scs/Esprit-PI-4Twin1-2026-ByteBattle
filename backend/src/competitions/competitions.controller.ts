@@ -95,6 +95,18 @@ export class CompetitionsController {
     return this.competitionsService.join(id, req.user.userId);
   }
 
+  @Post(':id/run')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Run code for a competition challenge without saving' })
+  async run(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() dto: SubmitCompetitionDto,
+  ) {
+    return this.competitionsService.run(id, req.user.userId, dto);
+  }
+
   @Post(':id/submit')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

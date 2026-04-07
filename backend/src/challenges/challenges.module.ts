@@ -13,8 +13,6 @@ import { Challenge, ChallengeSchema } from './schemas/challenge.schema';
 import { Submission, SubmissionSchema } from './schemas/Submission.schema';
 import { Solution, SolutionSchema } from './schemas/solution.schema';
 import { CommonRateLimitModule } from '../common/common.module';
-import { NotificationsModule } from '../notifications/notifications.module';
-import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [

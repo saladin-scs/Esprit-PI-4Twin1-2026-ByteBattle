@@ -36,6 +36,7 @@ const {
   ResetPassword,
   SocialCallback,
   Setup2FA,
+  History,
 } = LazyRoutes;
 
 export function AppRoutes() {
@@ -60,6 +61,7 @@ export function AppRoutes() {
           <Route path="/reclamation" element={<ProtectedRoute><Reclamation /></ProtectedRoute>} />
           <Route path="/competitions" element={<ProtectedRoute><Competitions /></ProtectedRoute>} />
           <Route path="/competitions/:id" element={<ProtectedRoute><CompetitionDetail /></ProtectedRoute>} />
+          <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/security" element={<SecuritySettings />} />
           <Route path="/settings/developer" element={<DeveloperSettings />} />
