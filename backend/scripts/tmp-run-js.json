@@ -1,0 +1,1 @@
+{"code":"const [a, b] = readline().split(/\\s+/).map(Number);\nconsole.log(a + b);","language":"javascript"}
