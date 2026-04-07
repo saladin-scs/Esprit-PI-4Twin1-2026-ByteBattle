@@ -32,6 +32,8 @@ export default function AdminChallenges() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
   const [newIds, setNewIds] = useState<Record<string, number>>({});
 
   const isNew = useMemo(() => {
@@ -227,6 +229,58 @@ export default function AdminChallenges() {
     }
   };
 
+  const handleGenerateWithAi = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error('Please enter a prompt for AI generation.');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const languages = formData.languages
+        .split(',')
+        .map((l) => l.trim())
+        .filter((l) => ['javascript', 'python', 'java', 'cpp'].includes(l));
+
+      const tags = formData.tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const { data } = await challengesApi.generateWithAi({
+        prompt: aiPrompt,
+        difficulty: formData.difficulty,
+        languages: languages as Array<'javascript' | 'python' | 'java' | 'cpp'>,
+        tags,
+        create: false,
+        isPublished: true,
+      });
+
+      const draft = (data as any)?.draft;
+      if (!draft) {
+        toast.error('AI generation failed.');
+        return;
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        title: draft.title || prev.title,
+        description: draft.description || prev.description,
+        difficulty: (draft.difficulty || prev.difficulty) as Difficulty,
+        xpReward: Number(draft.xpReward || prev.xpReward),
+        languages: Array.isArray(draft.languages) ? draft.languages.join(', ') : prev.languages,
+        tags: Array.isArray(draft.tags) ? draft.tags.join(', ') : prev.tags,
+        examplesJson: JSON.stringify(draft.examples || [], null, 2),
+        testCasesJson: JSON.stringify(draft.testCases || [], null, 2),
+        starterCodeJson: JSON.stringify(draft.starterCode || {}, null, 2),
+      }));
+      toast.success('AI draft generated. You can review and create now.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to generate challenge with AI');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleDelete = async (challenge: any) => {
     const id = challenge?._id as string | undefined;
     if (!id) return;
@@ -369,6 +423,26 @@ export default function AdminChallenges() {
             <h2 className="text-xl font-bold mb-4">{editingId ? 'Update Challenge' : 'Create New Challenge'}</h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {!editingId && (
+                <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-3">
+                  <label className="mb-1 block text-sm font-medium text-indigo-800 dark:text-indigo-300">
+                    Generate with AI (prompt)
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="w-full rounded-lg border border-indigo-300/60 bg-white px-3 py-2 text-sm text-gray-900 dark:border-indigo-700 dark:bg-gray-900 dark:text-white"
+                    placeholder="Example: Create a medium palindrome challenge with hidden edge cases"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                  />
+                  <div className="mt-2 flex justify-end">
+                    <Button type="button" onClick={() => void handleGenerateWithAi()} disabled={aiLoading}>
+                      {aiLoading ? 'Generating...' : 'Generate Draft with AI'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium mb-1">Title</label>
                 <Input required value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} />

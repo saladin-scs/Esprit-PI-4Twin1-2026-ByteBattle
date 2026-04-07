@@ -8,6 +8,7 @@ import {
   SubmitChallengeDto,
   UpdateChallengeDto,
   RevealHintDto,
+  GenerateChallengeAiDto,
 } from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -163,6 +164,15 @@ export class ChallengeController {
   @ApiOperation({ summary: 'Create a challenge (admin)' })
   async create(@Body() dto: CreateChallengeDto) {
     return this.challengeService.create(dto);
+  }
+
+  @Post('ai-generate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate challenge draft with AI-assist (admin)' })
+  async generateWithAi(@Body() dto: GenerateChallengeAiDto) {
+    return this.challengeService.generateChallengeWithAi(dto);
   }
 
   @Patch(':id')

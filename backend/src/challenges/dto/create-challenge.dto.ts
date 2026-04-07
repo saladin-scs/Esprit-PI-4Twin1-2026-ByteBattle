@@ -144,4 +144,39 @@ export class GetChallengesDto {
   limit?: number;
 }
 
+export class GenerateChallengeAiDto {
+  @ApiProperty({ description: 'Short prompt/topic for the challenge', example: 'Palindrome check for a string' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(300)
+  prompt: string;
+
+  @ApiProperty({ enum: ['easy', 'medium', 'hard', 'expert'], required: false })
+  @IsOptional()
+  @IsEnum(['easy', 'medium', 'hard', 'expert'])
+  difficulty?: Difficulty;
+
+  @ApiProperty({ enum: ['javascript', 'python', 'java', 'cpp'], isArray: true, required: false })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(['javascript', 'python', 'java', 'cpp'], { each: true })
+  languages?: Language[];
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @ApiProperty({ required: false, description: 'Persist challenge immediately after generation' })
+  @IsOptional()
+  @IsBoolean()
+  create?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isPublished?: boolean;
+}
+
 export class UpdateChallengeDto extends PartialType(CreateChallengeDto) {}

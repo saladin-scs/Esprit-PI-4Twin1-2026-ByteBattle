@@ -13,7 +13,13 @@ import { Submission, SubmissionDocument } from './schemas/Submission.schema';
 import { Solution, SolutionDocument } from './schemas/solution.schema';
 import { ChallengeSession, ChallengeSessionDocument } from './schemas/challenge-session.schema';
 import { sumHintCosts, timeXpMultiplier } from './challenge-xp.util';
-import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto, UpdateChallengeDto } from './dto/create-challenge.dto';
+import {
+  CreateChallengeDto,
+  GetChallengesDto,
+  SubmitChallengeDto,
+  UpdateChallengeDto,
+  GenerateChallengeAiDto,
+} from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { SEED_CHALLENGES } from './seed-challenges.data';
 import { DEV_TRIPLE_CHALLENGES } from './dev-triple-challenges.data';
@@ -190,6 +196,133 @@ public class Solution {
 
   // XP by difficulty
   private readonly XP_MAP = { easy: 50, medium: 100, hard: 200, expert: 400 };
+
+  private pickAiChallengeShape(prompt: string): {
+    kind: 'sum' | 'palindrome' | 'reverse';
+    title: string;
+    description: string;
+    examples: Array<{ input: string; output: string; explanation?: string }>;
+    testCases: Array<{ input: string; expectedOutput: string; isHidden?: boolean; isPerformance?: boolean }>;
+    constraints: string[];
+    tags: string[];
+  } {
+    const normalized = String(prompt || '').toLowerCase();
+
+    if (/(palindrome|palindrom)/.test(normalized)) {
+      return {
+        kind: 'palindrome',
+        title: 'Palindrome Check',
+        description:
+          'Given a single string, print "YES" if it is a palindrome and "NO" otherwise. Comparison is case-sensitive and includes all characters.',
+        examples: [
+          { input: 'level', output: 'YES', explanation: 'level reads the same forward and backward.' },
+          { input: 'bytebattle', output: 'NO', explanation: 'Not symmetric.' },
+        ],
+        testCases: [
+          { input: 'abba', expectedOutput: 'YES', isHidden: false },
+          { input: 'abc', expectedOutput: 'NO', isHidden: false },
+          { input: 'racecar', expectedOutput: 'YES', isHidden: true },
+          { input: 'a', expectedOutput: 'YES', isHidden: true },
+          { input: 'abca', expectedOutput: 'NO', isHidden: true },
+        ],
+        constraints: [
+          'Input length is between 1 and 100000 characters.',
+          'Time complexity target: O(n).',
+        ],
+        tags: ['strings', 'two-pointers'],
+      };
+    }
+
+    if (/(reverse|string reverse|reverse string)/.test(normalized)) {
+      return {
+        kind: 'reverse',
+        title: 'Reverse a String',
+        description: 'Given one line containing a string, output the reversed string.',
+        examples: [
+          { input: 'byte', output: 'etyb' },
+          { input: 'abc 123', output: '321 cba' },
+        ],
+        testCases: [
+          { input: 'abcd', expectedOutput: 'dcba', isHidden: false },
+          { input: 'hello world', expectedOutput: 'dlrow olleh', isHidden: false },
+          { input: 'a', expectedOutput: 'a', isHidden: true },
+          { input: 'racecar', expectedOutput: 'racecar', isHidden: true },
+        ],
+        constraints: [
+          'Input length is between 1 and 200000 characters.',
+          'Use linear time complexity O(n).',
+        ],
+        tags: ['strings'],
+      };
+    }
+
+    return {
+      kind: 'sum',
+      title: 'Sum of Two Integers',
+      description:
+        'Given two integers a and b separated by space, print their sum.',
+      examples: [
+        { input: '1 2', output: '3', explanation: '1 + 2 = 3' },
+        { input: '-10 4', output: '-6' },
+      ],
+      testCases: [
+        { input: '3 5', expectedOutput: '8', isHidden: false },
+        { input: '-4 10', expectedOutput: '6', isHidden: false },
+        { input: '1000000 2345678', expectedOutput: '3345678', isHidden: true },
+        { input: '-50 -70', expectedOutput: '-120', isHidden: true },
+      ],
+      constraints: [
+        '-10^9 <= a, b <= 10^9',
+        'Output must be exactly one integer.',
+      ],
+      tags: ['math', 'basics'],
+    };
+  }
+
+  async generateChallengeWithAi(dto: GenerateChallengeAiDto) {
+    const difficulty = dto.difficulty || 'medium';
+    const languages = (dto.languages && dto.languages.length
+      ? dto.languages
+      : ['javascript', 'python', 'java', 'cpp']) as Language[];
+    const base = this.pickAiChallengeShape(dto.prompt);
+
+    const promptSuffix = String(dto.prompt || '').trim();
+    const title = promptSuffix
+      ? `${base.title} - ${promptSuffix.slice(0, 40)}`
+      : base.title;
+
+    const starterFromTests = this.buildAcceptedStarterCodeFromTests(base.testCases);
+    const starterCode: Record<string, string> = {};
+    for (const lang of languages) {
+      starterCode[lang] =
+        (starterFromTests as any)?.[lang] ||
+        (ChallengeService.DEFAULT_STARTER_CODE as any)[lang] ||
+        '';
+    }
+
+    const draft: CreateChallengeDto = {
+      title,
+      description: base.description,
+      difficulty,
+      languages,
+      examples: base.examples,
+      testCases: base.testCases,
+      starterCode,
+      tags: [...new Set([...(dto.tags || []), ...base.tags])],
+      constraints: base.constraints,
+      xpReward: this.XP_MAP[difficulty] ?? 100,
+      isPublished: dto.isPublished ?? true,
+      timeLimit: 2,
+      memoryLimit: 256,
+    };
+
+    if (dto.create) {
+      const created = await this.create(draft);
+      return { draft, created };
+    }
+
+    return { draft };
+  }
 
   // Create a challenge (admin)
   async create(dto: CreateChallengeDto): Promise<ChallengeDocument> {

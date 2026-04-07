@@ -48,6 +48,14 @@ export const challengesApi = {
   upvoteSolution: (solutionId: string) =>
     apiClient.post(`/challenges/solutions/${solutionId}/upvote`, {}),
   create: (challenge: any) => apiClient.post('/challenges', challenge),
+  generateWithAi: (payload: {
+    prompt: string;
+    difficulty?: 'easy' | 'medium' | 'hard' | 'expert';
+    languages?: Array<'javascript' | 'python' | 'java' | 'cpp'>;
+    tags?: string[];
+    create?: boolean;
+    isPublished?: boolean;
+  }) => apiClient.post<{ draft: any; created?: any }>('/challenges/ai-generate', payload),
   update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
   delete: (id: string) => apiClient.delete(`/challenges/${id}`),
 };
