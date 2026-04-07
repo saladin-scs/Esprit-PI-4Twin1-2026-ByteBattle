@@ -12,6 +12,7 @@ const Dashboard = lazy(() => import('../../pages/Dashboard/Dashboard').then((m) 
 const Leaderboard = lazy(() => import('../../pages/Leaderboard/Leaderboard').then((m) => ({ default: m.default })));
 const Explore = lazy(() => import('../../pages/Explore/Explore').then((m) => ({ default: m.default })));
 const Status = lazy(() => import('../../pages/Status/Status').then((m) => ({ default: m.default })));
+const History = lazy(() => import('../../pages/History/History').then((m) => ({ default: m.default })));
 const Reclamation = lazy(() => import('../../modules/reclamation/ReclamationScreen').then((m) => ({ default: m.ReclamationScreen })));
 const Competitions = lazy(() => import('../../pages/Competitions/Competitions').then((m) => ({ default: m.default })));
 const CompetitionDetail = lazy(() => import('../../pages/Competitions/CompetitionDetail').then((m) => ({ default: m.default })));
@@ -44,6 +45,7 @@ export const LazyRoutes = {
   ChallengeDetail,
   Dashboard,
   Leaderboard,
+  History,
   Explore,
   Status,
   Reclamation,

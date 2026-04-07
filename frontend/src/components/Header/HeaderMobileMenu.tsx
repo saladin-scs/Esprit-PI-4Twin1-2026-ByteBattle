@@ -13,6 +13,7 @@ const navLinks = [
   { to: '/challenges', label: 'Challenges', authOnly: true },
   { to: '/battle/matchmaking', label: 'PVP', authOnly: true },
   { to: '/competitions', label: 'Competitions', authOnly: true },
+  { to: '/history', label: 'Historique', authOnly: true },
   { to: '/leaderboard', label: 'Leaderboard', authOnly: true },
   { to: '/reclamation', label: 'Reports', authOnly: true },
 ] as const;

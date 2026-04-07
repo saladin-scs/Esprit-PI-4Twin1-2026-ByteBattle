@@ -380,6 +380,83 @@ export class CompetitionsService {
     return { success: true };
   }
 
+  async run(competitionId: string, userId: string, dto: SubmitCompetitionDto) {
+    const competition = await this.competitionModel.findById(competitionId).exec();
+    if (!competition) throw new NotFoundException('Competition not found');
+    if (competition.status !== 'active') {
+      throw new ForbiddenException('Tests are only available while the competition is active');
+    }
+
+    const now = new Date();
+    if (now < new Date(competition.startTime) || now > new Date(competition.endTime)) {
+      throw new ForbiddenException('Competition is outside the active time window');
+    }
+
+    const challengeId =
+      dto.challengeId ||
+      (competition.challengeIds && competition.challengeIds[0]?.toString()) ||
+      null;
+    if (!challengeId) throw new BadRequestException('No challenge configured for this competition');
+    if (!competition.supportedLanguages?.includes(dto.language)) {
+      throw new BadRequestException(`Language ${dto.language} is not supported`);
+    }
+
+    const challenge = await this.challengeService.getChallengeWithTestCases(challengeId);
+    const rawTestCases = (challenge as any).testCases as Array<{
+      input?: string;
+      expectedOutput?: string;
+      isHidden?: boolean;
+    }> | undefined;
+    if (!rawTestCases?.length) {
+      throw new BadRequestException('Challenge has no test cases');
+    }
+
+    const testCases = rawTestCases.map((tc: any) => ({
+      input: String(tc?.input ?? '').trim(),
+      expectedOutput: String(tc?.expectedOutput ?? '').trim(),
+    }));
+    const language = this.mapLanguage(dto.language);
+    const out = await this.codeExecution.executeCode({
+      code: dto.code,
+      language,
+      testCases,
+    });
+    const totalTimeMs = out.results.reduce((sum: number, r: any) => sum + (r.executionTime || 0), 0);
+    const clientResults = out.results.map((result: any, index: number) => {
+      const hidden = rawTestCases?.[index]?.isHidden !== false;
+      if (result.passed) {
+        return {
+          testNumber: result.testCase ?? index + 1,
+          passed: true as const,
+        };
+      }
+      if (hidden) {
+        return {
+          testNumber: result.testCase ?? index + 1,
+          passed: false as const,
+          isHiddenCase: true as const,
+          message: result.error
+            ? 'Error on a hidden test case.'
+            : 'Wrong answer on a hidden test case.',
+        };
+      }
+      return {
+        testNumber: result.testCase ?? index + 1,
+        passed: false as const,
+        input: testCases[index]?.input,
+        expectedOutput: testCases[index]?.expectedOutput,
+        actualOutput: result.output ?? '',
+        error: result.error,
+      };
+    });
+
+    return {
+      results: clientResults,
+      overall: out.overall,
+      executionTimeMs: totalTimeMs,
+    };
+  }
+
   /** Compute numeric score for ranking: code_golf/speed lower is better; algorithmic higher is better. */
   private computeScore(
     type: CompetitionType,

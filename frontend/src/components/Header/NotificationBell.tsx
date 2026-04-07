@@ -46,6 +46,8 @@ export function NotificationBell() {
     }
   }, []);
 
+  const safeItems = Array.isArray(items) ? items : [];
+
   useEffect(() => {
     load();
     const t = window.setInterval(load, 60000);
@@ -118,12 +120,12 @@ export function NotificationBell() {
         )}
       </div>
       <div className="max-h-[min(60vh,340px)] overflow-y-auto py-1">
-        {loading && items.length === 0 ? (
+        {loading && safeItems.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-gray-500">Loading...</p>
-        ) : items.length === 0 ? (
+        ) : safeItems.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-gray-500">No notifications</p>
         ) : (
-          items.map((n) => (
+          safeItems.map((n) => (
             <button
               key={n.id}
               type="button"

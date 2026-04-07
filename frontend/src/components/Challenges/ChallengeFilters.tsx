@@ -4,6 +4,18 @@ import { Search } from 'lucide-react';
 const DIFFICULTIES = ['All', 'easy', 'medium', 'hard', 'expert'] as const;
 const LANGUAGES = ['All', 'javascript', 'python', 'java', 'cpp', 'c', 'c#', 'go', 'rust'] as const;
 
+const LANGUAGE_LABELS: Record<string, string> = {
+  All: 'All languages',
+  javascript: 'JavaScript',
+  python: 'Python',
+  java: 'Java',
+  cpp: 'C++',
+  c: 'C',
+  'c#': 'C#',
+  go: 'Go',
+  rust: 'Rust',
+};
+
 const DIFF_LABELS: Record<string, string> = {
   All: 'All difficulties',
   easy: 'Easy',
@@ -60,7 +72,7 @@ export default function ChallengeFilters({
         className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
       >
         {LANGUAGES.map((l) => (
-          <option key={l} value={l}>{l === 'All' ? 'All languages' : l}</option>
+          <option key={l} value={l}>{LANGUAGE_LABELS[l] ?? l}</option>
         ))}
       </select>
       <button

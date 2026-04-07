@@ -39,6 +39,9 @@ function Navbar() {
                 <Link to="/leaderboard" className={linkClass}>
                   Leaderboard
                 </Link>
+                <Link to="/history" className={linkClass}>
+                  Historique
+                </Link>
                 <Link to="/reclamation" className={linkClass}>
                   Reports
                 </Link>

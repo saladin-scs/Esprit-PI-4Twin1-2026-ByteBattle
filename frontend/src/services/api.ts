@@ -28,6 +28,9 @@ export const challengesApi = {
   getRecommended: (params?: { limit?: number }) =>
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>('/challenges/recommended', { params }),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
+  getOneAdmin: (id: string) => apiClient.get(`/challenges/admin/${id}`),
+  getChallengeAnalytics: (id: string) =>
+    apiClient.get(`/challenges/admin/${id}/analytics`),
   getMyCompletion: (id: string) => apiClient.get<{ completedLanguages: string[] }>(`/challenges/${id}/my-completion`),
   getChallengeProgress: (id: string) =>
     apiClient.get<{
@@ -43,6 +46,12 @@ export const challengesApi = {
     apiClient.post(`/challenges/${id}/run`, data),
   submit: (id: string, data: { code: string; language: string }) =>
     apiClient.post(`/challenges/${id}/submit`, data),
+  getMySubmissions: (challengeId?: string) =>
+    apiClient.get('/challenges/me/submissions', { params: { challengeId } }),
+  getMyHistory: (id: string) =>
+    apiClient.get(`/challenges/${id}/my-history`),
+  getOfficialSolution: (id: string, params?: { language?: string }) =>
+    apiClient.get(`/challenges/${id}/official-solution`, { params }),
   getSolutions: (challengeId: string, params?: { page?: number; limit?: number; sortBy?: string }) =>
     apiClient.get(`/challenges/${challengeId}/solutions`, { params }),
   upvoteSolution: (solutionId: string) =>
@@ -162,6 +171,8 @@ export const competitionsApi = {
   getLeaderboard: (id: string, params?: { language?: string; limit?: number }) =>
     apiClient.get(`/competitions/${id}/leaderboard`, { params }),
   create: (competition: any) => apiClient.post('/competitions', competition),
+  run: (id: string, data: { code: string; language: string; challengeId?: string }) =>
+    apiClient.post(`/competitions/${id}/run`, data),
   join: (id: string) => apiClient.post(`/competitions/${id}/join`),
   submit: (id: string, data: { code: string; language: string; challengeId?: string }) =>
     apiClient.post(`/competitions/${id}/submit`, data),
@@ -184,7 +195,11 @@ export const leaderboardApi = {
 /** Gamification (XP, streaks, badges, leaderboard) */
 export const gamificationApi = {
   getCatalog: () => apiClient.get('/gamification/catalog'),
-  getMe: () => apiClient.get('/gamification/me'),
+  getMe: () =>
+    apiClient.get('/gamification/me', {
+      params: { _ts: Date.now() },
+      headers: { 'Cache-Control': 'no-store, no-cache', Pragma: 'no-cache' },
+    }),
   dailyLogin: () => apiClient.post('/gamification/daily-login'),
   streakFreeze: () => apiClient.post('/gamification/streak-freeze'),
   getLeaderboard: (params?: { page?: number; limit?: number; country?: string }) =>
@@ -239,7 +254,10 @@ export const notificationsApi = {
       unreadCount: number;
       page: number;
       totalPages: number;
-    }>('/notifications', { params }),
+    }>('/notifications', {
+      params: { ...params, _ts: Date.now() },
+      headers: { 'Cache-Control': 'no-store, no-cache', Pragma: 'no-cache' },
+    }),
   markRead: (id: string) => apiClient.patch<{ ok: true }>(`/notifications/${id}/read`, {}),
   markAllRead: () => apiClient.patch<{ ok: true }>('/notifications/read-all', {}),
 };
