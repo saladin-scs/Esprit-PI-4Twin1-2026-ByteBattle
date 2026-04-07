@@ -3,6 +3,9 @@ type BattleTimerProps = {
   totalDurationSeconds: number;
   opponentSubmitted: boolean;
   paused?: boolean;
+  /** Defaults: “Opponent pending” / “Opponent submitted” */
+  pendingLabel?: string;
+  submittedLabel?: string;
 };
 
 function toClock(secondsTotal: number) {
@@ -17,6 +20,8 @@ export function BattleTimer({
   totalDurationSeconds,
   opponentSubmitted,
   paused = false,
+  pendingLabel = 'Opponent pending',
+  submittedLabel = 'Opponent submitted',
 }: BattleTimerProps) {
   const pctLeft = totalDurationSeconds > 0 ? (remainingSeconds / totalDurationSeconds) * 100 : 0;
   const colorClass =
@@ -44,7 +49,7 @@ export function BattleTimer({
           {toClock(remainingSeconds)}
         </span>
         <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-          {opponentSubmitted ? 'Opponent submitted' : 'Opponent pending'}
+          {opponentSubmitted ? submittedLabel : pendingLabel}
         </span>
       </div>
       {paused && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">Timer paused (spectator/admin)</p>}

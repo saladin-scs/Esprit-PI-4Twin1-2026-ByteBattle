@@ -2,7 +2,13 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChallengeService } from './challenges.service';
-import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto, UpdateChallengeDto } from './dto/create-challenge.dto';
+import {
+  CreateChallengeDto,
+  GetChallengesDto,
+  SubmitChallengeDto,
+  UpdateChallengeDto,
+  RevealHintDto,
+} from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtOrApiKeyAuthGuard } from '../auth/guards/jwt-or-api-key.guard';
@@ -62,6 +68,23 @@ export class ChallengeController {
   @ApiOperation({ summary: 'Languages in which user solved this challenge' })
   async getMyCompletion(@Param('id') id: string, @Req() req: any) {
     return this.challengeService.getMyCompletion(id, req.user.userId);
+  }
+
+  @Get(':id/progress')
+  @UseGuards(JwtOrApiKeyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Attempt timer start + revealed hints (persisted until first solve)' })
+  async getChallengeProgress(@Param('id') id: string, @Req() req: any) {
+    return this.challengeService.getChallengeProgress(req.user.userId, id);
+  }
+
+  @Post(':id/progress/reveal-hint')
+  @UseGuards(JwtOrApiKeyAuthGuard, ActionRateLimitGuard)
+  @RateLimitAction('challenge_hint')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reveal a hint (persisted; reduces XP on first solve)' })
+  async revealChallengeHint(@Param('id') id: string, @Body() dto: RevealHintDto, @Req() req: any) {
+    return this.challengeService.revealChallengeHint(req.user.userId, id, dto.hintIndex);
   }
 
   @Get(':id')
