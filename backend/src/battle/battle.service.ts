@@ -12,6 +12,7 @@ import { Battle, BattleDocument } from './schemas/battle.schema';
 import { ChallengeService } from '../challenges/challenges.service';
 import { CodeExecutionService } from '../code-execution/code-execution.service';
 import { BattleRealtimeService } from './battle-realtime.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   inferTeamIndexFromPosition,
   resolveBattleOutcome,
@@ -64,6 +65,7 @@ export class BattleService {
     private readonly challengeService: ChallengeService,
     private readonly codeExecution: CodeExecutionService,
     private readonly realtime: BattleRealtimeService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private defaultDurationSeconds(): number {
@@ -199,6 +201,43 @@ export class BattleService {
         yourTeamIndex: myTi,
         opponent,
       });
+
+      void this.notificationsService
+        .create({
+          userId: uid,
+          type: 'battle_found',
+          title: 'Battle matched',
+          body: `Your ${battle.mode} battle is ready on "${challengeTitle}".`,
+          meta: { href: `/battle/room/${id}`, battleId: id, challengeId: String(battle.challengeId) },
+        })
+        .catch(() => undefined);
+    }
+  }
+
+  private notifyBattleResult(battle: BattleDocument): void {
+    const winnerId = battle.winnerId ? String(battle.winnerId) : null;
+    const draw = Boolean((battle as any).draw);
+    const battleId = String(battle._id);
+
+    for (const p of battle.players) {
+      const userId = String(p.userId);
+      const isWinner = winnerId === userId;
+      const title = draw ? 'Battle finished (draw)' : isWinner ? 'Battle won' : 'Battle lost';
+      const body = draw
+        ? `Your ${battle.mode} battle ended in a draw.`
+        : isWinner
+          ? `Great job. You won your ${battle.mode} battle.`
+          : `Your ${battle.mode} battle ended. Keep pushing for the next one.`;
+
+      void this.notificationsService
+        .create({
+          userId,
+          type: draw ? 'battle_draw' : isWinner ? 'battle_won' : 'battle_lost',
+          title,
+          body,
+          meta: { href: `/battle/result/${battleId}`, battleId, result: draw ? 'draw' : isWinner ? 'win' : 'loss' },
+        })
+        .catch(() => undefined);
     }
   }
 
@@ -523,6 +562,8 @@ export class BattleService {
     }
     await updated.save();
 
+    this.notifyBattleResult(updated);
+
     this.realtime.emitToBattleRoom(battleId, 'battle_result', this.toResultPayload(updated));
   }
 
@@ -566,6 +607,7 @@ export class BattleService {
       .exec();
 
     if (res) {
+      this.notifyBattleResult(res);
       this.realtime.emitToBattleRoom(battleId, 'battle_result', this.toResultPayload(res));
     }
   }

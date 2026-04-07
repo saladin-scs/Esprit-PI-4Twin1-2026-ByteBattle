@@ -4,6 +4,26 @@ import { Bell } from 'lucide-react';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator, Button } from '../../shared/components';
 import { notificationsApi, type NotificationItem } from '../../services/api';
 
+function formatRelative(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return isoDate;
+  const diffMs = Date.now() - date.getTime();
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return 'just now';
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)} min ago`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)} h ago`;
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -114,13 +134,13 @@ export function NotificationBell() {
             >
               <span className="font-medium text-gray-900 dark:text-white">{n.title}</span>
               <span className="line-clamp-2 text-xs text-gray-600 dark:text-gray-400">{n.body}</span>
-              <span className="text-[10px] text-gray-400">{n.createdAt}</span>
+              <span className="text-[10px] text-gray-400">{formatRelative(n.createdAt)}</span>
             </button>
           ))
         )}
       </div>
       <DropdownMenuSeparator />
-      <DropdownMenuItem to="/challenges">View challenges</DropdownMenuItem>
+      <DropdownMenuItem to="/notifications">View all notifications</DropdownMenuItem>
     </DropdownMenu>
   );
 }

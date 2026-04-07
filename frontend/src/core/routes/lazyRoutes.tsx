@@ -15,6 +15,7 @@ const Status = lazy(() => import('../../pages/Status/Status').then((m) => ({ def
 const Reclamation = lazy(() => import('../../modules/reclamation/ReclamationScreen').then((m) => ({ default: m.ReclamationScreen })));
 const Competitions = lazy(() => import('../../pages/Competitions/Competitions').then((m) => ({ default: m.default })));
 const CompetitionDetail = lazy(() => import('../../pages/Competitions/CompetitionDetail').then((m) => ({ default: m.default })));
+const Notifications = lazy(() => import('../../pages/Notifications/Notifications').then((m) => ({ default: m.default })));
 const ProfileSettings = lazy(() => import('../../pages/Settings/Profile').then((m) => ({ default: m.default })));
 const SecuritySettings = lazy(() => import('../../pages/Settings/Security').then((m) => ({ default: m.default })));
 const DeveloperSettings = lazy(() => import('../../pages/Settings/Developer').then((m) => ({ default: m.default })));
@@ -48,6 +49,7 @@ export const LazyRoutes = {
   Reclamation,
   Competitions,
   CompetitionDetail,
+  Notifications,
   ProfileSettings,
   SecuritySettings,
   DeveloperSettings,
