@@ -1,0 +1,5 @@
+/**
+ * ByteBattle charter - `.bb-*` classes are defined in `src/index.css`
+ * (after @tailwind) so Tailwind resolves @apply correctly.
+ * See also frontend/docs/CHARTE_GRAPHIQUE.md
+ */

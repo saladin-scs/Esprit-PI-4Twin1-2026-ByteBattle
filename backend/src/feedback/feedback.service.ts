@@ -1,7 +1,8 @@
 /* eslint-disable prettier/prettier */
 // src/feedback/feedback.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { AiService } from '../ai/ai.service';
 
 interface FeedbackPoint {
@@ -31,6 +32,11 @@ interface CodeAnalysisRequest {
 @Injectable()
 export class FeedbackService {
   private readonly logger = new Logger(FeedbackService.name);
+  /** Abuse limit: 40 requests per hour per user. */
+  private readonly userLimiter = new RateLimiterMemory({
+    points: 40,
+    duration: 3600,
+  });
 
   constructor(private readonly aiService: AiService) {}
 
@@ -39,7 +45,15 @@ export class FeedbackService {
    * @param request Code analysis request with code and optional context
    * @returns FeedbackResponse object
    */
-  async getFeedback(request: CodeAnalysisRequest): Promise<FeedbackResponse> {
+  async getFeedback(request: CodeAnalysisRequest, userId: string): Promise<FeedbackResponse> {
+    try {
+      await this.userLimiter.consume(userId, 1);
+    } catch {
+      throw new HttpException(
+        'AI analysis limit reached for this hour. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
     try {
       return await this.aiService.analyzeCode(request as any);
     } catch (error: any) {
@@ -74,7 +88,8 @@ export class FeedbackService {
   async analyzeCode(
     code: string,
     language: string = 'python',
+    userId = 'anonymous',
   ): Promise<FeedbackResponse> {
-    return this.getFeedback({ code, language });
+    return this.getFeedback({ code, language }, userId);
   }
 }

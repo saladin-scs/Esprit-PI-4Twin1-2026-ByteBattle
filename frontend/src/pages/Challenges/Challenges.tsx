@@ -1,204 +1,311 @@
-import { useEffect, useState, useMemo } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
-import { fetchChallenges } from '../../store/slices/challengesSlice';
-import { AppDispatch, RootState } from '../../store/store';
-import type { Challenge } from '../../types/challenge';
-import { PageContainer, Input, Button, Card, Spinner } from '../../shared/components';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
+import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
+import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
+import { PageContainer, Spinner, Button } from '../../shared/components';
+import { ChatAvailabilityCallout } from '../../shared/components';
+import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
+import { RootState } from '../../store/store';
 
-type DifficultyFilter = 'all' | 'easy' | 'medium' | 'hard';
-type SortOption = 'default' | 'difficulty' | 'popular' | 'newest';
+const PAGE_SIZE = 15;
 
-function Challenges() {
-  const dispatch = useDispatch<AppDispatch>();
-  const { challenges, loading } = useSelector(
-    (state: RootState) => state.challenges
-  );
-  const [search, setSearch] = useState('');
-  const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
-  const [tagFilter, setTagFilter] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('default');
+/** Days aligned with backend CHALLENGE_NEW_DAYS default (14). */
+const NEW_CHALLENGE_DAYS = 14;
+
+function isNewFromCreatedAt(createdAt?: string): boolean {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < NEW_CHALLENGE_DAYS * 86400000;
+}
+
+const Challenges = () => {
+  const navigate = useNavigate();
+  const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const isAdmin = useSelector((s: RootState) => Boolean(s.auth.user?.roles?.includes('admin')));
+  const [reco, setReco] = useState<RecommendedChallengeItem[]>([]);
+  const [recoLoading, setRecoLoading] = useState(false);
+
+  const {
+    challenges,
+    total,
+    totalPages,
+    page,
+    loading,
+    error,
+    filters,
+    setFilters,
+    setPage,
+    fetchChallenges,
+  } = useChallengesStore();
 
   useEffect(() => {
-    dispatch(fetchChallenges());
-  }, [dispatch]);
+    fetchChallenges();
+  }, [filters.difficulty, filters.language, filters.search, page, fetchChallenges]);
 
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    challenges.forEach((c) => c.tags?.forEach((t) => set.add(t)));
-    return Array.from(set).sort();
-  }, [challenges]);
-
-  const filteredAndSorted = useMemo(() => {
-    let list = [...challenges];
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (c) =>
-          c.title.toLowerCase().includes(q) ||
-          c.description?.toLowerCase().includes(q) ||
-          c.tags?.some((t) => t.toLowerCase().includes(q))
-      );
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setReco([]);
+      return;
     }
+    let cancelled = false;
+    setRecoLoading(true);
+    challengesApi
+      .getRecommended({ limit: 8 })
+      .then((res) => {
+        if (!cancelled) setReco(res.data.challenges || []);
+      })
+      .catch(() => {
+        if (!cancelled) setReco([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRecoLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
-    if (difficultyFilter !== 'all') {
-      list = list.filter((c) => (c.difficulty ?? 'medium') === difficultyFilter);
-    }
-
-    if (tagFilter) {
-      list = list.filter((c) => c.tags?.includes(tagFilter));
-    }
-
-    if (sortBy === 'difficulty') {
-      const order = { easy: 0, medium: 1, hard: 2 };
-      list.sort((a, b) => (order[a.difficulty] ?? 1) - (order[b.difficulty] ?? 1));
-    } else if (sortBy === 'popular') {
-      list.sort((a, b) => (b.solvedCount ?? 0) - (a.solvedCount ?? 0));
-    } else if (sortBy === 'newest') {
-      list.sort((a, b) => (b._id ?? '').localeCompare(a._id ?? ''));
-    }
-
-    return list;
-  }, [challenges, search, difficultyFilter, tagFilter, sortBy]);
-
-  const getDifficultyClass = (c: Challenge) => {
-    const d = c.difficulty ?? 'medium';
-    if (d === 'easy') return 'bg-green-600/20 text-green-400 border border-green-500/50';
-    if (d === 'hard') return 'bg-red-600/20 text-red-400 border border-red-500/50';
-    return 'bg-amber-600/20 text-amber-400 border border-amber-500/50';
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    fetchChallenges();
   };
 
-  if (loading) {
-    return (
-      <PageContainer maxWidth="7xl" className="py-12">
-        <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
-          <Spinner size="md" />
-          <span>Chargement des défis…</span>
-        </div>
-      </PageContainer>
-    );
-  }
+  const acceptanceRate = (c: ChallengeListItem) =>
+    c.totalSubmissions > 0 ? Math.round((c.totalAccepted / c.totalSubmissions) * 100) : 0;
 
   return (
-    <PageContainer maxWidth="7xl" className="py-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Challenges</h1>
-        <p className="text-gray-500 dark:text-gray-400">
-          Practice with automatic validation and AI feedback
-        </p>
-      </div>
+    <PageContainer maxWidth="7xl" className="relative py-8 md:py-12">
+      <div className="bb-hero-gradient-tall" aria-hidden />
 
-      {/* Filters */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <Input
-          type="search"
-          placeholder="Search challenges…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-0"
-        />
-        <select
-          value={difficultyFilter}
-          onChange={(e) => setDifficultyFilter(e.target.value as DifficultyFilter)}
-          className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 focus:border-blue-500 outline-none"
-        >
-          <option value="all">All difficulties</option>
-          <option value="easy">Easy</option>
-          <option value="medium">Medium</option>
-          <option value="hard">Hard</option>
-        </select>
-        <select
-          value={tagFilter}
-          onChange={(e) => setTagFilter(e.target.value)}
-          className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 focus:border-blue-500 outline-none"
-        >
-          <option value="">All tags</option>
-          {allTags.map((tag) => (
-            <option key={tag} value={tag}>
-              {tag}
-            </option>
-          ))}
-        </select>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortOption)}
-          className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 focus:border-blue-500 outline-none"
-        >
-          <option value="default">Default</option>
-          <option value="difficulty">Easy → Hard</option>
-          <option value="popular">Most solved</option>
-          <option value="newest">Newest</option>
-        </select>
-      </div>
-
-      {filteredAndSorted.length === 0 ? (
-        <Card>
-          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            <p className="text-lg">No challenges match your filters</p>
-            <Button
-              className="mt-4"
-              onClick={() => {
-                setSearch('');
-                setDifficultyFilter('all');
-                setTagFilter('');
-                setSortBy('default');
-              }}
-            >
-              Reset filters
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSorted.map((challenge) => (
-            <Link
-              key={challenge._id}
-              to={`/challenges/${challenge._id}`}
-              className="group block bg-white dark:bg-gray-800 p-6 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/80 transition border border-gray-200 dark:border-gray-700/50 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/5"
-            >
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition line-clamp-1">
-                  {challenge.title}
-                </h3>
-                <span
-                  className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getDifficultyClass(challenge)}`}
-                >
-                  {challenge.difficulty ?? 'medium'}
-                </span>
-              </div>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-4 line-clamp-2 leading-relaxed">
-                {challenge.description}
-              </p>
-              {challenge.tags?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {challenge.tags.slice(0, 4).map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400 text-xs"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="flex items-center justify-between text-sm text-gray-500 pt-2 border-t border-gray-200 dark:border-gray-700/50">
-                <span>
-                  {challenge.solvedCount ?? 0} résolus
-                  {(challenge.attemptCount ?? 0) > 0 && (
-                    <> · {(challenge.attemptCount ?? 0)} tentatives</>
-                  )}
-                </span>
-                <span className="text-blue-600 dark:text-blue-400 group-hover:text-blue-500 text-xs font-medium">
-                  Démarrer →
-                </span>
-              </div>
-            </Link>
-          ))}
+      <header className="relative mb-8">
+        <div className="bb-kicker">
+          <Code2 className="h-3.5 w-3.5" aria-hidden />
+          Practice
         </div>
+        <h1 className="bb-page-heading mb-2 flex flex-wrap items-center gap-2">
+          <Sparkles className="h-8 w-8 shrink-0 text-amber-500" aria-hidden />
+          <span className="bb-title-gradient text-3xl md:text-4xl">Challenges</span>
+        </h1>
+<p className="bb-body-text max-w-2xl" aria-live="polite" aria-atomic="true">
+          {total} challenge{total !== 1 ? 's' : ''} available — <strong>newest first</strong>. Challenges from the last{' '}
+          {NEW_CHALLENGE_DAYS} days are marked <span className="font-medium text-emerald-600 dark:text-emerald-400">New</span>.
+        </p>
+        {isAdmin && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={() => navigate('/admin/challenges')}>+ Create Challenge</Button>
+          </div>
+        )}
+      </header>
+
+      <div className="relative mb-6">
+        <ChatAvailabilityCallout variant="compact" />
+      </div>
+
+      {isAuthenticated && (
+        <section  className="relative mb-8 bb-card p-4 sm:p-5" aria-label="Recommended challenges">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+            <Sparkles className="h-5 w-5 text-amber-500" aria-hidden />
+            Recommended for you
+          </h2>
+          <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+            Basic suggestions based on your most recently solved challenges (tags and difficulty).
+          </p>
+          {recoLoading ? (
+            <div className="flex justify-center py-6">
+              <Spinner />
+            </div>
+          ) : reco.length === 0 ? (
+            <p className="text-sm text-slate-500">Solve a challenge to improve recommendations.</p>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {reco.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => navigate(`/challenges/${c.id}`)}
+                  className="min-w-[200px] max-w-[240px] shrink-0 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-primary-400 dark:border-slate-600 dark:bg-slate-900/40 dark:hover:border-primary-500"
+                >
+                  <div className="line-clamp-2 font-medium text-slate-900 dark:text-white">{c.title}</div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <DifficultyBadge difficulty={c.difficulty} size="sm" />
+                    {c.xpReward != null && (
+                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">+{c.xpReward} XP</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      <div className="relative mb-6 bb-card p-4 sm:p-5">
+        <ChallengeFilters
+          search={filters.search}
+          onSearchChange={(v) => setFilters({ search: v })}
+          difficulty={filters.difficulty}
+          onDifficultyChange={(v) => {
+            setFilters({ difficulty: v });
+            setPage(1);
+          }}
+          language={filters.language}
+          onLanguageChange={(v) => {
+            setFilters({ language: v });
+            setPage(1);
+          }}
+          onSearch={handleSearch}
+          placeholder="Search challenges..."
+        />
+      </div>
+
+      {error && (
+        <div className="relative mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+          {error}
+        </div>
+      )}
+
+      <div className="relative bb-card overflow-hidden p-0">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-500 dark:text-slate-400">
+            <Spinner size="lg" />
+            <span className="text-sm">Loading challenges…</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/90 dark:border-slate-700 dark:bg-slate-800/50">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    #
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Title
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Difficulty
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Languages
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Acceptance
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    XP
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {challenges.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="bb-body-text px-4 py-14 text-center text-sm">
+                      No challenges found
+                    </td>
+                  </tr>
+                ) : (
+                  challenges.map((c, i) => (
+                   <tr
+  key={c._id}
+  onClick={() => navigate(`/challenges/${c._id}`)}
+  tabIndex={0}
+  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/challenges/${c._id}`); }}
+  onFocus={(e) => (e.currentTarget.style.outline = '2px solid #6366f1')}
+  onBlur={(e) => (e.currentTarget.style.outline = '')}
+  className="cursor-pointer transition-colors hover:bg-primary-500/5 dark:hover:bg-primary-500/10"
+>
+                      <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+                        {(page - 1) * PAGE_SIZE + i + 1}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-slate-900 dark:text-slate-100">{c.title}</span>
+                          {(c.isNew || isNewFromCreatedAt(c.createdAt)) && (
+                            <span
+                              className="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-400/35 dark:bg-emerald-500/20 dark:text-emerald-200"
+                              title={`New - created less than ${NEW_CHALLENGE_DAYS} days ago`}
+                            >
+                              New
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {(c.tags || []).slice(0, 3).map((t) => (
+                            <span
+                              key={t}
+                              className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <DifficultyBadge difficulty={c.difficulty} size="sm" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {(c.languages || []).slice(0, 3).map((l) => (
+                            <span
+                              key={l}
+                              className="inline-flex rounded-md border border-primary-500/25 bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-800 dark:text-primary-300"
+                            >
+                              {l}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`text-sm font-semibold ${
+                            acceptanceRate(c) >= 50
+                              ? 'text-primary-600 dark:text-primary-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}
+                        >
+                          {acceptanceRate(c)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                        +{c.xpReward} XP
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <nav aria-label="Challenge pages navigation" className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Button
+            variant="secondary"
+            disabled={page === 1}
+            onClick={() => setPage(Math.max(1, page - 1))}
+            className="inline-flex items-center gap-1 px-3 py-2 text-sm"
+          >
+            <ChevronLeft className="h-4 w-4" /> Previous
+          </Button>
+          <span className="bb-body-text px-4 text-sm">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="secondary"
+            disabled={page === totalPages}
+            onClick={() => setPage(Math.min(totalPages, page + 1))}
+            className="inline-flex items-center gap-1 px-3 py-2 text-sm"
+          >
+            Next <ChevronRight className="h-4 w-4" />
+          </Button>
+        </nav>
       )}
     </PageContainer>
   );
-}
+};
 
 export default Challenges;

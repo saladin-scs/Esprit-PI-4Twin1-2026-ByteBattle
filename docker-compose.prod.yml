@@ -1,0 +1,50 @@
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    ports:
+      - "27017:27017"   # match Vagrant
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - bytebattle
+
+  backend:
+    build:
+      context: ./backend   # build local (IMPORTANT)
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    ports:
+      - "3001:3000"   # host 3001 → container 3000 (NestJS)
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET}
+      MONGODB_URI: ${MONGODB_URI}
+    networks:
+      - bytebattle
+
+  frontend:
+    build:
+      context: ./frontend   # build local
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: ${VITE_API_URL}
+    networks:
+      - bytebattle
+
+volumes:
+  mongodb_data:
+
+networks:
+  bytebattle:
+    driver: bridge

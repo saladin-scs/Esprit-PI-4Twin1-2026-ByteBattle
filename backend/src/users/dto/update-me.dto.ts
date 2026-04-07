@@ -1,5 +1,6 @@
+/* eslint-disable prettier/prettier */
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsObject, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsObject, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
 export class SocialLinksDto {
   @ApiPropertyOptional()
@@ -37,6 +38,29 @@ export class UpdateMeDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(50)
+  firstName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  lastName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   @MaxLength(500)
   bio?: string;
 
@@ -46,14 +70,16 @@ export class UpdateMeDto {
   @MaxLength(2)
   country?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Avatar URL or path (e.g. /uploads/avatars/xxx)' })
   @IsOptional()
-  @IsUrl()
+  @IsString()
+  @MaxLength(2000)
   avatarUrl?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Cover image URL or path (e.g. /uploads/covers/xxx)' })
   @IsOptional()
-  @IsUrl()
+  @IsString()
+  @MaxLength(2000)
   coverImage?: string;
 
   @ApiPropertyOptional({ type: [String] })

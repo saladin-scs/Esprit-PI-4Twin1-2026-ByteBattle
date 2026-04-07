@@ -1,6 +1,6 @@
 /**
- * Client HTTP partagé – une seule instance Axios pour toute l'app.
- * Interceptors (auth, erreurs) centralisés ici.
+ * Shared HTTP client - single Axios instance for the whole app.
+ * Interceptors (auth, errors) are centralized here.
  */
 
 import axios, { type AxiosInstance } from 'axios';
@@ -19,6 +19,10 @@ apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // Let axios set Content-Type with boundary for FormData (file uploads)
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
   }
   return config;
 });

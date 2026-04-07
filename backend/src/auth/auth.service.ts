@@ -8,6 +8,7 @@ import { MailService } from './mail.service';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { SecurityEventsService } from '../security-events/security-events.service';
+import { GamificationService } from '../gamification/gamification.service';
 import { GoogleProfilePayload } from './strategies/google.strategy';
 import { GithubProfilePayload } from './strategies/github.strategy';
 import { authenticator } from 'otplib';
@@ -20,6 +21,7 @@ export class AuthService {
     private jwtService: JwtService,
     private mailService: MailService,
     private securityEvents: SecurityEventsService,
+    private gamificationService: GamificationService,
   ) {}
 
   private resolveRoles(user: any): string[] {
@@ -161,7 +163,7 @@ export class AuthService {
       userAgent: meta?.userAgent,
     });
 
-    // 2FA obligatoire à l'inscription : on ne délivre pas de tokens, seulement un setupToken
+    // 2FA mandatory at signup: do not issue tokens yet, only a setupToken.
     const setupToken = this.signSetupToken(user);
     return {
       twoFactorSetupRequired: true,
@@ -183,6 +185,11 @@ export class AuthService {
   ) {
     const user = await this.usersService.findByIdWithSensitive(userId);
     if (!user || (user as any).isActive === false) throw new UnauthorizedException();
+    try {
+      await this.gamificationService.recordDailyLogin(userId);
+    } catch {
+      // Do not fail login if gamification fails
+    }
     const accessToken = this.signAccessToken(user);
     const refreshToken = await this.issueRefreshToken(user, meta);
     return {
@@ -254,6 +261,29 @@ export class AuthService {
 
   async validateUser(email: string, password: string) {
     return this.usersService.validateUser(email, password);
+  }
+
+  async faceLogin(
+    email: string,
+    embedding: number[],
+    meta?: { ip?: string; userAgent?: string; rememberMe?: boolean },
+  ) {
+    const user = await this.usersService.verifyFaceByEmailAndGetUser(email, embedding);
+    if (!user) {
+      throw new UnauthorizedException('Face not recognized. Please try again or use password.');
+    }
+    if ((user as any).isActive === false) {
+      throw new UnauthorizedException('Account is disabled');
+    }
+
+    await this.securityEvents.record({
+      type: 'auth.face_login',
+      userId: String(user._id),
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+
+    return this.issueTokensForUser(String(user._id), meta);
   }
 
   async socialLogin(

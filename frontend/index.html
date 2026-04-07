@@ -7,6 +7,18 @@
     <title>ByteBattle - Real-Time Coding Challenges</title>
   </head>
   <body>
+    <script>
+      (function() {
+        try {
+          var val = localStorage.getItem('bytebattle-theme');
+          if (val === 'dark' || (!val && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

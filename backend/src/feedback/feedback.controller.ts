@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 // src/feedback/feedback.controller.ts
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FeedbackService } from './feedback.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,8 +14,13 @@ export class FeedbackController {
   @Post('analyze')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Analyze user code and return feedback' })
-  async analyzeCode(@Body() analyzeCodeDto: AnalyzeCodeDto) {
-    return this.feedbackService.getFeedback(analyzeCodeDto);
+  @ApiOperation({
+    summary: 'Code analysis by AI service (optional execution context)',
+  })
+  async analyzeCode(
+    @Body() analyzeCodeDto: AnalyzeCodeDto,
+    @Req() req: { user: { userId: string } },
+  ) {
+    return this.feedbackService.getFeedback(analyzeCodeDto, req.user.userId);
   }
 }

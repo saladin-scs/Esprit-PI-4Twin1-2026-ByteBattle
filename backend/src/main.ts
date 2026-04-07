@@ -1,17 +1,20 @@
-/* eslint-disable prettier/prettier */
+/* eslint-disable prettier/prettier */ // restart
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { join } from 'path';
+import * as express from 'express';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
-import { join } from 'path';
-import * as fs from 'fs';
-import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create(AppModule);
+
+  // Serve uploaded files (avatars, covers)
+  const uploadsPath = join(process.cwd(), 'uploads');
+  app.use('/uploads', express.static(uploadsPath));
 
   const bodyLimit = process.env.HTTP_BODY_LIMIT || '1mb';
   app.use(json({ limit: bodyLimit }));
@@ -23,19 +26,11 @@ async function bootstrap() {
     }),
   );
 
-  // Create upload directories if they don't exist
-  ['./uploads/avatars', './uploads/covers'].forEach(dir => {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-  });
-
-  // Serve static files from uploads directory
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads/' });
-
-
   // Enable CORS
-  const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  const corsOrigins = (
+    process.env.CORS_ORIGIN ||
+    'http://localhost:5173,http://localhost:5174,http://localhost:5175'
+  )
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
@@ -58,10 +53,8 @@ async function bootstrap() {
   app.use(async (req: any, res: any, next: any) => {
     try {
       const key = req.ip || req.connection?.remoteAddress || 'unknown';
-      // Skip rate limiting for Swagger and static assets
-      if (req.path?.startsWith('/api') || req.path?.startsWith('/uploads')) {
-        return next();
-      }
+      // softer for swagger/assets
+      if (req.path?.startsWith('/api')) return next();
       await rateLimiter.consume(key, 1);
       return next();
     } catch {

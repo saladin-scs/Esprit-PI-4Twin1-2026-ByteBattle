@@ -4,7 +4,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
 import { logout } from '../../store/slices/authSlice';
 import { RootState } from '../../store/store';
-import { Avatar, DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '../../shared/components';
+import { Avatar, DropdownMenu, DropdownMenuItem, DropdownMenuSeparator, Modal, Button } from '../../shared/components';
+import { authApi } from '../../core/api';
+import toast from 'react-hot-toast';
+import { KeyRound } from 'lucide-react';
 import {
   IconUser,
   IconLayoutDashboard,
@@ -15,8 +18,9 @@ import {
 
 export function UserMenu() {
   const [open, setOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
   const location = useLocation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -40,13 +44,23 @@ export function UserMenu() {
 
   const handleLogoutClick = () => {
     setOpen(false);
-    setShowLogoutConfirm(true);
+    setShowLogoutModal(true);
   };
 
-  const handleLogoutConfirm = () => {
-    setShowLogoutConfirm(false);
-    dispatch(logout());
-    navigate('/');
+  const confirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (refreshToken) {
+        await authApi.logout(refreshToken).catch(() => {});
+      }
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+      dispatch(logout());
+      navigate('/');
+      toast.success('Successfully logged out');
+    }
   };
 
   const handleLogoutCancel = () => {
@@ -86,57 +100,65 @@ export function UserMenu() {
           <DropdownMenuItem to="/settings/profile" icon={<IconCog />}>
             Settings
           </DropdownMenuItem>
+          <DropdownMenuItem to="/settings/developer" icon={<KeyRound className="h-4 w-4" aria-hidden />}>
+            Developer & data
+          </DropdownMenuItem>
           {isAdmin && (
-            <DropdownMenuItem to="/admin/users" icon={<IconShield />}>
-              Admin
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem to="/admin/users" icon={<IconShield />}>
+                Admin - Users
+              </DropdownMenuItem>
+              <DropdownMenuItem to="/admin/challenges" icon={<IconShield />}>
+                Admin - Challenges
+              </DropdownMenuItem>
+              <DropdownMenuItem to="/admin/competitions" icon={<IconShield />}>
+                Admin - Competitions
+              </DropdownMenuItem>
+              <DropdownMenuItem to="/admin/gamification" icon={<IconShield />}>
+                Admin - Gamification
+              </DropdownMenuItem>
+              <DropdownMenuItem to="/admin/reclamations" icon={<IconShield />}>
+                Admin - Reports
+              </DropdownMenuItem>
+            </>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={handleLogoutClick}
-            icon={<IconLogout />}
-            className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-          >
+          <DropdownMenuItem onClick={handleLogoutClick} icon={<IconLogout />} className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
             Log out
           </DropdownMenuItem>
         </div>
       </DropdownMenu>
 
-      {showLogoutConfirm && createPortal(
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={handleBackdropClick}
-        >
-          <div
-            ref={modalRef}
-            className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6"
-          >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              Confirmer la déconnexion
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
-              Êtes-vous sûr de vouloir vous déconnecter ?
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleLogoutCancel}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleLogoutConfirm}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Se déconnecter
-              </button>
-            </div>
+      <Modal
+        isOpen={showLogoutModal}
+        onClose={() => !isLoggingOut && setShowLogoutModal(false)}
+        title="Sign Out"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            Are you sure you want to sign out of your account? Any unsaved changes on the current page will be lost.
+          </p>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="secondary"
+              onClick={() => setShowLogoutModal(false)}
+              disabled={isLoggingOut}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={confirmLogout}
+              loading={isLoggingOut}
+              disabled={isLoggingOut}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Sign Out
+            </Button>
           </div>
-        </div>,
-        document.body
-      )}
+        </div>
+      </Modal>
     </>
   );
-} 
+}
+

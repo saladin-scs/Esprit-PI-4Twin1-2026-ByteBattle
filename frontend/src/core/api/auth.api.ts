@@ -3,6 +3,8 @@ import { apiClient } from './client';
 export const authApi = {
   login: (credentials: { email: string; password: string; rememberMe?: boolean }) =>
     apiClient.post('/auth/login', credentials),
+  faceLogin: (data: { email: string; embedding: number[]; rememberMe?: boolean }) =>
+    apiClient.post('/auth/face-login', data),
   verify2faLogin: (data: { twoFactorToken: string; code: string; rememberMe?: boolean }) =>
     apiClient.post('/auth/2fa/verify-login', data),
   register: (userData: { email: string; username: string; password: string }) =>

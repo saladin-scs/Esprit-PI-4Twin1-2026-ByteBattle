@@ -3,7 +3,11 @@ import { Controller, Get, Patch, Param, Query, Body, UseGuards, Request } from '
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard, Roles } from '../core';
 import { AdminService } from './admin.service';
+import { ChatService } from '../chat/chat.service';
+import { ReclamationsService } from '../reclamations/reclamations.service';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { SetRoleDto } from './dto/set-role.dto';
+import { AdminUpdateReclamationDto } from './dto/admin-update-reclamation.dto';
 
 @ApiTags('Admin')
 @Controller('admin')
@@ -11,7 +15,11 @@ import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 @Roles('admin')
 @ApiBearerAuth()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly chatService: ChatService,
+    private readonly reclamationsService: ReclamationsService,
+  ) {}
 
   @Get('users')
   @ApiOperation({ summary: 'List users (admin)' })
@@ -42,6 +50,77 @@ export class AdminController {
     @Request() req: { user: { userId: string } },
   ) {
     return this.adminService.updateUser(id, dto as any, req.user.userId);
+  }
+
+  @Patch('users/:id/role')
+  @ApiOperation({ summary: 'Change a user role (e.g. promote to admin)' })
+  async setUserRole(
+    @Param('id') id: string,
+    @Body() dto: SetRoleDto,
+    @Request() req: { user: { userId: string } },
+  ) {
+    return this.adminService.setUserRole(id, dto.role, req.user.userId);
+  }
+
+  @Get('gamification/stats')
+  @ApiOperation({ summary: 'Gamification stats (admin)' })
+  getGamificationStats() {
+    return this.adminService.getGamificationStats();
+  }
+
+  @Get('dashboard')
+  @ApiOperation({ summary: 'Overview (users, challenges, competitions, submissions)' })
+  getDashboardOverview() {
+    return this.adminService.getDashboardOverview();
+  }
+
+  @Get('ml-insights')
+  @ApiOperation({
+    summary: 'ML-style platform insights (health index, entropy, 7d growth, recommendations)',
+  })
+  getMlInsights() {
+    return this.adminService.getMlInsights();
+  }
+
+  @Get('chat-reports')
+  @ApiOperation({ summary: 'Chat message reports (moderation)' })
+  async chatReports(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: 'open' | 'reviewed',
+  ) {
+    return this.chatService.listReportsForAdmin(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 30,
+      status === 'open' || status === 'reviewed' ? status : undefined,
+    );
+  }
+
+  @Get('reclamations')
+  @ApiOperation({ summary: 'List reports (admin)' })
+  async listReclamations(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('q') q?: string,
+  ) {
+    return this.reclamationsService.listForAdmin(page ? Number(page) : 1, limit ? Number(limit) : 20, {
+      status: status || undefined,
+      q: q || undefined,
+    });
+  }
+
+  @Get('reclamations/:id')
+  @ApiOperation({ summary: 'Get report details (admin)' })
+  async getReclamation(@Param('id') id: string) {
+    return this.reclamationsService.getForAdmin(id);
+  }
+
+  @Patch('reclamations/:id')
+  @ApiOperation({ summary: 'Update report status (admin)' })
+  async patchReclamation(@Param('id') id: string, @Body() dto: AdminUpdateReclamationDto) {
+    const reclamation = await this.reclamationsService.updateStatusAdmin(id, dto.status);
+    return { ok: true as const, reclamation };
   }
 }
 

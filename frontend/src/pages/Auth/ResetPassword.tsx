@@ -25,18 +25,18 @@ function ResetPassword() {
 
     // Extra safety check
     if (!passwordsMatch) {
-      setError('Les mots de passe ne correspondent pas.');
+      setError('Passwords do not match.');
       return;
     }
 
     setLoading(true);
     try {
       await authApi.resetPassword(token, newPassword);
-      setMessage('Mot de passe réinitialisé avec succès.');
+      setMessage('Password reset successfully.');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      setError(err?.response?.data?.message || err.message || 'Une erreur est survenue.');
+      setError(err?.response?.data?.message || err.message || 'Something went wrong.');
     } finally {
       setLoading(false);
     }
@@ -45,15 +45,15 @@ function ResetPassword() {
   return (
     <PageContainer maxWidth="md" className="mt-8">
       <Card>
-        <h2 className="text-2xl font-bold text-white mb-6">Réinitialiser le mot de passe</h2>
+        <h2 className="text-2xl font-bold text-white mb-6">Reset password</h2>
         <form onSubmit={onSubmit} className="space-y-4">
           {error && <Alert variant="error">{error}</Alert>}
           {message && <Alert variant="success">{message}</Alert>}
 
-          {/* Nouveau mot de passe */}
+          {/* New password */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Nouveau mot de passe <span className="text-red-500">*</span>
+              New password <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
@@ -70,15 +70,15 @@ function ResetPassword() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-2 text-gray-400 hover:text-white"
               >
-                {showPassword ? 'Masquer' : 'Afficher'}
+                {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
           </div>
 
-          {/* Confirmer le mot de passe */}
+          {/* Confirm password */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Confirmer le mot de passe <span className="text-red-500">*</span>
+              Confirm password <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
@@ -99,11 +99,11 @@ function ResetPassword() {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-2 text-gray-400 hover:text-white"
               >
-                {showConfirmPassword ? 'Masquer' : 'Afficher'}
+                {showConfirmPassword ? 'Hide' : 'Show'}
               </button>
             </div>
             {confirmPassword && !passwordsMatch && (
-              <p className="text-red-500 text-xs mt-1">Les mots de passe ne correspondent pas.</p>
+              <p className="text-red-500 text-xs mt-1">Passwords do not match.</p>
             )}
           </div>
 
@@ -113,11 +113,11 @@ function ResetPassword() {
             loading={loading}
             disabled={isSubmitDisabled}
           >
-            Valider
+            Submit
           </Button>
 
           {!token && (
-            <p className="text-gray-400 text-sm mt-3">Token manquant dans l’URL.</p>
+            <p className="text-gray-400 text-sm mt-3">Missing token in URL.</p>
           )}
         </form>
       </Card>

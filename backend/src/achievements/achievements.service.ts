@@ -14,7 +14,7 @@ export class AchievementsService {
     return this.achievementModel.find().exec();
   }
 
-  async checkAndAward(userId: string, achievementType: string) {
+  async checkAndAward(_userId: string, _achievementType: string) {
     // TODO: Implement achievement checking and awarding logic
     return null;
   }

@@ -72,7 +72,19 @@ export const login = createAsyncThunk(
     return response.data;
   }
 );
-
+export const faceLogin = createAsyncThunk(
+  'auth/faceLogin',
+  async (data: { email: string; embedding: number[]; rememberMe?: boolean }) => {
+    const response = await authApi.faceLogin(data);
+    if (response.data?.access_token) {
+      localStorage.setItem('token', response.data.access_token);
+      if (response.data.refresh_token) {
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+      }
+    }
+    return response.data;
+  }
+);
 export const verify2faLogin = createAsyncThunk(
   'auth/verify2faLogin',
   async (data: { twoFactorToken: string; code: string; rememberMe?: boolean }) => {
@@ -165,6 +177,21 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || 'Login failed';
       })
+      .addCase(faceLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(faceLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload?.user ?? null;
+        state.token = action.payload?.access_token ?? null;
+        state.refreshToken = action.payload?.refresh_token ?? state.refreshToken;
+        state.isAuthenticated = !!action.payload?.access_token;
+      })
+      .addCase(faceLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Face login failed';
+      })
       .addCase(verify2faLogin.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -237,6 +264,12 @@ const authSlice = createSlice({
       .addCase(fetchMe.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch profile';
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        state.isAuthenticated = false;
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
       });
   },
 });

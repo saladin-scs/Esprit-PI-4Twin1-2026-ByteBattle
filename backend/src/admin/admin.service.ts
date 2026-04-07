@@ -91,5 +91,93 @@ export class AdminService {
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
+
+  /** Change the role of a user (e.g. promote to admin). */
+  async setUserRole(
+    userId: string,
+    role: 'user' | 'moderator' | 'admin',
+    currentAdminId?: string,
+  ) {
+    if (currentAdminId && String(userId) === String(currentAdminId)) {
+      if (role !== 'admin') {
+        throw new ForbiddenException('You cannot remove your own admin role');
+      }
+    }
+
+    const roles = [role];
+    const user = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { roles, isAdmin: role === 'admin' } },
+        { new: true },
+      )
+      .select('email username displayName roles isAdmin isActive emailVerifiedAt createdAt')
+      .exec();
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  /** Gamification stats for admin interface */
+  async getGamificationStats() {
+    const [totalUsers, usersWithBadges, xpAgg, badgeCounts] = await Promise.all([
+      this.userModel.countDocuments().exec(),
+      this.userModel.countDocuments({ badgeIds: { $exists: true, $ne: [] } }).exec(),
+      this.userModel.aggregate([{ $group: { _id: null, avgXp: { $avg: '$xp' }, maxXp: { $max: '$xp' } } }]).exec(),
+      this.userModel.aggregate([
+        { $unwind: '$badgeIds' },
+        { $group: { _id: '$badgeIds', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 20 },
+      ]).exec(),
+    ]);
+    const avgXp = xpAgg[0]?.avgXp ?? 0;
+    const maxXp = xpAgg[0]?.maxXp ?? 0;
+    return {
+      totalUsers,
+      usersWithBadges,
+      averageXp: Math.round(avgXp),
+      maxXp,
+      topBadges: badgeCounts.map((b: any) => ({ badgeId: b._id, count: b.count })),
+    };
+  }
+
+  async getDashboardOverview() {
+    const [totalUsers, activeUsers, verifiedUsers, admins] = await Promise.all([
+      this.userModel.countDocuments().exec(),
+      this.userModel.countDocuments({ isActive: true }).exec(),
+      this.userModel.countDocuments({ emailVerifiedAt: { $ne: null } }).exec(),
+      this.userModel.countDocuments({ $or: [{ isAdmin: true }, { roles: 'admin' }] }).exec(),
+    ]);
+
+    return {
+      users: {
+        total: totalUsers,
+        active: activeUsers,
+        verified: verifiedUsers,
+        admins,
+      },
+    };
+  }
+
+  async getMlInsights() {
+    const [totalUsers, activeUsers, avgXpAgg] = await Promise.all([
+      this.userModel.countDocuments().exec(),
+      this.userModel.countDocuments({ isActive: true }).exec(),
+      this.userModel.aggregate([{ $group: { _id: null, avgXp: { $avg: '$xp' } } }]).exec(),
+    ]);
+
+    const activeRate = totalUsers > 0 ? activeUsers / totalUsers : 0;
+    const avgXp = Number(avgXpAgg[0]?.avgXp ?? 0);
+
+    return {
+      healthIndex: Math.round((activeRate * 70 + Math.min(avgXp / 50, 30)) * 100) / 100,
+      activeRate,
+      avgXp,
+      recommendations: [
+        'Increase challenge rotation for medium difficulty.',
+        'Boost onboarding prompts for new users.',
+      ],
+    };
+  }
 }
 

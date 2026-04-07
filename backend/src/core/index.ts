@@ -1,6 +1,6 @@
 /**
- * Core module – exports partagés (guards, decorators) pour une architecture modulaire.
- * Les modules métier importent depuis ici pour une séparation claire des responsabilités.
+ * Core module - shared exports (guards, decorators) for modular architecture.
+ * Business modules import from here for clear separation of responsibilities.
  */
 
 export { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
