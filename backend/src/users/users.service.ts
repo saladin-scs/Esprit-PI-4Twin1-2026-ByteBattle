@@ -142,7 +142,7 @@ async updateCover(userId: string, coverUrl: string): Promise<User> {
       if (forbiddenKeys.has(k)) throw new ForbiddenException(`Field "${k}" cannot be updated here`);
     }
     const { dateOfBirth, ...rest } = updateData;
-    const payload: Partial<User> = { ...rest } as Partial<User>;
+    const payload: Record<string, unknown> = { ...rest };
     if (dateOfBirth) payload.dateOfBirth = new Date(dateOfBirth);
     return this.userModel.findByIdAndUpdate(userId, payload, { new: true })
       .select('-password -emailVerificationTokenHash -passwordResetTokenHash -refreshTokens').exec();
