@@ -1,7 +1,20 @@
 /* eslint-disable prettier/prettier */
-import { IsString, IsEnum, IsArray, IsOptional, IsNumber, IsBoolean, IsObject, MinLength, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsArray,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsObject,
+  MinLength,
+  MaxLength,
+  IsInt,
+  Min,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { PartialType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 export type Language = 'javascript' | 'python' | 'java' | 'cpp';
@@ -10,10 +23,12 @@ export class CreateChallengeDto {
   @ApiProperty()
   @IsString()
   @MinLength(3)
+  @MaxLength(100)
   title: string;
 
   @ApiProperty()
   @IsString()
+  @MaxLength(3000)
   description: string;
 
   @ApiProperty()
@@ -28,26 +43,35 @@ export class CreateChallengeDto {
   @IsEnum(['easy', 'medium', 'hard', 'expert'])
   difficulty: Difficulty;
 
-  @ApiProperty()
+  @ApiProperty({ enum: ['javascript', 'python', 'java', 'cpp'], isArray: true })
   @IsArray()
+  @IsEnum(['javascript', 'python', 'java', 'cpp'], { each: true })
   languages: Language[];
 
   @ApiProperty()
   @IsObject()
   starterCode: Record<string, string>;
 
+  @ApiProperty({ required: false })
+  @IsObject()
+  @IsOptional()
+  officialSolution?: Record<string, string>;
+
   @ApiProperty()
   @IsArray()
+  @IsString({ each: true })
   @IsOptional()
   tags?: string[];
 
   @ApiProperty()
   @IsNumber()
+  @Min(0)
   @IsOptional()
   xpReward?: number;
 
   @ApiProperty()
   @IsArray()
+  @IsString({ each: true })
   @IsOptional()
   constraints?: string[];
 
@@ -58,11 +82,13 @@ export class CreateChallengeDto {
 
   @ApiProperty()
   @IsNumber()
+  @Min(1)
   @IsOptional()
   timeLimit?: number;
 
   @ApiProperty()
   @IsNumber()
+  @Min(1)
   @IsOptional()
   memoryLimit?: number;
 
@@ -79,6 +105,13 @@ export class CreateChallengeDto {
 
 /** Aligned with CODE_EXECUTION_MAX_CODE_CHARS (execution rejects beyond this). */
 const SUBMIT_CODE_MAX = Number(process.env.CODE_EXECUTION_MAX_CODE_CHARS || 20000);
+
+export class RevealHintDto {
+  @ApiProperty({ description: 'Index of the hint in challenge.hints (0-based)' })
+  @IsInt()
+  @Min(0)
+  hintIndex: number;
+}
 
 export class SubmitChallengeDto {
   @ApiProperty()
@@ -114,6 +147,41 @@ export class GetChallengesDto {
 
   @IsOptional()
   limit?: number;
+}
+
+export class GenerateChallengeAiDto {
+  @ApiProperty({ description: 'Short prompt/topic for the challenge', example: 'Palindrome check for a string' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(300)
+  prompt: string;
+
+  @ApiProperty({ enum: ['easy', 'medium', 'hard', 'expert'], required: false })
+  @IsOptional()
+  @IsEnum(['easy', 'medium', 'hard', 'expert'])
+  difficulty?: Difficulty;
+
+  @ApiProperty({ enum: ['javascript', 'python', 'java', 'cpp'], isArray: true, required: false })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(['javascript', 'python', 'java', 'cpp'], { each: true })
+  languages?: Language[];
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
+
+  @ApiProperty({ required: false, description: 'Persist challenge immediately after generation' })
+  @IsOptional()
+  @IsBoolean()
+  create?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  isPublished?: boolean;
 }
 
 export class UpdateChallengeDto extends PartialType(CreateChallengeDto) {}

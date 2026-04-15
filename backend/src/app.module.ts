@@ -3,6 +3,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { validateConfig } from './config/validation';
@@ -11,13 +12,23 @@ import { CodeExecutionModule } from './code-execution/code-execution.module';
 import { GamificationModule } from './gamification/gamification.module';
 import { CompetitionsModule } from './competitions/competitions.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
-import { AiModule } from './ai/ai.module';
+import { SiteRatingsModule } from './site-ratings/site-ratings.module';
+import { ChatModule } from './chat/chat.module';
+import { BattleModule } from './battle/battle.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: [
+        join(process.cwd(), '.env.local'),
+        join(process.cwd(), '.env'),
+        join(process.cwd(), 'backend', '.env.local'),
+        join(process.cwd(), 'backend', '.env'),
+        join(process.cwd(), '..', '.env.local'),
+        join(process.cwd(), '..', '.env'),
+      ],
       validate: validateConfig,
     }),
     MongooseModule.forRootAsync({
@@ -34,7 +45,10 @@ import { AiModule } from './ai/ai.module';
     GamificationModule,
     CompetitionsModule,
     LeaderboardModule,
-    AiModule,
+    SiteRatingsModule,
+    ChatModule,
+    BattleModule,
+    FeedbackModule,
   ],
 })
 export class AppModule {}

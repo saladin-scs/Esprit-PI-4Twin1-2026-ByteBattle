@@ -4,6 +4,26 @@ import { Bell } from 'lucide-react';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator, Button } from '../../shared/components';
 import { notificationsApi, type NotificationItem } from '../../services/api';
 
+function formatRelative(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return isoDate;
+  const diffMs = Date.now() - date.getTime();
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diffMs < minute) return 'just now';
+  if (diffMs < hour) return `${Math.floor(diffMs / minute)} min ago`;
+  if (diffMs < day) return `${Math.floor(diffMs / hour)} h ago`;
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
@@ -16,14 +36,17 @@ export function NotificationBell() {
     setLoading(true);
     try {
       const { data } = await notificationsApi.list({ page: 1, limit: 15 });
-      setItems(data.items);
-      setUnreadCount(data.unreadCount);
+      setItems(Array.isArray(data?.items) ? data.items : []);
+      setUnreadCount(typeof data?.unreadCount === 'number' ? data.unreadCount : 0);
     } catch {
       setItems([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const safeItems = Array.isArray(items) ? items : [];
 
   useEffect(() => {
     load();
@@ -97,12 +120,12 @@ export function NotificationBell() {
         )}
       </div>
       <div className="max-h-[min(60vh,340px)] overflow-y-auto py-1">
-        {loading && items.length === 0 ? (
+        {loading && safeItems.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-gray-500">Loading...</p>
-        ) : items.length === 0 ? (
+        ) : safeItems.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-gray-500">No notifications</p>
         ) : (
-          items.map((n) => (
+          safeItems.map((n) => (
             <button
               key={n.id}
               type="button"
@@ -113,13 +136,13 @@ export function NotificationBell() {
             >
               <span className="font-medium text-gray-900 dark:text-white">{n.title}</span>
               <span className="line-clamp-2 text-xs text-gray-600 dark:text-gray-400">{n.body}</span>
-              <span className="text-[10px] text-gray-400">{n.createdAt}</span>
+              <span className="text-[10px] text-gray-400">{formatRelative(n.createdAt)}</span>
             </button>
           ))
         )}
       </div>
       <DropdownMenuSeparator />
-      <DropdownMenuItem to="/challenges">View challenges</DropdownMenuItem>
+      <DropdownMenuItem to="/notifications">View all notifications</DropdownMenuItem>
     </DropdownMenu>
   );
 }

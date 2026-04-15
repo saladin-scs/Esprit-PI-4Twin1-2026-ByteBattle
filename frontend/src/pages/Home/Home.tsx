@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
+import { ByteBattleLogo } from '../../components/ByteBattleLogo';
 import { PageContainer, Card, Button } from '../../shared/components';
 import { Trophy, Zap, BarChart3, MessageCircle } from 'lucide-react';
-import { SiteRatingWidget } from './SiteRatingWidget';
 
 function Home() {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -18,12 +18,7 @@ function Home() {
           ByteBattle
         </div>
         <h1 className="mb-6 flex justify-center">
-          <img
-            src="/bytebattle-logo.png"
-            alt="Byte Battle"
-            className="h-24 w-auto origin-center sm:h-28 md:h-32"
-            style={{ transform: 'rotate(-10deg)' }}
-          />
+          <ByteBattleLogo className="h-24 w-auto origin-center sm:h-28 md:h-32" />
         </h1>
         <p className="bb-body-text mx-auto mb-4 max-w-2xl text-lg md:text-xl">
           Real-time coding challenges and contests. Compete, learn, and level up with AI-assisted practice.
@@ -54,7 +49,6 @@ function Home() {
           )}
         </div>
 
-        <SiteRatingWidget />
       </div>
 
       <div className="relative mt-16 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 md:gap-8">

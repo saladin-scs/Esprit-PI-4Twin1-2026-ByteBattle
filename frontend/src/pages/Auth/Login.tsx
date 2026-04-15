@@ -1,11 +1,17 @@
 // pages/Auth.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { login, faceLogin, verify2faLogin, register as registerAction } from '../../store/slices/authSlice';
+import {
+  login,
+  faceLogin,
+  verify2faLogin,
+  register as registerAction,
+  unwrapRejectedMessage,
+} from '../../store/slices/authSlice';
 import { AppDispatch } from '../../store/store';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReCAPTCHA from 'react-google-recaptcha';
@@ -16,6 +22,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useDebounce } from 'use-debounce';
 import toast from 'react-hot-toast';
 import * as faceapi from 'face-api.js';
+import { getPublicApiUrl } from '../../config/publicEnv';
+import { setPostRegisterOnboardingFlag } from '../../shared/components';
 
 // Icons
 const GoogleIcon = () => (
@@ -160,6 +168,39 @@ const useEmailAvailability = (email: string, apiUrl: string) => {
 
     checkEmail();
   }, [debouncedEmail, apiUrl]);
+
+  return { isAvailable, isChecking };
+};
+
+const useUsernameAvailability = (username: string, apiUrl: string) => {
+  const [debouncedUsername] = useDebounce(username, 500);
+  const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+
+  useEffect(() => {
+    const checkUsername = async () => {
+      if (!debouncedUsername || debouncedUsername.trim().length < 3) {
+        setIsAvailable(null);
+        return;
+      }
+
+      setIsChecking(true);
+      try {
+        const response = await fetch(
+          `${apiUrl}/auth/check-username?username=${encodeURIComponent(debouncedUsername.trim())}`,
+        );
+        const data = await response.json();
+        setIsAvailable(data.available);
+      } catch (error) {
+        console.error('Username check failed:', error);
+        setIsAvailable(null);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkUsername();
+  }, [debouncedUsername, apiUrl]);
 
   return { isAvailable, isChecking };
 };
@@ -327,10 +368,11 @@ type AuthMode = 'login' | 'register' | '2fa' | 'face-login';
 function Auth() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = getPublicApiUrl();
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
   
   // State
@@ -343,6 +385,8 @@ function Auth() {
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const redirectTarget =
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/dashboard';
   
   // Hooks
   const { modelsLoaded, isLoading: faceModelsLoading, error: faceError, detectFace } = useFaceRecognition();
@@ -393,10 +437,13 @@ function Auth() {
 
   // Watchers
   const watchRegisterEmail = registerForm.watch('email');
+  const watchRegisterUsername = registerForm.watch('username');
   const watchRegisterPassword = registerForm.watch('password');
-  
-  const { isAvailable: isEmailAvailable, isChecking: isCheckingEmail } = 
+
+  const { isAvailable: isEmailAvailable, isChecking: isCheckingEmail } =
     useEmailAvailability(watchRegisterEmail, API_URL);
+  const { isAvailable: isUsernameAvailable, isChecking: isCheckingUsername } =
+    useUsernameAvailability(watchRegisterUsername, API_URL);
 
   // Registration steps
   const steps = [
@@ -448,9 +495,16 @@ function Auth() {
     
     if (isStepValid) {
       if (currentStep === 0 && isEmailAvailable === false) {
-        registerForm.setError('email', { 
-          type: 'manual', 
-          message: 'This email is already registered' 
+        registerForm.setError('email', {
+          type: 'manual',
+          message: 'This email is already registered',
+        });
+        return;
+      }
+      if (currentStep === 0 && isUsernameAvailable === false) {
+        registerForm.setError('username', {
+          type: 'manual',
+          message: 'This username is already taken',
         });
         return;
       }
@@ -480,14 +534,44 @@ function Auth() {
       toast.error('This email is already registered');
       return;
     }
+    if (isUsernameAvailable === false) {
+      toast.error('This username is already taken');
+      return;
+    }
 
     setLoading(true);
     setError('');
 
     try {
-      const { email, username, password } = data;
+      const {
+        email,
+        username,
+        password,
+        firstName,
+        lastName,
+        phone,
+        dateOfBirth,
+        newsletter,
+        referralSource,
+      } = data;
+      const dob =
+        dateOfBirth instanceof Date
+          ? dateOfBirth.toISOString().slice(0, 10)
+          : dateOfBirth
+            ? new Date(dateOfBirth as string).toISOString().slice(0, 10)
+            : undefined;
       const result = await dispatch(
-        registerAction({ email, username, password })
+        registerAction({
+          email,
+          username: username.trim(),
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone,
+          dateOfBirth: dob,
+          newsletter: !!newsletter,
+          referralSource: referralSource?.trim() || undefined,
+        }),
       ).unwrap();
 
       if (result.twoFactorSetupRequired) {
@@ -495,11 +579,12 @@ function Auth() {
         navigate('/setup-2fa');
       } else {
         toast.success('Registration successful! Please check your email.');
+        setPostRegisterOnboardingFlag();
         handleModeChange('login');
         registerForm.reset();
       }
-    } catch (err: any) {
-      setError(err?.message || 'Registration failed. Please try again.');
+    } catch (err: unknown) {
+      setError(unwrapRejectedMessage(err, 'Registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -519,10 +604,10 @@ function Auth() {
         return;
       }
 
-      navigate('/dashboard');
+      navigate(redirectTarget, { replace: true });
       toast.success('Login successful!');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+    } catch (err: unknown) {
+      setError(unwrapRejectedMessage(err, 'Login failed. Please check your credentials.'));
     } finally {
       setLoading(false);
     }
@@ -544,10 +629,10 @@ function Auth() {
         })
       ).unwrap();
 
-      navigate('/dashboard');
+      navigate(redirectTarget, { replace: true });
       toast.success('2FA verification successful!');
-    } catch (err: any) {
-      setError(err.message || '2FA verification failed');
+    } catch (err: unknown) {
+      setError(unwrapRejectedMessage(err, '2FA verification failed'));
     } finally {
       setLoading(false);
     }
@@ -594,9 +679,8 @@ function Auth() {
       stopCamera();
       navigate('/dashboard');
       toast.success('Face recognition successful!');
-    } catch (err: any) {
-      const message = err?.response?.data?.message || err.message || 'Face login failed';
-      setError(message);
+    } catch (err: unknown) {
+      setError(unwrapRejectedMessage(err, 'Face login failed'));
     } finally {
       setLoading(false);
     }
@@ -783,16 +867,29 @@ function Auth() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Username <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    {...registerForm.register('username')}
-                    className={`
+                  <div className="relative">
+                    <input
+                      type="text"
+                      {...registerForm.register('username')}
+                      className={`
                       w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg focus:outline-none focus:ring-2 
                       text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600
                       ${registerForm.formState.errors.username ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}
                     `}
-                    placeholder="johndoe123"
-                  />
+                      placeholder="johndoe123"
+                    />
+                    {isCheckingUsername && (
+                      <div className="absolute right-3 top-2">
+                        <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-blue-500" />
+                      </div>
+                    )}
+                  </div>
+                  {!isCheckingUsername && isUsernameAvailable === false && watchRegisterUsername?.trim().length >= 3 && (
+                    <p className="mt-1 text-xs text-red-500">Username is already taken</p>
+                  )}
+                  {!isCheckingUsername && isUsernameAvailable === true && watchRegisterUsername?.trim().length >= 3 && (
+                    <p className="mt-1 text-xs text-green-500">Username is available</p>
+                  )}
                   {registerForm.formState.errors.username && (
                     <p className="text-red-500 text-xs mt-1">{registerForm.formState.errors.username.message}</p>
                   )}

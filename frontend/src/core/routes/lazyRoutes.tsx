@@ -12,9 +12,11 @@ const Dashboard = lazy(() => import('../../pages/Dashboard/Dashboard').then((m) 
 const Leaderboard = lazy(() => import('../../pages/Leaderboard/Leaderboard').then((m) => ({ default: m.default })));
 const Explore = lazy(() => import('../../pages/Explore/Explore').then((m) => ({ default: m.default })));
 const Status = lazy(() => import('../../pages/Status/Status').then((m) => ({ default: m.default })));
+const History = lazy(() => import('../../pages/History/History').then((m) => ({ default: m.default })));
 const Reclamation = lazy(() => import('../../modules/reclamation/ReclamationScreen').then((m) => ({ default: m.ReclamationScreen })));
 const Competitions = lazy(() => import('../../pages/Competitions/Competitions').then((m) => ({ default: m.default })));
 const CompetitionDetail = lazy(() => import('../../pages/Competitions/CompetitionDetail').then((m) => ({ default: m.default })));
+const Notifications = lazy(() => import('../../pages/Notifications/Notifications').then((m) => ({ default: m.default })));
 const ProfileSettings = lazy(() => import('../../pages/Settings/Profile').then((m) => ({ default: m.default })));
 const SecuritySettings = lazy(() => import('../../pages/Settings/Security').then((m) => ({ default: m.default })));
 const DeveloperSettings = lazy(() => import('../../pages/Settings/Developer').then((m) => ({ default: m.default })));
@@ -29,6 +31,11 @@ const ResetPassword = lazy(() => import('../../pages/Auth/ResetPassword').then((
 const SocialCallback = lazy(() => import('../../pages/Auth/SocialCallback').then((m) => ({ default: m.default })));
 const Setup2FA = lazy(() => import('../../pages/Auth/Setup2FA').then((m) => ({ default: m.default })));
 const PublicProfile = lazy(() => import('../../pages/User/PublicProfile').then((m) => ({ default: m.default })));
+const BattleMatchmaking = lazy(() =>
+  import('../../pages/Battle/MatchmakingPage').then((m) => ({ default: m.default })),
+);
+const BattleRoom = lazy(() => import('../../pages/Battle/BattlePage').then((m) => ({ default: m.default })));
+const BattleResult = lazy(() => import('../../pages/Battle/BattleResultPage').then((m) => ({ default: m.default })));
 
 export const LazyRoutes = {
   Home,
@@ -38,11 +45,13 @@ export const LazyRoutes = {
   ChallengeDetail,
   Dashboard,
   Leaderboard,
+  History,
   Explore,
   Status,
   Reclamation,
   Competitions,
   CompetitionDetail,
+  Notifications,
   ProfileSettings,
   SecuritySettings,
   DeveloperSettings,
@@ -57,6 +66,9 @@ export const LazyRoutes = {
   ResetPassword,
   SocialCallback,
   Setup2FA,
+  BattleMatchmaking,
+  BattleRoom,
+  BattleResult,
 };
 
 const PageFallback = () => (

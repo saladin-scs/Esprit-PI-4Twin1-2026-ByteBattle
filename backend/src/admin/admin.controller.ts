@@ -76,7 +76,7 @@ export class AdminController {
 
   @Get('ml-insights')
   @ApiOperation({
-    summary: 'ML-style platform insights (health index, entropy, 7d growth, recommendations)',
+    summary: 'Platform health-style insights (active users, average XP, suggested focus areas)',
   })
   getMlInsights() {
     return this.adminService.getMlInsights();

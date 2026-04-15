@@ -10,3 +10,4 @@ export { CompetitionRules } from './CompetitionRules';
 export { LeaderboardTable } from './LeaderboardTable';
 export { LeaderboardRow } from './LeaderboardRow';
 export { SubmissionPanel } from './SubmissionPanel';
+export { ContestChallengePicker } from './ContestChallengePicker';

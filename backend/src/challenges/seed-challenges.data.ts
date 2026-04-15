@@ -44,6 +44,21 @@ public class Solution {
 }`,
       cpp: '#include <iostream>\n#include <string>\nusing namespace std;\nint main() { string s; getline(cin, s); string result = ""; /* TODO: reverse s into result */ cout << result << endl; return 0; }',
     },
+    officialSolution: {
+      javascript: 'const s = readline().trim();\nconst result = s.split(\'\').reverse().join(\'\');\nconsole.log(result);',
+      python: 's = input().strip()\nresult = s[::-1]\nprint(result)',
+      java: `import java.io.*;
+
+public class Solution {
+  public static void main(String[] args) throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    String s = br.readLine().trim();
+    String result = new StringBuilder(s).reverse().toString();
+    System.out.println(result);
+  }
+}`,
+      cpp: '#include <iostream>\n#include <string>\n#include <algorithm>\nusing namespace std;\nint main() { string s; getline(cin, s); reverse(s.begin(), s.end()); cout << s << endl; return 0; }',
+    },
   },
   {
     title: 'Sum of Array',
@@ -85,6 +100,26 @@ public class Solution {
   }
 }`,
       cpp: '#include <iostream>\nusing namespace std;\nint main() { int n; cin >> n; long long sum = 0; int x; for (int i = 0; i < n && cin >> x; i++) { /* TODO: add x to sum */ } cout << sum << endl; return 0; }',
+    },
+    officialSolution: {
+      javascript: 'const n = parseInt(readline(), 10);\nconst arr = readline().split(/\\s+/).map(Number);\nlet sum = 0;\nfor (let i = 0; i < arr.length; i++) { sum += arr[i]; }\nconsole.log(sum);',
+      python: 'n = int(input())\narr = list(map(int, input().split()))\nprint(sum(arr))',
+      java: `import java.io.*;
+import java.util.*;
+
+public class Solution {
+  public static void main(String[] args) throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    int n = Integer.parseInt(br.readLine());
+    StringTokenizer st = new StringTokenizer(br.readLine());
+    long sum = 0;
+    while (st.hasMoreTokens()) {
+      sum += Long.parseLong(st.nextToken());
+    }
+    System.out.println(sum);
+  }
+}`,
+      cpp: '#include <iostream>\nusing namespace std;\nint main() { int n; cin >> n; long long sum = 0; int x; for (int i = 0; i < n && cin >> x; i++) { sum += x; } cout << sum << endl; return 0; }',
     },
     hints: [
       {
@@ -140,6 +175,31 @@ public class Solution {
   }
 }`,
       cpp: '#include <iostream>\nusing namespace std;\nint main() { int a, b, n; cin >> a >> b >> n; /* TODO: output the next n Fibonacci numbers, space-separated */ cout << endl; return 0; }',
+    },
+    officialSolution: {
+      javascript: 'const line1 = readline().split(/\\s+/).map(Number);\nconst n = parseInt(readline(), 10);\nlet a = line1[0], b = line1[1];\nconst out = [];\nfor (let i = 0; i < n; i++) { const next = a + b; out.push(next); a = b; b = next; }\nconsole.log(out.join(" "));',
+      python: 'a, b = map(int, input().split())\nn = int(input())\nout = []\nfor _ in range(n):\n  c = a + b\n  out.append(c)\n  a, b = b, c\nprint(" ".join(map(str, out)))',
+      java: `import java.io.*;
+import java.util.*;
+
+public class Solution {
+  public static void main(String[] args) throws IOException {
+    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+    String[] parts = br.readLine().split("\\\\s+");
+    long a = Long.parseLong(parts[0]);
+    long b = Long.parseLong(parts[1]);
+    int n = Integer.parseInt(br.readLine());
+    List<Long> out = new ArrayList<>();
+    for (int i = 0; i < n; i++) {
+      long c = a + b;
+      out.add(c);
+      a = b;
+      b = c;
+    }
+    System.out.println(String.join(" ", out.stream().map(String::valueOf).toArray(String[]::new)));
+  }
+}`,
+      cpp: '#include <iostream>\n#include <vector>\nusing namespace std;\nint main() { long long a, b, n; cin >> a >> b >> n; vector<long long> out; for (int i = 0; i < n; i++) { long long c = a + b; out.push_back(c); a = b; b = c; } for (int i = 0; i < out.size(); i++) { if (i > 0) cout << " "; cout << out[i]; } cout << endl; return 0; }',
     },
   },
   {

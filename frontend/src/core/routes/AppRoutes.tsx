@@ -22,6 +22,8 @@ const {
   Reclamation,
   Competitions,
   CompetitionDetail,
+  History,
+  Notifications,
   ProfileSettings,
   SecuritySettings,
   DeveloperSettings,
@@ -36,6 +38,9 @@ const {
   ResetPassword,
   SocialCallback,
   Setup2FA,
+  BattleMatchmaking,
+  BattleRoom,
+  BattleResult,
 } = LazyRoutes;
 
 export function AppRoutes() {
@@ -60,9 +65,14 @@ export function AppRoutes() {
           <Route path="/reclamation" element={<ProtectedRoute><Reclamation /></ProtectedRoute>} />
           <Route path="/competitions" element={<ProtectedRoute><Competitions /></ProtectedRoute>} />
           <Route path="/competitions/:id" element={<ProtectedRoute><CompetitionDetail /></ProtectedRoute>} />
+          <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+          <Route path="/battle/matchmaking" element={<ProtectedRoute><BattleMatchmaking /></ProtectedRoute>} />
+          <Route path="/battle/room/:battleId" element={<ProtectedRoute><BattleRoom /></ProtectedRoute>} />
+          <Route path="/battle/result/:battleId" element={<ProtectedRoute><BattleResult /></ProtectedRoute>} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/security" element={<SecuritySettings />} />
-          <Route path="/settings/developer" element={<ProtectedRoute><DeveloperSettings /></ProtectedRoute>} />
+          <Route path="/settings/developer" element={<DeveloperSettings />} />
           <Route path="/u/:username" element={<PublicProfile />} />
           <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
           <Route path="/admin/gamification" element={<AdminRoute><AdminGamificationStats /></AdminRoute>} />

@@ -12,13 +12,17 @@ import { SensitiveRateLimitService } from '../common/sensitive-rate-limit.servic
 import { Challenge, ChallengeSchema } from './schemas/challenge.schema';
 import { Submission, SubmissionSchema } from './schemas/Submission.schema';
 import { Solution, SolutionSchema } from './schemas/solution.schema';
+import { ChallengeSession, ChallengeSessionSchema } from './schemas/challenge-session.schema';
+import { CommonRateLimitModule } from '../common/common.module';
 
 @Module({
   imports: [
+    CommonRateLimitModule,
     MongooseModule.forFeature([
       { name: Challenge.name, schema: ChallengeSchema },
       { name: Submission.name, schema: SubmissionSchema },
       { name: Solution.name, schema: SolutionSchema },
+      { name: ChallengeSession.name, schema: ChallengeSessionSchema },
     ]),
     CodeExecutionModule,
     UsersModule,

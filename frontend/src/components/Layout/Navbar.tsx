@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
 import { RootState } from '../../store/store';
+import { ByteBattleLogo } from '../ByteBattleLogo';
 import { Button } from '../../shared/components';
 import { ThemeToggle } from '../../shared/components/ThemeToggle';
 
@@ -25,12 +26,7 @@ function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex items-center transition-opacity hover:opacity-90">
-              <img
-                src="/bytebattle-logo.png"
-                alt="Byte Battle"
-                className="h-12 w-auto origin-center"
-                style={{ transform: 'rotate(-10deg)' }}
-              />
+              <ByteBattleLogo className="h-12 w-auto origin-center" />
             </Link>
             {isAuthenticated && (
               <div className="ml-10 flex items-baseline space-x-4">
@@ -42,6 +38,9 @@ function Navbar() {
                 </Link>
                 <Link to="/leaderboard" className={linkClass}>
                   Leaderboard
+                </Link>
+                <Link to="/history" className={linkClass}>
+                  History
                 </Link>
                 <Link to="/reclamation" className={linkClass}>
                   Reports
