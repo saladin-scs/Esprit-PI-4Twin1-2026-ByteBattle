@@ -31,6 +31,8 @@ export function ReclamationForm({ onSuccess }: Props) {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ReclamationFormData>({
     resolver: yupResolver(reclamationSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       category: 'other',
       subject: '',
@@ -90,18 +92,18 @@ export function ReclamationForm({ onSuccess }: Props) {
         <Input
           label="Subject"
           placeholder="Short summary"
+          error={errors.subject?.message}
           {...register('subject')}
         />
-        {errors.subject && <p className="text-red-500 text-sm mt-1">{errors.subject.message}</p>}
       </div>
       <div>
         <Textarea
           label="Message"
           rows={8}
           placeholder="Describe the situation with as much detail as possible..."
+          error={errors.message?.message}
           {...register('message')}
         />
-        {errors.message && <p className="text-red-500 text-sm mt-1">{errors.message.message}</p>}
       </div>
       <Button type="submit" fullWidth loading={loading}>
         Send report

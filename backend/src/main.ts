@@ -122,4 +122,15 @@ async function bootstrap() {
   console.log(`📚 Swagger documentation: http://localhost:${port}/api`);
 }
 
-bootstrap();
+const BOOTSTRAP_GUARD_KEY = '__BYTEBATTLE_BACKEND_BOOTSTRAPPED__';
+const globalRef = globalThis as Record<string, unknown>;
+
+if (globalRef[BOOTSTRAP_GUARD_KEY]) {
+  console.warn('[bootstrap] main.ts already initialized, skipping duplicate startup.');
+} else {
+  globalRef[BOOTSTRAP_GUARD_KEY] = true;
+  bootstrap().catch((error) => {
+    globalRef[BOOTSTRAP_GUARD_KEY] = false;
+    throw error;
+  });
+}

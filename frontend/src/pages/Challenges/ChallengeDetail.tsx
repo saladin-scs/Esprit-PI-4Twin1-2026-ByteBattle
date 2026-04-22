@@ -22,6 +22,8 @@ import {
   Code2,
   Clock,
   BarChart3,
+  Focus,
+  Minimize2,
 } from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
 import { challengesApi, gamificationApi } from '../../services/api';
@@ -179,6 +181,7 @@ const ChallengeDetail = () => {
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
   const authUserId = useSelector((s: RootState) => s.auth.user?.id ?? '');
   const [isVimMode, setIsVimMode] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [attemptStartedAt, setAttemptStartedAt] = useState<string | null>(null);
   const [localAttemptStartedAt, setLocalAttemptStartedAt] = useState<string | null>(null);
@@ -240,6 +243,7 @@ const ChallengeDetail = () => {
     prevLangParamRef.current = langFromUrl;
     if (idChanged || langJustOpened) {
       setActiveTab('description');
+      setIsFocusMode(false);
     }
   }, [id, langFromUrl]);
 
@@ -361,6 +365,16 @@ const ChallengeDetail = () => {
     setSearchParams({ lang });
     setSelectedLang(lang);
     setCode(challenge?.starterCode?.[lang] || '');
+  };
+
+  const toggleFocusMode = () => {
+    setIsFocusMode((prev) => {
+      const next = !prev;
+      if (next) {
+        setActiveTab('description');
+      }
+      return next;
+    });
   };
 
   const attemptElapsedMs = useMemo(() => {
@@ -701,7 +715,8 @@ const ChallengeDetail = () => {
     <>
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 font-sans dark:bg-[#010409]">
       <Group {...({ direction: 'vertical' } as any)}>
-        <Panel order={2} defaultSize={42} minSize={20}>
+        {!isFocusMode && (
+          <Panel order={2} defaultSize={42} minSize={20}>
           <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
            <div role="tablist" aria-label="Challenge sections" className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
             <button
@@ -1297,11 +1312,14 @@ aria-selected={activeTab === 'coach'}
               )}
             </div>
           </div>
-        </Panel>
+          </Panel>
+        )}
 
-        <Separator className="h-2 cursor-row-resize bg-gray-200 transition-colors hover:bg-primary-500/30 dark:bg-[#30363d]" />
+        {!isFocusMode && (
+          <Separator className="h-2 cursor-row-resize bg-gray-200 transition-colors hover:bg-primary-500/30 dark:bg-[#30363d]" />
+        )}
 
-        <Panel order={1} defaultSize={58} minSize={30}>
+        <Panel order={1} defaultSize={isFocusMode ? 100 : 58} minSize={isFocusMode ? 100 : 30}>
           <Group {...({ direction: 'vertical' } as any)}>
             <Panel defaultSize={68} minSize={22}>
               <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
@@ -1356,8 +1374,21 @@ aria-selected={activeTab === 'coach'}
                     >
                       <AlignLeft className="h-4 w-4" />
                     </button>
+                    <button
+                      type="button"
+                      title={isFocusMode ? 'Exit focus mode' : 'Focus mode'}
+                      className={`rounded p-1.5 ${isFocusMode ? 'text-primary-600 dark:text-primary-400' : 'text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200'}`}
+                      onClick={toggleFocusMode}
+                    >
+                      {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Focus className="h-4 w-4" />}
+                    </button>
                   </div>
                   <div className="flex items-center gap-3">
+                    {isFocusMode && (
+                      <div className="rounded-lg border border-primary-500/30 bg-primary-500/10 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:border-primary-500/20 dark:bg-primary-500/10 dark:text-primary-200">
+                        Focus mode active
+                      </div>
+                    )}
                     <div className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                       Run ({runsLeft} left)
                     </div>
@@ -1404,9 +1435,11 @@ aria-selected={activeTab === 'coach'}
               </div>
             </Panel>
 
-            <Separator className="h-1.5 cursor-row-resize bg-slate-200 hover:bg-primary-500/30 dark:bg-[#30363d]" />
+            {!isFocusMode && (
+              <>
+                <Separator className="h-1.5 cursor-row-resize bg-slate-200 hover:bg-primary-500/30 dark:bg-[#30363d]" />
 
-            <Panel defaultSize={32} minSize={10}>
+                <Panel defaultSize={32} minSize={10}>
               <div className="flex h-full flex-col bg-slate-50 text-slate-800 dark:bg-[#0d1117] dark:text-[#c9d1d9]">
                 <div className="border-b border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#f0f6fc]">
                   Test cases
@@ -1456,7 +1489,9 @@ aria-selected={activeTab === 'coach'}
                   )}
                 </div>
               </div>
-            </Panel>
+                </Panel>
+              </>
+            )}
           </Group>
         </Panel>
       </Group>
