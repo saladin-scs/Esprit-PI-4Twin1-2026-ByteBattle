@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { reclamationsApi, type ReclamationMineItem, type ReclamationStatus } from '../../services/api';
+import {
+  reclamationsApi,
+  type ReclamationCategory,
+  type ReclamationMineItem,
+  type ReclamationStatus,
+} from '../../services/api';
 import { Button, Card, PageContainer, Alert, Modal } from '../../shared/components';
-import { RECLAMATION_CATEGORY_LABELS } from './constants';
+import {
+  RECLAMATION_CATEGORIES_SELECT,
+  RECLAMATION_CATEGORY_LABELS,
+  RECLAMATION_STATUS_LABELS,
+} from './constants';
 import { ReclamationForm } from './components/ReclamationForm';
 import { ReclamationStatusBadge } from './components/ReclamationStatusBadge';
 
@@ -27,6 +36,11 @@ export function ReclamationScreen() {
   const [tab, setTab] = useState<Tab>('mine');
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
+  const [inputQuery, setInputQuery] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | ReclamationStatus>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | ReclamationCategory>('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [listLoading, setListLoading] = useState(true);
   const [items, setItems] = useState<ReclamationMineItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -41,7 +55,14 @@ export function ReclamationScreen() {
     setListLoading(true);
     setListError('');
     try {
-      const { data } = await reclamationsApi.listMine({ page, limit });
+      const { data } = await reclamationsApi.listMine({
+        page,
+        limit,
+        q: appliedQuery.trim() || undefined,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        category: categoryFilter === 'all' ? undefined : categoryFilter,
+        sort: sortOrder,
+      });
       setItems(data.items);
       setTotalPages(data.totalPages);
       setTotal(data.total);
@@ -57,7 +78,7 @@ export function ReclamationScreen() {
     } finally {
       setListLoading(false);
     }
-  }, [page, limit]);
+  }, [page, limit, appliedQuery, statusFilter, categoryFilter, sortOrder]);
 
   useEffect(() => {
     if (tab === 'mine') void loadList();
@@ -96,6 +117,15 @@ export function ReclamationScreen() {
         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/60'
     }`;
 
+  const filteredOpenCount = items.filter((i) => i.status === 'open').length;
+  const filteredResolvedCount = items.filter((i) => i.status === 'resolved').length;
+
+  const submitFilters = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    setAppliedQuery(inputQuery.trim());
+  };
+
   return (
     <PageContainer maxWidth="xl" className="mt-6 mb-12">
       <div className="rounded-2xl border border-indigo-200/80 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/80 dark:from-gray-900 dark:via-gray-900 dark:to-indigo-950/40 px-4 py-6 sm:px-8 sm:py-8 mb-8">
@@ -120,7 +150,88 @@ export function ReclamationScreen() {
       </div>
 
       {tab === 'mine' && (
-        <div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Card className="!p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Filtered total</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{total}</p>
+            </Card>
+            <Card className="!p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Open on this page</p>
+              <p className="mt-1 text-2xl font-bold text-amber-600 dark:text-amber-400">{filteredOpenCount}</p>
+            </Card>
+            <Card className="!p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Resolved on this page</p>
+              <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">{filteredResolvedCount}</p>
+            </Card>
+          </div>
+
+          <form onSubmit={submitFilters} className="flex flex-wrap gap-2">
+            <input
+              value={inputQuery}
+              onChange={(e) => setInputQuery(e.target.value)}
+              placeholder="Search subject/message"
+              className="flex-1 min-w-[220px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as 'all' | ReclamationStatus);
+                setPage(1);
+              }}
+              className="min-w-[150px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">All statuses</option>
+              {(Object.keys(RECLAMATION_STATUS_LABELS) as ReclamationStatus[]).map((status) => (
+                <option key={status} value={status}>
+                  {RECLAMATION_STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value as 'all' | ReclamationCategory);
+                setPage(1);
+              }}
+              className="min-w-[170px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">All categories</option>
+              {RECLAMATION_CATEGORIES_SELECT.map((category) => (
+                <option key={category.value} value={category.value}>
+                  {category.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={sortOrder}
+              onChange={(e) => {
+                setSortOrder(e.target.value as 'newest' | 'oldest');
+                setPage(1);
+              }}
+              className="min-w-[140px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+            <Button type="submit" variant="secondary">Apply</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setInputQuery('');
+                setAppliedQuery('');
+                setStatusFilter('all');
+                setCategoryFilter('all');
+                setSortOrder('newest');
+                setPage(1);
+              }}
+            >
+              Reset
+            </Button>
+          </form>
+
+          <div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
           <Card className="lg:col-span-5 !p-0 overflow-hidden border-gray-200 dark:border-gray-700">
             <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50/80 dark:bg-gray-800/80">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Liste</h2>
@@ -242,6 +353,7 @@ export function ReclamationScreen() {
               </div>
             )}
           </Card>
+          </div>
         </div>
       )}
 

@@ -27,3 +27,7 @@ export class Reclamation {
 
 export type ReclamationDocument = HydratedDocument<Reclamation>;
 export const ReclamationSchema = SchemaFactory.createForClass(Reclamation);
+
+ReclamationSchema.index({ userId: 1, createdAt: -1 });
+ReclamationSchema.index({ status: 1, createdAt: -1 });
+ReclamationSchema.index({ category: 1, createdAt: -1 });

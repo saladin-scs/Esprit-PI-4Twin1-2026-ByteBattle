@@ -137,7 +137,14 @@ export const reclamationsApi = {
     subject: string;
     message: string;
   }) => apiClient.post<{ ok: true; id: string }>('/reclamations', data),
-  listMine: (params?: { page?: number; limit?: number }) =>
+  listMine: (params?: {
+    page?: number;
+    limit?: number;
+    status?: ReclamationStatus;
+    category?: ReclamationCategory;
+    q?: string;
+    sort?: 'newest' | 'oldest';
+  }) =>
     apiClient.get<{
       items: ReclamationMineItem[];
       total: number;

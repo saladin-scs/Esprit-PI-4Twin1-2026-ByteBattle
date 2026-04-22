@@ -19,7 +19,12 @@ export class ReclamationsController {
   async listMine(@Query() query: ListMineReclamationsDto, @Req() req: { user: { userId: string } }) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    return this.reclamationsService.listMine(req.user.userId, page, limit);
+    return this.reclamationsService.listMine(req.user.userId, page, limit, {
+      status: query.status,
+      category: query.category,
+      q: query.q,
+      sort: query.sort,
+    });
   }
 
   @Get('me/:id')

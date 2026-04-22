@@ -3,9 +3,10 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { adminApi, type AdminReclamationRow } from '../../core/api';
+import { adminApi, type AdminReclamationRow, type AdminReclamationSummary } from '../../core/api';
 import { Button, Input, Card, Alert, PageContainer, Spinner } from '../../shared/components';
 import {
+  RECLAMATION_CATEGORIES_SELECT,
   RECLAMATION_CATEGORY_LABELS,
   RECLAMATION_STATUS_LABELS,
 } from '../../modules/reclamation/constants';
@@ -37,6 +38,8 @@ function AdminReclamations() {
   const [inputQuery, setInputQuery] = useState('');
   const [appliedQuery, setAppliedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{
     items: AdminReclamationRow[];
@@ -45,6 +48,7 @@ function AdminReclamations() {
     totalPages: number;
   } | null>(null);
   const [selected, setSelected] = useState<AdminReclamationRow | null>(null);
+  const [summary, setSummary] = useState<AdminReclamationSummary | null>(null);
   const [statusDraft, setStatusDraft] = useState<ReclamationStatus>('open');
   const [saving, setSaving] = useState(false);
 
@@ -52,18 +56,24 @@ function AdminReclamations() {
     setLoading(true);
     setError('');
     try {
-      const res = await adminApi.listReclamations({
-        page,
-        limit: PAGE_SIZE,
-        q: appliedQuery.trim() || undefined,
-        status: statusFilter || undefined,
-      });
+      const [res, summaryRes] = await Promise.all([
+        adminApi.listReclamations({
+          page,
+          limit: PAGE_SIZE,
+          q: appliedQuery.trim() || undefined,
+          status: statusFilter || undefined,
+          category: categoryFilter || undefined,
+          sort: sortOrder,
+        }),
+        adminApi.getReclamationSummary(),
+      ]);
       setData({
         items: res.data.items,
         total: res.data.total,
         page: res.data.page,
         totalPages: res.data.totalPages,
       });
+      setSummary(summaryRes.data);
       setSelected((prev) => {
         if (!prev) return null;
         const still = res.data.items.find((i) => i.id === prev.id);
@@ -81,10 +91,11 @@ function AdminReclamations() {
         setError(msg || (err instanceof Error ? err.message : 'Unable to load data.'));
       }
       setData(null);
+      setSummary(null);
     } finally {
       setLoading(false);
     }
-  }, [page, appliedQuery, statusFilter]);
+  }, [page, appliedQuery, statusFilter, categoryFilter, sortOrder]);
 
   useEffect(() => {
     void load();
@@ -179,10 +190,88 @@ function AdminReclamations() {
             </option>
           ))}
         </select>
+        <select
+          value={categoryFilter}
+          onChange={(e) => {
+            setCategoryFilter(e.target.value);
+            setPage(1);
+          }}
+          className="min-w-[200px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        >
+          <option value="">All categories</option>
+          {RECLAMATION_CATEGORIES_SELECT.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={sortOrder}
+          onChange={(e) => {
+            setSortOrder(e.target.value as 'newest' | 'oldest');
+            setPage(1);
+          }}
+          className="min-w-[180px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
         <Button type="submit" variant="secondary">
           Search
         </Button>
       </form>
+
+      {summary && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5 mb-6">
+          <Card className="!p-4">
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Total</p>
+            <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{summary.total}</p>
+          </Card>
+          <Card className="!p-4">
+            <button
+              type="button"
+              className="w-full text-left"
+              onClick={() => {
+                setStatusFilter('open');
+                setPage(1);
+              }}
+            >
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Open</p>
+              <p className="mt-1 text-2xl font-bold text-amber-600 dark:text-amber-400">{summary.byStatus.open}</p>
+            </button>
+          </Card>
+          <Card className="!p-4">
+            <button
+              type="button"
+              className="w-full text-left"
+              onClick={() => {
+                setStatusFilter('read');
+                setPage(1);
+              }}
+            >
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Under review</p>
+              <p className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">{summary.byStatus.read}</p>
+            </button>
+          </Card>
+          <Card className="!p-4">
+            <button
+              type="button"
+              className="w-full text-left"
+              onClick={() => {
+                setStatusFilter('resolved');
+                setPage(1);
+              }}
+            >
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Resolved</p>
+              <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">{summary.byStatus.resolved}</p>
+            </button>
+          </Card>
+          <Card className="!p-4">
+            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Stale &gt;48h</p>
+            <p className="mt-1 text-2xl font-bold text-rose-600 dark:text-rose-400">{summary.staleUnresolved}</p>
+          </Card>
+        </div>
+      )}
 
       {success && (
         <Alert variant="success" className="mb-4">
