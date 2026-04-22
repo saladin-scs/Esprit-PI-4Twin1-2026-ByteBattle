@@ -24,7 +24,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
-import { challengesApi } from '../../services/api';
+import { challengesApi, gamificationApi } from '../../services/api';
 import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
 import { SubmissionSuccessModal } from '../../components/Gamification/SubmissionSuccessModal';
 import { useChallengeDetailStore } from '../../stores/challengeDetailStore';
@@ -49,6 +49,12 @@ const HINT_TIER_LABEL: Record<string, string> = {
   premium: 'Advanced hint',
 };
 
+function getChallengeRatingPromptKey(userId: string, challengeId: string): string {
+  return `bb:challenge-rating-prompted:${userId}:${challengeId}`;
+}
+
+const CHALLENGE_TIME_LIMIT_MS = 5 * 60 * 1000;
+
 function formatAttemptClock(elapsedMs: number): string {
   const s = Math.max(0, Math.floor(elapsedMs / 1000));
   const h = Math.floor(s / 3600);
@@ -56,6 +62,13 @@ function formatAttemptClock(elapsedMs: number): string {
   const sec = s % 60;
   if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+function normalizeSubmissionStatus(status: unknown): string {
+  return String(status ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
 }
 
 interface Challenge {
@@ -164,10 +177,13 @@ const ChallengeDetail = () => {
   const [challengeAnalytics, setChallengeAnalytics] = useState<any>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const authUserId = useSelector((s: RootState) => s.auth.user?.id ?? '');
   const [isVimMode, setIsVimMode] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [attemptStartedAt, setAttemptStartedAt] = useState<string | null>(null);
+  const [localAttemptStartedAt, setLocalAttemptStartedAt] = useState<string | null>(null);
   const [progressSolved, setProgressSolved] = useState(false);
+  const [challengeExpired, setChallengeExpired] = useState(false);
   const [attemptTick, setAttemptTick] = useState(0);
   const [selectedTestCase, setSelectedTestCase] = useState(0);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -186,12 +202,13 @@ const ChallengeDetail = () => {
   const [officialSolutionLoading, setOfficialSolutionLoading] = useState(false);
   const [analyticsView, setAnalyticsView] = useState<ChallengeAnalyticsView | null>(null);
 
-  const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
+  const gamificationSummary = useGamificationStore((s) => s.summary);
 
   const editorRef = useRef<any>(null);
   const vimModeRef = useRef<any>(null);
   const prevChallengeIdRef = useRef<string | undefined>(undefined);
   const prevLangParamRef = useRef<string | null>(null);
+  const hasNavigatedOnExpireRef = useRef(false);
 
   /** `vs` is a clearer Monaco light theme than `light` (better syntax contrast). */
   const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs';
@@ -285,7 +302,9 @@ const ChallengeDetail = () => {
   useEffect(() => {
     if (!id || !isAuthed) {
       setAttemptStartedAt(null);
+      setLocalAttemptStartedAt(null);
       setProgressSolved(false);
+      setChallengeExpired(false);
       return;
     }
     let cancelled = false;
@@ -296,6 +315,8 @@ const ChallengeDetail = () => {
         if (data.solved) {
           setProgressSolved(true);
           setAttemptStartedAt(null);
+          setLocalAttemptStartedAt(null);
+          setChallengeExpired(false);
         } else {
           setProgressSolved(false);
           setAttemptStartedAt(data.startedAt);
@@ -311,10 +332,16 @@ const ChallengeDetail = () => {
   }, [id, isAuthed]);
 
   useEffect(() => {
-    if (!attemptStartedAt || progressSolved) return;
+    const effectiveStart = attemptStartedAt || localAttemptStartedAt;
+    if (!effectiveStart) return;
     const t = window.setInterval(() => setAttemptTick((x) => x + 1), 1000);
     return () => window.clearInterval(t);
-  }, [attemptStartedAt, progressSolved]);
+  }, [attemptStartedAt, localAttemptStartedAt]);
+
+  useEffect(() => {
+    if (!langFromUrl || attemptStartedAt || localAttemptStartedAt) return;
+    setLocalAttemptStartedAt(new Date().toISOString());
+  }, [langFromUrl, attemptStartedAt, localAttemptStartedAt]);
 
   // Sync URL lang → store (and code) when challenge is loaded so code always matches selected language
   useEffect(() => {
@@ -337,10 +364,35 @@ const ChallengeDetail = () => {
   };
 
   const attemptElapsedMs = useMemo(() => {
-    if (!attemptStartedAt || progressSolved) return 0;
+    const effectiveStart = attemptStartedAt || localAttemptStartedAt;
+    if (!effectiveStart) return 0;
     void attemptTick;
-    return Date.now() - new Date(attemptStartedAt).getTime();
-  }, [attemptStartedAt, progressSolved, attemptTick]);
+    return Date.now() - new Date(effectiveStart).getTime();
+  }, [attemptStartedAt, localAttemptStartedAt, attemptTick]);
+
+  const remainingMs = useMemo(
+    () => Math.max(0, CHALLENGE_TIME_LIMIT_MS - attemptElapsedMs),
+    [attemptElapsedMs],
+  );
+
+  useEffect(() => {
+    if (challengeExpired || !langFromUrl) return;
+    const effectiveStart = attemptStartedAt || localAttemptStartedAt;
+    if (!effectiveStart || attemptElapsedMs < CHALLENGE_TIME_LIMIT_MS) return;
+    setChallengeExpired(true);
+    setSubmitError('Time limit reached (5 minutes). Challenge closed.');
+    if (!hasNavigatedOnExpireRef.current) {
+      hasNavigatedOnExpireRef.current = true;
+      window.setTimeout(() => navigate('/challenges'), 1200);
+    }
+  }, [
+    challengeExpired,
+    langFromUrl,
+    attemptStartedAt,
+    localAttemptStartedAt,
+    attemptElapsedMs,
+    navigate,
+  ]);
 
   const attemptsUsed = Math.min(submissionHistory.length, 5);
   const runsLeft = Math.max(0, 5 - attemptsUsed);
@@ -451,7 +503,26 @@ const ChallengeDetail = () => {
     }
   }, [activeTab, id]);
 
+  useEffect(() => {
+    const status = normalizeSubmissionStatus(result?.status);
+    if (status !== 'accepted' || successModalOpen) return;
+    setSuccessModalPayload((prev) =>
+      prev ?? {
+        xpEarned: result?.xpEarned ?? 0,
+        badgesUnlocked: result?.badgesUnlocked ?? [],
+        rankProgress: gamificationSummary?.rankProgress ?? null,
+        totalXp: gamificationSummary?.xp ?? 0,
+        rankTier: gamificationSummary?.rankTier ?? 'F',
+      },
+    );
+    setSuccessModalOpen(true);
+  }, [result, successModalOpen, gamificationSummary]);
+
   const handleRun = async () => {
+    if (challengeExpired) {
+      setSubmitError('Time limit reached. This challenge session is closed.');
+      return;
+    }
     if (!id) return;
     setRunning(true);
     setSubmitError(null);
@@ -470,6 +541,10 @@ const ChallengeDetail = () => {
   };
 
   const handleSubmit = async () => {
+    if (challengeExpired) {
+      setSubmitError('Time limit reached. This challenge session is closed.');
+      return;
+    }
     const token = localStorage.getItem('token');
     if (!token) {
       navigate('/login');
@@ -483,30 +558,53 @@ const ChallengeDetail = () => {
     try {
       const res = await challengesApi.submit(id, { code, language: selectedLang });
       const data = res.data as SubmissionResult;
-      setResult(data);
+      const normalizedStatus = normalizeSubmissionStatus(data.status);
+      const normalizedResult = { ...data, status: normalizedStatus } as SubmissionResult;
+      setResult(normalizedResult);
       setActiveTab('result');
-      setShowRatingModal(true);
-      if (data.status === 'accepted') {
+      if (id && authUserId) {
+        const ratingPromptKey = getChallengeRatingPromptKey(authUserId, id);
+        const alreadyPrompted = localStorage.getItem(ratingPromptKey) === '1';
+        if (!alreadyPrompted) {
+          setShowRatingModal(true);
+          localStorage.setItem(ratingPromptKey, '1');
+        }
+      }
+      if (normalizedStatus === 'accepted') {
         setProgressSolved(true);
         setAttemptStartedAt(null);
+        setLocalAttemptStartedAt(null);
+        setChallengeExpired(false);
+        setSuccessModalPayload({
+          xpEarned: normalizedResult.xpEarned ?? 0,
+          badgesUnlocked: normalizedResult.badgesUnlocked ?? [],
+          rankProgress: gamificationSummary?.rankProgress ?? null,
+          totalXp: gamificationSummary?.xp ?? 0,
+          rankTier: gamificationSummary?.rankTier ?? 'F',
+        });
+        setSuccessModalOpen(true);
         try {
-          const [comp, summary] = await Promise.all([
+          const [comp, gamificationRes] = await Promise.all([
             challengesApi.getMyCompletion(id),
-            fetchGamificationSummary(),
+            gamificationApi.getMe(),
           ]);
+          const summary = gamificationRes?.data as any;
           setCompletedLanguages((comp.data as { completedLanguages: string[] }).completedLanguages ?? []);
-          if (summary) {
-            setSuccessModalPayload({
-              xpEarned: data.xpEarned ?? 0,
-              badgesUnlocked: data.badgesUnlocked ?? [],
-              rankProgress: summary.rankProgress ?? null,
-              totalXp: summary.xp,
-              rankTier: summary.rankTier,
-            });
-            setSuccessModalOpen(true);
-          }
+          setSuccessModalPayload({
+            xpEarned: normalizedResult.xpEarned ?? 0,
+            badgesUnlocked: normalizedResult.badgesUnlocked ?? [],
+            rankProgress: summary?.rankProgress ?? gamificationSummary?.rankProgress ?? null,
+            totalXp: summary?.xp ?? gamificationSummary?.xp ?? 0,
+            rankTier: summary?.rankTier ?? gamificationSummary?.rankTier ?? 'F',
+          });
         } catch {
-          // Modal/summary fetch failed; result is still shown
+          setSuccessModalPayload({
+            xpEarned: normalizedResult.xpEarned ?? 0,
+            badgesUnlocked: normalizedResult.badgesUnlocked ?? [],
+            rankProgress: gamificationSummary?.rankProgress ?? null,
+            totalXp: gamificationSummary?.xp ?? 0,
+            rankTier: gamificationSummary?.rankTier ?? 'F',
+          });
         }
       }
 
@@ -602,8 +700,8 @@ const ChallengeDetail = () => {
   return (
     <>
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 font-sans dark:bg-[#010409]">
-      <Group {...({ direction: 'horizontal' } as any)}>
-        <Panel defaultSize={38} minSize={28}>
+      <Group {...({ direction: 'vertical' } as any)}>
+        <Panel order={2} defaultSize={42} minSize={20}>
           <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
            <div role="tablist" aria-label="Challenge sections" className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
             <button
@@ -1201,21 +1299,21 @@ aria-selected={activeTab === 'coach'}
           </div>
         </Panel>
 
-        <Separator className="w-2 cursor-col-resize bg-gray-200 transition-colors hover:bg-primary-500/30 dark:bg-[#30363d]" />
+        <Separator className="h-2 cursor-row-resize bg-gray-200 transition-colors hover:bg-primary-500/30 dark:bg-[#30363d]" />
 
-        <Panel minSize={32}>
+        <Panel order={1} defaultSize={58} minSize={30}>
           <Group {...({ direction: 'vertical' } as any)}>
             <Panel defaultSize={68} minSize={22}>
               <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
                 <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
                   <div className="flex flex-wrap items-center gap-2">
-                    {attemptStartedAt && !progressSolved && langFromUrl && (
+                    {langFromUrl && (
                       <div
                         className="mr-2 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-mono text-slate-800 dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9]"
-                        title="Time since you started this attempt (first open while unsolved). XP decreases over time on first solve."
+                        title="Time remaining for this challenge. Session closes after 5 minutes."
                       >
                         <Timer className="h-3.5 w-3.5 shrink-0 text-primary-600 dark:text-primary-400" aria-hidden />
-                        <span aria-live="polite">{formatAttemptClock(attemptElapsedMs)}</span>
+                        <span aria-live="polite">{formatAttemptClock(remainingMs)}</span>
                       </div>
                     )}
                     {challenge.languages.map((lang) => (
@@ -1266,7 +1364,7 @@ aria-selected={activeTab === 'coach'}
                     <button
                       type="button"
                       onClick={handleRun}
-                      disabled={running || !challenge.examples?.length}
+                      disabled={running || challengeExpired || !challenge.examples?.length}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d]"
                     >
                       <Play className="h-4 w-4" /> {running ? 'Running...' : 'Run'}
@@ -1274,7 +1372,7 @@ aria-selected={activeTab === 'coach'}
                     <button
                       type="button"
                       onClick={handleSubmit}
-                      disabled={submitting}
+                      disabled={submitting || challengeExpired}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#238636] dark:hover:bg-[#2ea043]"
                     >
                       <Send className="h-4 w-4" /> {submitting ? 'Submitting...' : 'Submit'}
@@ -1364,15 +1462,15 @@ aria-selected={activeTab === 'coach'}
       </Group>
     </div>
 
-    {successModalOpen && successModalPayload && (
+    {successModalOpen && (
       <SubmissionSuccessModal
         open={successModalOpen}
         onClose={() => { setSuccessModalOpen(false); setSuccessModalPayload(null); }}
-        xpEarned={successModalPayload.xpEarned}
-        badgesUnlocked={successModalPayload.badgesUnlocked}
-        rankProgress={successModalPayload.rankProgress}
-        totalXp={successModalPayload.totalXp}
-        rankTier={successModalPayload.rankTier}
+        xpEarned={successModalPayload?.xpEarned ?? result?.xpEarned ?? 0}
+        badgesUnlocked={successModalPayload?.badgesUnlocked ?? result?.badgesUnlocked ?? []}
+        rankProgress={successModalPayload?.rankProgress ?? gamificationSummary?.rankProgress ?? null}
+        totalXp={successModalPayload?.totalXp ?? gamificationSummary?.xp ?? 0}
+        rankTier={successModalPayload?.rankTier ?? gamificationSummary?.rankTier ?? 'F'}
       />
     )}
     <Modal
