@@ -1,0 +1,59 @@
+pipeline {
+    agent any
+
+    tools {
+        jdk 'jdk17'
+    }
+
+    environment {
+        SONAR = 'sonar'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'cd backend && npm install'
+            }
+        }
+
+        stage('Run Unit Tests (User Module Only)') {
+            steps {
+                sh 'cd backend && npm test -- tests/user'
+            }
+        }
+
+        stage('Generate Coverage') {
+            steps {
+                sh 'cd backend && npm test -- --coverage --collectCoverageFrom="modules/user/**"'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv("${SONAR}") {
+                    sh '''
+                        cd backend
+                        sonar-scanner \
+                        -Dsonar.projectKey=bytebattle-backend \
+                        -Dsonar.sources=modules/user \
+                        -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                        -Dsonar.login=$SONAR_TOKEN
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            build job: 'bytebattle-backend-cd'
+        }
+    }
+}
