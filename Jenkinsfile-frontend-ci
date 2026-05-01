@@ -1,0 +1,48 @@
+pipeline {
+    agent any
+
+    environment {
+        SONAR = 'sonar'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'cd frontend && npm install'
+            }
+        }
+
+        stage('Run Frontend Tests') {
+            steps {
+                sh 'cd frontend && npm test'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv("${SONAR}") {
+                    sh '''
+                        cd frontend
+                        sonar-scanner \
+                        -Dsonar.projectKey=bytebattle-frontend \
+                        -Dsonar.sources=. \
+                        -Dsonar.login=$SONAR_TOKEN
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            build job: 'bytebattle-frontend-cd'
+        }
+    }
+}
