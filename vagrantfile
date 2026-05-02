@@ -1,49 +1,68 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-Vagrant.configure("2") do |config|
+VAGRANTFILE_API_VERSION = "2"
+BASE_BOX = "ubuntu/jammy64"
 
-  # ✅ FIX: augmenter le timeout de boot
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = BASE_BOX
   config.vm.boot_timeout = 600
-
-  # ─── VM Jenkins ────────────────────────────────────────────────
-  config.vm.define "jenkins" do |jenkins|
-    jenkins.vm.box = "ubuntu/jammy64"
-    jenkins.vm.hostname = "jenkins"
-    jenkins.vm.network "private_network", ip: "192.168.56.10"
-    jenkins.vm.network "forwarded_port", guest: 8080, host: 8081
-    jenkins.vm.network "forwarded_port", guest: 50000, host: 50000
-
-    jenkins.vm.provider "virtualbox" do |vb|
-      vb.name   = "ByteBattle-Jenkins"
-      vb.memory = "2048"
-      vb.cpus   = 2
-      # ✅ FIX: options VirtualBox pour stabiliser le boot
-      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-      vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
-      vb.customize ["modifyvm", :id, "--ioapic", "on"]
-    end
-
-    jenkins.vm.provision "shell", path: "scripts/install_jenkins.sh"
+  
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "4096"
+    vb.cpus = 2
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
   end
 
-  # ─── VM SonarQube ──────────────────────────────────────────────
-  config.vm.define "sonarqube" do |sonar|
-    sonar.vm.box = "ubuntu/jammy64"
-    sonar.vm.hostname = "sonarqube"
-    sonar.vm.network "private_network", ip: "192.168.56.20"
-    sonar.vm.network "forwarded_port", guest: 9000, host: 9000
+  config.vm.define "default", primary: true do |node|
+    node.vm.hostname = "devops-bytebattle"
+    node.vm.network "private_network", ip: "192.168.56.12"
+    
+    node.vm.synced_folder ".", "/home/vagrant/project", type: "virtualbox"
 
-    sonar.vm.provider "virtualbox" do |vb|
-      vb.name   = "ByteBattle-SonarQube"
-      vb.memory = "3072"
-      vb.cpus   = 2
-      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-      vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
-      vb.customize ["modifyvm", :id, "--ioapic", "on"]
-    end
+    node.vm.provision "shell", inline: <<-SHELL
+      set -e
+      echo "--- Configuration Système (Swap off) ---"
+      sudo swapoff -a
+      sudo sed -i '/ swap / s/^/#/' /etc/fstab
 
-    sonar.vm.provision "shell", path: "scripts/install_sonarqube.sh"
+      echo "--- Installation des prérequis ---"
+      sudo apt-get update
+      sudo apt-get install -y apt-transport-https ca-certificates curl gnupg software-properties-common wget git
+
+      echo "--- Installation de Docker ---"
+      curl -fsSL https://get.docker.com | sh
+      sudo usermod -aG docker vagrant
+
+      echo "--- Configuration Containerd (Fix pour K8s) ---"
+      sudo mkdir -p /etc/containerd
+      containerd config default | sudo tee /etc/containerd/config.toml > /dev/null
+      sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+      sudo systemctl restart containerd
+
+      echo "--- Installation de Node.js et Python ---"
+      curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash -
+      sudo apt-get install -y nodejs python3 python3-pip
+
+      echo "--- Installation de Java 17 et Jenkins ---"
+      sudo apt-get install -y openjdk-17-jdk
+      curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+      echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+      sudo apt-get update
+      sudo apt-get install -y jenkins
+
+      echo "--- Installation des outils Kubernetes ---"
+      curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+      sudo apt-get update
+      sudo apt-get install -y kubelet kubeadm kubectl
+      sudo apt-mark hold kubelet kubeadm kubectl
+
+      echo "--- Installation de Helm ---"
+      curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      echo "✅ TOUS LES OUTILS SONT INSTALLÉS (4 GO RAM ACTIVE)"
+    SHELL
   end
-
 end

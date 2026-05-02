@@ -1,4 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Mic } from 'lucide-react';
+// Hook pour la reconnaissance vocale (Web Speech API)
+function useSpeechToText(onResult: (text: string) => void) {
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    recognitionRef.current = new SpeechRecognition();
+    recognitionRef.current.lang = 'fr-FR'; // ou 'en-US' selon besoin
+    recognitionRef.current.interimResults = false;
+    recognitionRef.current.maxAlternatives = 1;
+    recognitionRef.current.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      onResult(transcript);
+    };
+    recognitionRef.current.onend = () => setListening(false);
+    recognitionRef.current.onerror = () => setListening(false);
+  }, [onResult]);
+
+  const start = useCallback(() => {
+    if (recognitionRef.current && !listening) {
+      setListening(true);
+      recognitionRef.current.start();
+    }
+  }, [listening]);
+
+  return { listening, start };
+}
 import { useSelector } from 'react-redux';
 import {
   MessageCircle,
@@ -47,6 +77,16 @@ export function CollaborationChat({
   messagesMaxHeightClass = 'max-h-[min(360px,42vh)]',
 }: CollaborationChatProps) {
   const [input, setInput] = useState('');
+  // Déclare d'abord emitTypingDebounced
+  const emitTypingDebounced = useDebouncedCallback((typing: boolean) => {
+    setTyping(typing);
+  }, 400);
+  // Puis la fonction de callback micro
+  const onSpeechResult = useCallback((text: string) => {
+    setInput((prev) => (prev ? prev + ' ' + text : text));
+    emitTypingDebounced(true);
+  }, [emitTypingDebounced]);
+  const { listening, start } = useSpeechToText(onSpeechResult);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
@@ -375,7 +415,16 @@ export function CollaborationChat({
         className="border-t border-slate-200 p-2 dark:border-slate-700"
         aria-label="Send a message"
       >
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <button
+            type="button"
+            onClick={start}
+            className={`inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-2 py-2 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 ${listening ? 'ring-2 ring-primary-500' : ''}`}
+            aria-label={listening ? 'Listening…' : 'Start voice input'}
+            tabIndex={0}
+          >
+            <Mic className={`h-5 w-5 ${listening ? 'text-primary-600 animate-pulse' : ''}`} />
+          </button>
           <input
             type="text"
             value={input}

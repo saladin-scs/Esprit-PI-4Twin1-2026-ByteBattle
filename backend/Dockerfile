@@ -6,6 +6,7 @@ COPY package*.json ./
 RUN npm install --no-audit --no-fund
 
 COPY . .
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN npm run build && test -f dist/main.js
 
 EXPOSE 3000

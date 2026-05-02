@@ -22,9 +22,9 @@ function Layout({ children }: LayoutProps) {
   }, [token, user, dispatch]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white">
+    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white w-full">
       <Header />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow w-full">{children}</main>
       <Footer />
     </div>
   );

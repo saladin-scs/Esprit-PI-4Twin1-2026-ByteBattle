@@ -125,13 +125,13 @@ sonar.sourceEncoding=UTF-8
                     waitForQualityGate abortPipeline: true
                 }
             }
-            post {
-                success {
-                    echo '✅ Quality Gate passed!'
-                }
-                failure {
-                    echo '❌ Quality Gate failed!'
-                }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo '🚀 Deploying Frontend to Kubernetes...'
+                sh 'kubectl apply -f frontend-deployment.yaml'
+                sh 'kubectl rollout restart deployment/frontend'
             }
         }
 
