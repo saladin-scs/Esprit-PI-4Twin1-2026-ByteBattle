@@ -88,6 +88,13 @@
   .bb-skeleton-card {
     @apply animate-pulse rounded-2xl border border-slate-200 bg-slate-100/80 p-5 dark:border-slate-700 dark:bg-slate-800/60;
   }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 :root {

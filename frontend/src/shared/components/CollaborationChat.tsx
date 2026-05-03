@@ -77,10 +77,10 @@ export function CollaborationChat({
   messagesMaxHeightClass = 'max-h-[min(360px,42vh)]',
 }: CollaborationChatProps) {
   const [input, setInput] = useState('');
-  // Déclare d'abord emitTypingDebounced
   const emitTypingDebounced = useDebouncedCallback((typing: boolean) => {
     setTyping(typing);
   }, 400);
+
   // Puis la fonction de callback micro
   const onSpeechResult = useCallback((text: string) => {
     setInput((prev) => (prev ? prev + ' ' + text : text));
@@ -192,9 +192,6 @@ export function CollaborationChat({
     }
   }, [lines.length]);
 
-  const emitTypingDebounced = useDebouncedCallback((typing: boolean) => {
-    setTyping(typing);
-  }, 400);
 
   const onInputChange = useCallback(
     (v: string) => {

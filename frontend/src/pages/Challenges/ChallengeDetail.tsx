@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { initVimMode } from 'monaco-vim';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
   Send,
@@ -26,6 +27,7 @@ import {
   Minimize2,
 } from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
+import { useWindowSize } from '../../hooks';
 import { challengesApi, gamificationApi } from '../../services/api';
 import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
 import { SubmissionSuccessModal } from '../../components/Gamification/SubmissionSuccessModal';
@@ -148,6 +150,8 @@ const ChallengeDetail = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { theme, setTheme } = useTheme();
+  const { width } = useWindowSize();
+  const isMobile = width !== undefined && width < 1024;
   const langFromUrl = searchParams.get('lang');
   /** Global theme before opening IDE (restored when leaving URL with ?lang=). */
   const challengeIdeThemeRef = useRef<Theme | null>(null);
@@ -174,7 +178,7 @@ const ChallengeDetail = () => {
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'description' | 'hints' | 'result' | 'solutions' | 'official-solution' | 'attempts' | 'analytics' | 'chat' | 'coach'
+    'description' | 'hints' | 'result' | 'solutions' | 'official-solution' | 'attempts' | 'analytics' | 'chat' | 'coach' | 'code'
   >('description');
   const [challengeAnalytics, setChallengeAnalytics] = useState<any>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
@@ -713,10 +717,45 @@ const ChallengeDetail = () => {
 
   return (
     <>
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 font-sans dark:bg-[#010409]">
-      <Group {...({ direction: 'vertical' } as any)}>
-        {!isFocusMode && (
-          <Panel order={2} defaultSize={42} minSize={20}>
+    <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 font-sans dark:bg-[#010409]`}>
+      {isMobile && (
+        <div className="flex shrink-0 border-b border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117] overflow-x-auto no-scrollbar">
+          {(['description', 'code', 'result'] as const).map((tab) => {
+            const isActive = tab === 'description' 
+              ? (activeTab !== 'code' && activeTab !== 'result')
+              : activeTab === tab;
+            const label = tab === 'description' ? 'Statement' : tab === 'code' ? 'Code' : 'Result';
+            
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`relative flex-1 px-4 py-3 text-[10px] font-bold uppercase tracking-wider transition-colors whitespace-nowrap ${isActive ? 'text-primary-600' : 'text-slate-500 dark:text-slate-400'}`}
+              >
+                <span className="relative z-10">{label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTabMain"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500 shadow-[0_0_8px_rgba(14,165,233,0.5)]"
+                    initial={false}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
+                )}
+                {isActive && (
+                  <motion.div
+                    className="absolute inset-0 bg-primary-500/5 dark:bg-primary-500/10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <Group {...({ direction: isMobile ? 'vertical' : 'horizontal' } as any)}>
+        {(!isMobile || (activeTab !== 'code' && activeTab !== 'result')) && (
+          <Panel order={2} defaultSize={isMobile ? 100 : 42} minSize={isMobile ? 100 : 20}>
           <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
            <div role="tablist" aria-label="Challenge sections" className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
             <button
@@ -1315,99 +1354,111 @@ aria-selected={activeTab === 'coach'}
           </Panel>
         )}
 
-        {!isFocusMode && (
-          <Separator className="h-2 cursor-row-resize bg-gray-200 transition-colors hover:bg-primary-500/30 dark:bg-[#30363d]" />
+        {(!isMobile && !isFocusMode) && (
+          <Separator className={`${isMobile ? 'h-1.5' : 'w-1.5 lg:w-2 cursor-col-resize'} bg-gray-200 transition-colors hover:bg-primary-500/30 dark:bg-[#30363d]`} />
         )}
 
-        <Panel order={1} defaultSize={isFocusMode ? 100 : 58} minSize={isFocusMode ? 100 : 30}>
+        {(!isMobile || activeTab === 'code' || activeTab === 'result') && (
+          <Panel order={1} defaultSize={isFocusMode || isMobile ? 100 : 58} minSize={isFocusMode || isMobile ? 100 : 30}>
           <Group {...({ direction: 'vertical' } as any)}>
-            <Panel defaultSize={68} minSize={22}>
+            {(!isMobile || activeTab === 'code') && (
+              <Panel defaultSize={isMobile && activeTab === 'code' ? 100 : 68} minSize={isMobile ? 0 : 22}>
               <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
-                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
+                <div className="flex shrink-0 flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22] gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     {langFromUrl && (
                       <div
-                        className="mr-2 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-mono text-slate-800 dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9]"
-                        title="Time remaining for this challenge. Session closes after 5 minutes."
+                        className="mr-1 flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] font-mono text-slate-800 dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9]"
+                        title="Time remaining"
                       >
-                        <Timer className="h-3.5 w-3.5 shrink-0 text-primary-600 dark:text-primary-400" aria-hidden />
-                        <span aria-live="polite">{formatAttemptClock(remainingMs)}</span>
+                        <Timer className="h-3 w-3 shrink-0 text-primary-600 dark:text-primary-400" aria-hidden />
+                        <span>{formatAttemptClock(remainingMs)}</span>
                       </div>
                     )}
-                    {challenge.languages.map((lang) => (
-                      <button
-                        key={lang}
-                        type="button"
-                        onClick={() => handleLangChange(lang)}
-                        className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                          selectedLang === lang
-                            ? 'bg-primary-600 text-white dark:bg-[#1f6feb] dark:text-white'
-                            : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d]'
-                        }`}
+                    
+                    {isMobile ? (
+                      <select
+                        value={selectedLang}
+                        onChange={(e) => handleLangChange(e.target.value)}
+                        className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9] focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
-                        {lang}
-                        {completedLanguages.includes(lang) && ' ✓'}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setSearchParams({})}
-                      className="rounded px-3 py-1.5 text-xs font-medium text-slate-800 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-100"
-                      title="Change language"
-                    >
-                      Change language
-                    </button>
-                    <div className="h-5 w-px bg-slate-300 dark:bg-[#30363d]" />
-                    <button
-                      type="button"
-                      title="Vim mode"
-                      className={`rounded p-1.5 ${isVimMode ? 'text-primary-600 dark:text-primary-400' : 'text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                      onClick={() => setIsVimMode(!isVimMode)}
-                    >
-                      <Keyboard className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      title="Format"
-                      className="rounded p-1.5 text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200"
-                      onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
-                    >
-                      <AlignLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      title={isFocusMode ? 'Exit focus mode' : 'Focus mode'}
-                      className={`rounded p-1.5 ${isFocusMode ? 'text-primary-600 dark:text-primary-400' : 'text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                      onClick={toggleFocusMode}
-                    >
-                      {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Focus className="h-4 w-4" />}
-                    </button>
+                        {challenge.languages.map((lang) => (
+                          <option key={lang} value={lang}>
+                            {lang} {completedLanguages.includes(lang) ? '✓' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        {challenge.languages.map((lang) => (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => handleLangChange(lang)}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                              selectedLang === lang
+                                ? 'bg-primary-600 text-white shadow-sm dark:bg-[#1f6feb]'
+                                : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d]'
+                            }`}
+                          >
+                            {lang}
+                            {completedLanguages.includes(lang) && ' ✓'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    {isFocusMode && (
-                      <div className="rounded-lg border border-primary-500/30 bg-primary-500/10 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:border-primary-500/20 dark:bg-primary-500/10 dark:text-primary-200">
-                        Focus mode active
-                      </div>
-                    )}
-                    <div className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-                      Run ({runsLeft} left)
+                  
+                  <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <button
+                        type="button"
+                        title="Vim mode"
+                        className={`rounded p-1.5 transition-colors ${isVimMode ? 'bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'text-slate-600 hover:bg-slate-200 dark:text-gray-400 dark:hover:bg-[#30363d]'}`}
+                        onClick={() => setIsVimMode(!isVimMode)}
+                      >
+                        <Keyboard className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Format"
+                        className="rounded p-1.5 text-slate-600 hover:bg-slate-200 dark:text-gray-400 dark:hover:bg-[#30363d]"
+                        onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
+                      >
+                        <AlignLeft className="h-4 w-4" />
+                      </button>
+                      {!isMobile && (
+                        <button
+                          type="button"
+                          title={isFocusMode ? 'Exit focus mode' : 'Focus mode'}
+                          className={`rounded p-1.5 transition-colors ${isFocusMode ? 'bg-primary-500/10 text-primary-600 dark:text-primary-400' : 'text-slate-600 hover:bg-slate-200 dark:text-gray-400 dark:hover:bg-[#30363d]'}`}
+                          onClick={toggleFocusMode}
+                        >
+                          {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Focus className="h-4 w-4" />}
+                        </button>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleRun}
-                      disabled={running || challengeExpired || !challenge.examples?.length}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d]"
-                    >
-                      <Play className="h-4 w-4" /> {running ? 'Running...' : 'Run'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={submitting || challengeExpired}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#238636] dark:hover:bg-[#2ea043]"
-                    >
-                      <Send className="h-4 w-4" /> {submitting ? 'Submitting...' : 'Submit'}
-                    </button>
+
+                    <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+                      <button
+                        type="button"
+                        onClick={handleRun}
+                        disabled={running || challengeExpired || !challenge.examples?.length}
+                        className="inline-flex items-center gap-1 rounded-lg bg-slate-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d] h-9"
+                      >
+                        <Play className="h-3.5 w-3.5" />
+                        <span className={isMobile ? 'hidden' : 'inline'}>{running ? '...' : 'Run'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={submitting || challengeExpired}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#238636] dark:hover:bg-[#2ea043] h-9 shadow-sm"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        <span>{submitting ? '...' : 'Submit'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex-1 min-h-0 relative">
@@ -1434,12 +1485,13 @@ aria-selected={activeTab === 'coach'}
                 </div>
               </div>
             </Panel>
+            )}
 
-            {!isFocusMode && (
-              <>
+            {(!isMobile && !isFocusMode) && (
                 <Separator className="h-1.5 cursor-row-resize bg-slate-200 hover:bg-primary-500/30 dark:bg-[#30363d]" />
-
-                <Panel defaultSize={32} minSize={10}>
+              )}
+              {(!isMobile || activeTab === 'result') && (
+                <Panel defaultSize={isMobile && activeTab === 'result' ? 100 : 32} minSize={isMobile ? 0 : 10}>
               <div className="flex h-full flex-col bg-slate-50 text-slate-800 dark:bg-[#0d1117] dark:text-[#c9d1d9]">
                 <div className="border-b border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#f0f6fc]">
                   Test cases
@@ -1490,10 +1542,10 @@ aria-selected={activeTab === 'coach'}
                 </div>
               </div>
                 </Panel>
-              </>
-            )}
+              )}
           </Group>
         </Panel>
+        )}
       </Group>
     </div>
 
