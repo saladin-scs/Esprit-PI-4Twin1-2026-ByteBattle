@@ -220,8 +220,8 @@ export default function AdminChallenges() {
 
       const examples = safeJsonParse<Example[]>(formData.examplesJson, []);
       const testCases = safeJsonParse<TestCase[]>(formData.testCasesJson, []);
-      const starterCode = normalizeStarterCode(safeJsonParse<StarterCode>(formData.starterCodeJson, {}));
-      const officialSolution = normalizeStarterCode(safeJsonParse<StarterCode>(formData.solutionCodeJson, {}));
+      const starterCode = normalizeStarterCodeKeys(safeJsonParse<StarterCode>(formData.starterCodeJson, {}));
+      const officialSolution = normalizeStarterCodeKeys(safeJsonParse<StarterCode>(formData.solutionCodeJson, {}));
 
       if (!Array.isArray(examples) || examples.length === 0) {
         toast.error('Examples JSON is empty or invalid. Please provide at least 1 example.');
