@@ -277,7 +277,7 @@ function AdminReclamations() {
                 setPage(1);
               }}
             >
-              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Open</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Pending</p>
               <p className="mt-1 text-2xl font-bold text-amber-600 dark:text-amber-400">{summary.byStatus.open}</p>
             </button>
           </Card>

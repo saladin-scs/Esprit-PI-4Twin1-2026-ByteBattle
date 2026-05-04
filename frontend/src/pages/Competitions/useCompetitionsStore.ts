@@ -5,8 +5,6 @@
 import { create } from 'zustand';
 import type { CompetitionListItem, CompetitionTab } from './types';
 
-const LIMIT = 50;
-
 type CompetitionsQueryParams = {
   page?: number;
   limit?: number;
@@ -59,9 +57,16 @@ export const useCompetitionsStore = create<CompetitionsState>((set, get) => ({
     const { tab } = get();
     const status = getStatusForTab(tab);
     const nextQuery = params ?? get().lastQuery;
+    const nextPage = Number(nextQuery.page ?? 1);
+    const nextLimit = Number(nextQuery.limit ?? 12);
     try {
       const { competitionsApi } = await import('../../services/api');
-      const res = await competitionsApi.getAll({ status, page: 1, limit: LIMIT, ...nextQuery });
+      const res = await competitionsApi.getAll({
+        status,
+        page: Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1,
+        limit: Number.isFinite(nextLimit) && nextLimit > 0 ? nextLimit : 12,
+        ...nextQuery,
+      });
       const data = res.data as {
         competitions: CompetitionListItem[];
         total: number;
@@ -71,7 +76,7 @@ export const useCompetitionsStore = create<CompetitionsState>((set, get) => ({
       set({
         competitions: data.competitions ?? [],
         total: data.total ?? 0,
-        page: data.page ?? 1,
+        page: data.page ?? (Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1),
         totalPages: data.totalPages ?? 1,
         lastQuery: nextQuery,
         loading: false,

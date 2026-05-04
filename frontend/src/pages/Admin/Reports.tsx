@@ -47,7 +47,7 @@ const Reports: React.FC = () => {
         </div>
         <div className={`flex-1 p-4 rounded ${statusColors.open}`}>
           <div className="text-2xl font-bold">0</div>
-          <div className="text-gray-300">OPEN</div>
+          <div className="text-gray-300">PENDING</div>
         </div>
         <div className={`flex-1 p-4 rounded ${statusColors.underReview}`}>
           <div className="text-2xl font-bold">1</div>
