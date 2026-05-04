@@ -162,6 +162,17 @@ const ChallengeSchema = new mongoose.Schema(
 
 const ChallengeModel = mongoose.model('Challenge', ChallengeSchema);
 
+// Normalize any existing starter/solution objects to use canonical language keys (cpp instead of c++)
+function normalizeLangKeys(obj: Record<string, any> | undefined): Record<string, any> {
+  if (!obj) return {};
+  const out: Record<string, any> = {};
+  for (const k in obj) {
+    const nk = k.toLowerCase() === 'c++' ? 'cpp' : k;
+    out[nk] = obj[k];
+  }
+  return out;
+}
+
 async function run() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
@@ -178,28 +189,20 @@ async function run() {
       console.log(`Skip (exists): ${data.title}`);
       continue;
     }
+
     const acceptedStarter = buildAcceptedStarterCodeFromTests(data.testCases as any);
-// Normalize any existing starter/solution objects to use canonical language keys (cpp instead of c++)
-function normalizeLangKeys(obj: Record<string, any> | undefined): Record<string, any> {
-  if (!obj) return {};
-  const out: Record<string, any> = {};
-  for (const k in obj) {
-    const nk = k.toLowerCase() === 'c++' ? 'cpp' : k;
-    out[nk] = obj[k];
-  }
-  return out;
-}
-const rawStarter = Object.keys(acceptedStarter).length ? acceptedStarter : (data.officialSolution || data.starterCode);
-const starterCode = normalizeLangKeys(rawStarter);
-await ChallengeModel.create({
-  ...data,
-  starterCode,
-  officialSolution: Object.keys(acceptedStarter).length ? acceptedStarter : normalizeLangKeys(data.officialSolution),
-  languages: [...ALL_LANGUAGES],
-  xpReward: XP_MAP[data.difficulty] ?? 100,
-  constraints: [],
-  isPublished: true,
-});
+    const rawStarter = Object.keys(acceptedStarter).length ? acceptedStarter : (data.officialSolution || data.starterCode);
+    const starterCode = normalizeLangKeys(rawStarter);
+
+    await ChallengeModel.create({
+      ...data,
+      starterCode,
+      officialSolution: Object.keys(acceptedStarter).length ? acceptedStarter : normalizeLangKeys(data.officialSolution),
+      languages: [...ALL_LANGUAGES],
+      xpReward: XP_MAP[data.difficulty] ?? 100,
+      constraints: [],
+      isPublished: true,
+    });
     created++;
     console.log(`Created: ${data.title} (${data.difficulty})`);
   }

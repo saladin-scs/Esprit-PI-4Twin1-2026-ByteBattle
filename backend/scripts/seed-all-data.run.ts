@@ -14,6 +14,7 @@ const seedScripts = [
   'scripts/seed-extra-data.run.ts',
   'scripts/seed-missing-demo-data.run.ts',
   'scripts/seed-notifications.run.ts',
+  'scripts/normalize-starter-accepted.run.ts',
 ] as const;
 
 function runScript(script: string) {

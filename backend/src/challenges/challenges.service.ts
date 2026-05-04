@@ -197,7 +197,6 @@ export class ChallengeService {
     return { python, javascript, java, cpp };
   }
 
-  /** Default starter code when challenge has none (works with normalized stdin). Java uses BufferedReader + StringTokenizer (competitive programming style). */
   private normalizeLangKeys(obj: Record<string, any> | undefined): Record<string, any> {
     if (!obj) return {};
     const out: Record<string, any> = {};
@@ -207,6 +206,9 @@ export class ChallengeService {
     }
     return out;
   }
+
+  /** Default starter code when challenge has none (works with normalized stdin). Java uses BufferedReader + StringTokenizer (competitive programming style). */
+  public static readonly DEFAULT_STARTER_CODE: Record<Language, string> = {
     python: 'def sum(a, b):\n    return a + b\n\na, b = map(int, input().split())\nprint(sum(a, b))',
     javascript: 'function sum(a, b) {\n  return a + b;\n}\n\nconst [a, b] = readline().split(/\\s+/).map(Number);\nconsole.log(sum(a, b));',
     java: `import java.io.*;
