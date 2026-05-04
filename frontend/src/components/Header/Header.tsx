@@ -4,7 +4,6 @@ import { HeaderBrand } from './HeaderBrand';
 import { HeaderNav } from './HeaderNav';
 import { HeaderActions } from './HeaderActions';
 import { HeaderMobileMenu } from './HeaderMobileMenu';
-import { ChatNavHint } from './ChatNavHint';
 
 export function Header() {
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
@@ -18,11 +17,6 @@ export function Header() {
           <div className="flex items-center gap-4 sm:gap-8">
             <HeaderBrand />
             <HeaderNav />
-            {isAuthenticated && (
-              <div className="hidden sm:block">
-                <ChatNavHint />
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden sm:block">

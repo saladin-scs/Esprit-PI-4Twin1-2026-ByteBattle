@@ -7,6 +7,7 @@ import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { validateConfig } from './config/validation';
+import { normalizeMongoUri } from './config/mongo-uri';
 import { ChallengeModule } from './challenges/challenges.module';
 import { CodeExecutionModule } from './code-execution/code-execution.module';
 import { GamificationModule } from './gamification/gamification.module';
@@ -36,7 +37,7 @@ import { ExploreModule } from './explore/explore.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        uri: configService.get('MONGODB_URI'),
+        uri: normalizeMongoUri(configService.get('MONGODB_URI')),
       }),
     }),
     AuthModule,

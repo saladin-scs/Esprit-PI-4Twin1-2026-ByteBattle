@@ -28,6 +28,9 @@
     "seed:platform-demo": "ts-node -r tsconfig-paths/register scripts/seed-platform-demo.run.ts",
     "seed:notifications": "ts-node -r tsconfig-paths/register scripts/seed-notifications.run.ts",
     "seed:extra-data": "ts-node scripts/seed-extra-data.run.ts",
+    "seed:bulk": "ts-node -r tsconfig-paths/register scripts/seed-bulk-data.run.ts",
+    "seed:all": "ts-node -r tsconfig-paths/register scripts/seed-all-data.run.ts",
+    "migrate:test-to-bytebattle": "ts-node -r tsconfig-paths/register scripts/migrate-test-to-bytebattle.run.ts",
     "make-admin": "ts-node -r tsconfig-paths/register scripts/make-admin.run.ts",
     "test:ci": "jest --ci --coverage --passWithNoTests",
     "audit:ci": "npm audit --audit-level=high"

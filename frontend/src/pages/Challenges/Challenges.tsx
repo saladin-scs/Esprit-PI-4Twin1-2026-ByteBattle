@@ -5,7 +5,6 @@ import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
 import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
 import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
-import { ChatAvailabilityCallout } from '../../shared/components';
 import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
 import { RootState } from '../../store/store';
 
@@ -100,10 +99,6 @@ const Challenges = () => {
           </div>
         )}
       </header>
-
-      <div className="relative mb-6">
-        <ChatAvailabilityCallout variant="compact" />
-      </div>
 
       {isAuthenticated && (
         <section  className="relative mb-8 bb-card p-4 sm:p-5" aria-label="Recommended challenges">
