@@ -4,7 +4,7 @@
  * - **Dev without `VITE_API_URL`**: `/bb-api` -> Vite proxy to `localhost:3000` (avoids CORS and SPA conflict
  *   where GET `/challenges` could return JSON instead of the app).
  * - **Dev with `VITE_API_URL`**: explicit URL (e.g. tests against another host).
- * - **Prod**: `VITE_API_URL` recommended; default `http://localhost:3000` if missing.
+ * - **Prod**: `VITE_API_URL` recommended; fallback to the deployed Render API if missing.
  */
 function trimmedApiEnv(): string | undefined {
   const raw = import.meta.env.VITE_API_URL;
@@ -20,7 +20,7 @@ export function getHttpApiBaseUrl(): string {
     return '/bb-api';
   }
   if (explicit) return explicit.replace(/\/$/, '');
-  return 'http://localhost:3000';
+  return 'https://esprit-pi-4twin1-2026-bytebattle.onrender.com';
 }
 
 /** Historical alias - same value as `getHttpApiBaseUrl`. */

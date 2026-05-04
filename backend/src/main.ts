@@ -56,13 +56,14 @@ async function bootstrap() {
   // Enable CORS
   const corsOrigins = (
     process.env.CORS_ORIGIN ||
-    'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175'
+    'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,https://*.vercel.app'
   )
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
   const nodeEnv = process.env.NODE_ENV || 'development';
   const localhostOriginOk = (o: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(o);
+  const vercelOriginOk = (o: string) => /^https:\/\/[a-z0-9-]+(?:-[a-z0-9-]+)*\.vercel\.app$/i.test(o);
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -70,6 +71,7 @@ async function bootstrap() {
       if (!origin) return callback(null, true);
       if (corsOrigins.includes(origin)) return callback(null, true);
       if (nodeEnv !== 'production' && localhostOriginOk(origin)) return callback(null, true);
+      if (vercelOriginOk(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
