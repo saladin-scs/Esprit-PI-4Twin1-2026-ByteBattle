@@ -67,8 +67,6 @@ const Reports: React.FC = () => {
         <div className="text-gray-400">No reports match these criteria.</div>
         <div className="text-gray-500 text-sm mt-2">Try Queue view for unresolved reports or switch to All reports.</div>
       </div>
-        </div>
-      </div>
     </div>
   );
 };

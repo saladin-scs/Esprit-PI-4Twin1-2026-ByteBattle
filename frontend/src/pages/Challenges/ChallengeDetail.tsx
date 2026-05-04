@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { initVimMode } from 'monaco-vim';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Play,
   Send,
@@ -412,8 +412,6 @@ const ChallengeDetail = () => {
     navigate,
   ]);
 
-  const attemptsUsed = Math.min(submissionHistory.length, 5);
-  const runsLeft = Math.max(0, 5 - attemptsUsed);
   const unlockAdvancedTabs = progressSolved || showHistoryAfterAttempts;
 
   const handleRevealHint = async (hintIndex: number) => {
@@ -755,7 +753,7 @@ const ChallengeDetail = () => {
       )}
       <Group {...({ direction: isMobile ? 'vertical' : 'horizontal' } as any)}>
         {(!isMobile || (activeTab !== 'code' && activeTab !== 'result')) && (
-          <Panel order={2} defaultSize={isMobile ? 100 : 42} minSize={isMobile ? 100 : 20}>
+          <Panel defaultSize={isMobile ? 100 : 42} minSize={isMobile ? 100 : 20}>
           <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
            <div role="tablist" aria-label="Challenge sections" className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
             <button
@@ -1359,7 +1357,7 @@ aria-selected={activeTab === 'coach'}
         )}
 
         {(!isMobile || activeTab === 'code' || activeTab === 'result') && (
-          <Panel order={1} defaultSize={isFocusMode || isMobile ? 100 : 58} minSize={isFocusMode || isMobile ? 100 : 30}>
+          <Panel defaultSize={isFocusMode || isMobile ? 100 : 58} minSize={isFocusMode || isMobile ? 100 : 30}>
           <Group {...({ direction: 'vertical' } as any)}>
             {(!isMobile || activeTab === 'code') && (
               <Panel defaultSize={isMobile && activeTab === 'code' ? 100 : 68} minSize={isMobile ? 0 : 22}>
