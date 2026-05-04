@@ -136,6 +136,10 @@ http://localhost:3000/api
 3. Write/update tests
 4. Submit a pull request
 
+## AI Usage
+
+This project leveraged advanced AI tools for development, debugging, and DevOps automation. For a detailed breakdown of the AI tools, tasks, and prompts used, please refer to the [AI Implementation & Utilization Report](file:///c:/Users/user/Desktop/PI-DEV/PiDev-ByteBattle-saladin/PiDev-ByteBattle/AI_USAGE.md).
+
 ## License
 
 MIT License

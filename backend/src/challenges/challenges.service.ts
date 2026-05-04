@@ -155,7 +155,8 @@ export class ChallengeService {
       '    String raw = sb.toString();',
       '    Map<String, String> map = new HashMap<>();',
       javaMapInit,
-      '    String out = map.containsKey(raw) ? map.get(raw) : map.getOrDefault(raw.trim(), "");',
+      '    String out = map.get(raw);',
+      '    if (out == null) out = map.getOrDefault(raw.trim(), "");',
       '    System.out.print(out);',
       '  }',
       '}',
@@ -185,11 +186,10 @@ export class ChallengeService {
       '  auto it = m.find(raw);',
       '  if (it != m.end()) {',
       '    cout << it->second;',
-      '    return 0;',
+      '  } else {',
+      '    string t = trim_copy(raw);',
+      '    if (m.count(t)) cout << m[t];',
       '  }',
-      '  string key = trim_copy(raw);',
-      '  auto it2 = m.find(key);',
-      '  if (it2 != m.end()) cout << it2->second;',
       '  return 0;',
       '}',
     ].join('\n');
@@ -197,7 +197,7 @@ export class ChallengeService {
     return { python, javascript, java, cpp };
   }
 
-  private normalizeLangKeys(obj: Record<string, any> | undefined): Record<string, any> {
+  public normalizeLangKeys(obj: Record<string, any> | undefined): Record<string, any> {
     if (!obj) return {};
     const out: Record<string, any> = {};
     for (const k in obj) {

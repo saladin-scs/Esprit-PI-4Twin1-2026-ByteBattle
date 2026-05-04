@@ -327,8 +327,8 @@ export class CompetitionsService {
             const hydrated = {
               ...c,
               starterCode: {
-                ...(officialSource || {}),
-                ...(c.starterCode || {}),
+                ...this.challengeService.normalizeLangKeys(officialSource || {}),
+                ...this.challengeService.normalizeLangKeys(c.starterCode || {}),
                 ...this.challengeService.buildAcceptedStarterCodeFromTests(c.testCases),
               },
             };

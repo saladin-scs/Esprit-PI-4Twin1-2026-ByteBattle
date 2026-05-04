@@ -1,4 +1,5 @@
-FROM node:20-bookworm-slim
+FROM node:20-bookworm
+RUN apt-get update && apt-get install -y python3 g++ openjdk-17-jdk && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
