@@ -198,7 +198,15 @@ export class ChallengeService {
   }
 
   /** Default starter code when challenge has none (works with normalized stdin). Java uses BufferedReader + StringTokenizer (competitive programming style). */
-  private static readonly DEFAULT_STARTER_CODE: Record<Language, string> = {
+  private normalizeLangKeys(obj: Record<string, any> | undefined): Record<string, any> {
+    if (!obj) return {};
+    const out: Record<string, any> = {};
+    for (const k in obj) {
+      const nk = k.toLowerCase() === 'c++' ? 'cpp' : k;
+      out[nk] = obj[k];
+    }
+    return out;
+  }
     python: 'def sum(a, b):\n    return a + b\n\na, b = map(int, input().split())\nprint(sum(a, b))',
     javascript: 'function sum(a, b) {\n  return a + b;\n}\n\nconst [a, b] = readline().split(/\\s+/).map(Number);\nconsole.log(sum(a, b));',
     java: `import java.io.*;
@@ -352,12 +360,21 @@ public class Solution {
     if (!dto.xpReward) {
       dto.xpReward = this.XP_MAP[dto.difficulty] ?? 50;
     }
-    dto.officialSolution = this.withOfficialSolutionFallback(dto.officialSolution as any, dto.starterCode as any);
+    // Normalize language keys in starterCode and officialSolution
+    dto.starterCode = this.normalizeLangKeys(dto.starterCode as any);
+    dto.officialSolution = this.withOfficialSolutionFallback(this.normalizeLangKeys(dto.officialSolution as any), dto.starterCode as any);
     return new this.challengeModel(dto).save();
   }
 
   // Update a challenge (admin)
   async update(id: string, dto: UpdateChallengeDto): Promise<ChallengeDocument> {
+    // Normalize language keys if provided
+    if ((dto as any).starterCode !== undefined) {
+      (dto as any).starterCode = this.normalizeLangKeys((dto as any).starterCode as any);
+    }
+    if ((dto as any).officialSolution !== undefined) {
+      (dto as any).officialSolution = this.normalizeLangKeys((dto as any).officialSolution as any);
+    }
     const payload: any = { ...dto };
     if ((dto.difficulty && dto.xpReward == null) || payload.xpReward == null) {
       const effectiveDifficulty = dto.difficulty;
@@ -533,6 +550,7 @@ public class Solution {
     const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
     const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
     const source = seedMatch?.starterCode ?? (challenge as any).starterCode;
+    const normalizedSource = this.normalizeLangKeys(source as any);
     const officialSource = (challenge as any).officialSolution as Partial<Record<Language, string>> | undefined;
     const acceptedFromTests = this.buildAcceptedStarterCodeFromTests((challenge as any).testCases);
     for (const lang of (challenge.languages || []) as Language[]) {
@@ -540,8 +558,8 @@ public class Solution {
         starterCode[lang] = acceptedFromTests[lang] as string;
       } else if (officialSource?.[lang]) {
         starterCode[lang] = officialSource[lang] as string;
-      } else if (source?.[lang]) {
-        starterCode[lang] = source[lang];
+      } else if (normalizedSource?.[lang]) {
+        starterCode[lang] = normalizedSource[lang];
       }
     }
 
@@ -561,12 +579,13 @@ public class Solution {
     const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
     const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
     const source = seedMatch?.starterCode ?? (challenge as any).starterCode;
+    const normalizedSource = this.normalizeLangKeys(source as any);
     const acceptedFromTests = this.buildAcceptedStarterCodeFromTests((challenge as any).testCases);
     for (const lang of ((challenge as any).languages || []) as Language[]) {
       if (acceptedFromTests?.[lang]) {
         starterCode[lang] = acceptedFromTests[lang] as string;
-      } else if (source?.[lang]) {
-        starterCode[lang] = source[lang];
+      } else if (normalizedSource?.[lang]) {
+        starterCode[lang] = normalizedSource[lang];
       }
     }
 

@@ -243,6 +243,15 @@ async function run() {
     }
 
     const now = Date.now();
+    const status = index % 3 === 0 ? 'active' : 'scheduled';
+    const startTime =
+      status === 'active'
+        ? new Date(now - (index + 1) * 30 * 60 * 1000)
+        : new Date(now + (index + 1) * 60 * 60 * 1000);
+    const endTime =
+      status === 'active'
+        ? new Date(now + (index + 4) * 60 * 60 * 1000)
+        : new Date(now + (index + 8) * 60 * 60 * 1000);
     const challengeSlice = selectedIds.slice((index * 3) % selectedIds.length, ((index * 3) % selectedIds.length) + 5);
     const challengeIds = challengeSlice.length ? challengeSlice : selectedIds.slice(0, 5);
 
@@ -251,10 +260,10 @@ async function run() {
       description: 'Bulk generated competition for expanded demo data.',
       type: index % 2 === 0 ? 'algorithmic' : 'speed',
       difficulty: DIFFICULTIES[index % DIFFICULTIES.length],
-      status: index % 3 === 0 ? 'active' : 'scheduled',
+      status,
       challengeIds,
-      startTime: new Date(now + (index + 1) * 60 * 60 * 1000),
-      endTime: new Date(now + (index + 4) * 60 * 60 * 1000),
+      startTime,
+      endTime,
       supportedLanguages: ALL_LANGUAGES,
       rules: 'Solve as many tasks as possible with correct outputs.',
       participants: [],

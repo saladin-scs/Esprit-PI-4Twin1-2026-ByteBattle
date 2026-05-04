@@ -63,6 +63,33 @@ Since February 2026, the public API **https://emkc.org/api/v2/piston/execute** i
 | `CODE_EXECUTION_PREFER_PISTON` | `true` / `false` (legacy) to force Piston or local strategy |
 | `CODE_EXECUTION_TIMEOUT_MS` | Per-execution timeout in ms (default 15000) |
 
+### Render Deployment
+
+Render does not provide `host.docker.internal`, so the backend cannot reach a local Piston container on the same machine the way it can in `docker-compose.prod.yml`.
+
+Use one of these options:
+
+1. **Recommended: deploy Piston as a separate service** and point ByteBattle to it:
+	- Set `PISTON_ENDPOINT` in the Render backend service to the public URL of your Piston instance, ending with `/api/v2/execute`.
+	- Example: `https://your-piston-service.onrender.com/api/v2/execute`
+	- If your Piston instance requires auth, set `PISTON_API_KEY` too.
+2. **Fallback: use the allowlisted public Piston API** if your account has access:
+	- `PISTON_ENDPOINT=https://emkc.org/api/v2/piston/execute`
+	- Add `PISTON_API_KEY` if the endpoint requires it.
+
+Render env vars to set on the ByteBattle backend:
+
+```env
+MONGODB_URI=<your Atlas URI ending in /bytebattle>
+JWT_SECRET=<strong secret>
+PISTON_ENDPOINT=<your Piston /api/v2/execute URL>
+PISTON_API_KEY=<only if required>
+# Leave this unset, or set false, so Render does not try local execution first
+CODE_EXECUTION_PREFER_LOCAL=false
+```
+
+For the Piston service itself, make sure it exposes the API on port `2000` and has the Node, Python, Java, and GCC runtimes installed. ByteBattle validates submissions through `/runtimes` first and falls back to a static version map if that endpoint is unavailable.
+
 ### Languages and Versions
 
 At run startup, the service calls `GET {base}/runtimes` (e.g. `https://emkc.org/api/v2/piston/runtimes` or `http://localhost:2000/api/v2/runtimes`) and selects a version (Node for JS, GCC for C/C++, etc.).  
