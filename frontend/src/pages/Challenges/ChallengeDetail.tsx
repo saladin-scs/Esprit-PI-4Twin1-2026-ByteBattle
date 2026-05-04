@@ -715,7 +715,7 @@ const ChallengeDetail = () => {
 
   return (
     <>
-    <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 font-sans dark:bg-[#010409]`}>
+    <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} ${isFocusMode ? 'fixed inset-0 z-50 h-screen w-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden bg-slate-50 font-sans dark:bg-[#010409]`}>
       {isMobile && (
         <div className="flex shrink-0 border-b border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117] overflow-x-auto no-scrollbar">
           {(['description', 'code', 'result'] as const).map((tab) => {
@@ -752,7 +752,7 @@ const ChallengeDetail = () => {
         </div>
       )}
       <Group {...({ direction: isMobile ? 'vertical' : 'horizontal' } as any)}>
-        {(!isMobile || (activeTab !== 'code' && activeTab !== 'result')) && (
+        {(!isFocusMode && (!isMobile || (activeTab !== 'code' && activeTab !== 'result'))) && (
           <Panel defaultSize={isMobile ? 100 : 42} minSize={isMobile ? 100 : 20}>
           <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
            <div role="tablist" aria-label="Challenge sections" className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
@@ -1488,7 +1488,7 @@ aria-selected={activeTab === 'coach'}
             {(!isMobile && !isFocusMode) && (
                 <Separator className="h-1.5 cursor-row-resize bg-slate-200 hover:bg-primary-500/30 dark:bg-[#30363d]" />
               )}
-              {(!isMobile || activeTab === 'result') && (
+              {(!isFocusMode && (!isMobile || activeTab === 'result')) && (
                 <Panel defaultSize={isMobile && activeTab === 'result' ? 100 : 32} minSize={isMobile ? 0 : 10}>
               <div className="flex h-full flex-col bg-slate-50 text-slate-800 dark:bg-[#0d1117] dark:text-[#c9d1d9]">
                 <div className="border-b border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#f0f6fc]">
