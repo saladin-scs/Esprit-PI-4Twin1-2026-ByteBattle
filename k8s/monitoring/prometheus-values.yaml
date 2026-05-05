@@ -1,0 +1,15 @@
+server:
+  persistentVolume:
+    enabled: false
+  extraFlags:
+    - web.enable-lifecycle
+alertmanager:
+  enabled: true
+  configMapOverrideName: alertmanager-config
+serverFiles:
+  prometheus.yml:
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+grafana:
+  enabled: false

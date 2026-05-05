@@ -18,6 +18,7 @@ import { ChatModule } from './chat/chat.module';
 import { BattleModule } from './battle/battle.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { ExploreModule } from './explore/explore.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { ExploreModule } from './explore/explore.module';
     BattleModule,
     FeedbackModule,
     ExploreModule,
+    HealthModule,
   ],
 })
 export class AppModule {}

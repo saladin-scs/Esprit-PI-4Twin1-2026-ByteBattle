@@ -36,15 +36,17 @@ services:
   frontend:
     build:
       context: ./frontend   # build local
+      args:
+        VITE_API_URL: /bb-api
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "5173:5173"
-    environment:
-      VITE_API_URL: ${VITE_API_URL}
+      - "5173:8080"
     networks:
-      - bytebattle
+      bytebattle:
+        aliases:
+          - backend-service
 
 volumes:
   mongodb_data:

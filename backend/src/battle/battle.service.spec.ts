@@ -6,6 +6,7 @@ import { CodeExecutionService } from '../code-execution/code-execution.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Battle } from './schemas/battle.schema';
 import { Test } from '@nestjs/testing';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('BattleService', () => {
   const realtime = {
@@ -25,6 +26,9 @@ describe('BattleService', () => {
   };
   const codeExecution = {
     executeCode: jest.fn(),
+  };
+  const notificationsService = {
+    createForUsers: jest.fn(),
   };
 
   const battleId = new Types.ObjectId();
@@ -82,6 +86,7 @@ describe('BattleService', () => {
         { provide: ChallengeService, useValue: challengeService },
         { provide: CodeExecutionService, useValue: codeExecution },
         { provide: BattleRealtimeService, useValue: realtime },
+        { provide: NotificationsService, useValue: notificationsService },
       ],
     }).compile();
 

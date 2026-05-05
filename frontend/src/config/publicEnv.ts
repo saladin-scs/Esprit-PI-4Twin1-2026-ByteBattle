@@ -13,13 +13,21 @@ function trimmedApiEnv(): string | undefined {
   return t || undefined;
 }
 
+function stripTrailingSlash(value: string): string {
+  return value.replace(/\/$/, '');
+}
+
+function isAbsoluteUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
 export function getHttpApiBaseUrl(): string {
   const explicit = trimmedApiEnv();
   if (import.meta.env.DEV) {
-    if (explicit) return explicit.replace(/\/$/, '');
+    if (explicit) return stripTrailingSlash(explicit);
     return '/bb-api';
   }
-  if (explicit) return explicit.replace(/\/$/, '');
+  if (explicit) return stripTrailingSlash(explicit);
   return 'https://esprit-pi-4twin1-2026-bytebattle.onrender.com';
 }
 
@@ -37,5 +45,8 @@ export function getPublicApiUrl(): string {
 export function getSocketIoServerUrl(): string | undefined {
   const explicit = trimmedApiEnv();
   if (import.meta.env.DEV && !explicit) return 'http://127.0.0.1:3000';
-  return getHttpApiBaseUrl();
+  if (explicit && !isAbsoluteUrl(explicit)) return undefined;
+
+  const httpBase = getHttpApiBaseUrl();
+  return isAbsoluteUrl(httpBase) ? httpBase : undefined;
 }

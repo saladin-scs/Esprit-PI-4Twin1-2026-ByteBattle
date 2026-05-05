@@ -185,7 +185,6 @@ export class BattleService {
               battle.players.length,
             );
       const enemyTeam = teams.find((t) => t.teamIndex !== myTi);
-      const allyTeam = teams.find((t) => t.teamIndex === myTi);
       const opponent =
         battle.mode === '1v1' && enemyTeam?.members?.length === 1
           ? { userId: enemyTeam.members[0].userId, username: enemyTeam.members[0].username }

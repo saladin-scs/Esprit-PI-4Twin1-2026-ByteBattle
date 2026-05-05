@@ -2,6 +2,8 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection } from 'mongoose';
+import type { Response } from 'express';
+import { Res } from '@nestjs/common';
 
 @ApiTags('Health')
 @Controller('health')
@@ -21,12 +23,12 @@ export class HealthController {
 
   @Get('ready')
   @ApiOperation({ summary: 'Readiness — MongoDB connected' })
-  ready() {
+  ready(@Res() res: Response) {
     const mongoOk = this.connection.readyState === 1;
-    return {
+    return res.status(mongoOk ? 200 : 503).json({
       status: mongoOk ? 'ready' : 'degraded',
       mongodb: mongoOk ? 'connected' : 'disconnected',
       timestamp: new Date().toISOString(),
-    };
+    });
   }
 }

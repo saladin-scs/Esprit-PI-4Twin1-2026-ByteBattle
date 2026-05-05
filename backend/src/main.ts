@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { randomUUID } from 'crypto';
+import { httpRequestDurationSeconds, httpRequestsTotal } from './health/prometheus';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,13 +22,23 @@ async function bootstrap() {
     res.setHeader('X-Request-Id', id);
     const start = Date.now();
     res.on('finish', () => {
+      const route = req.route?.path || req.originalUrl?.split('?')[0] || req.url;
+      const labels = {
+        method: req.method,
+        route,
+        status_code: String(res.statusCode),
+      };
+
+      httpRequestsTotal.inc(labels);
+      httpRequestDurationSeconds.observe(labels, (Date.now() - start) / 1000);
+
       try {
         console.log(
           JSON.stringify({
             level: 'http',
             correlationId: id,
             method: req.method,
-            path: req.originalUrl?.split('?')[0] ?? req.url,
+            path: route,
             status: res.statusCode,
             ms: Date.now() - start,
           }),
@@ -86,7 +97,7 @@ async function bootstrap() {
   app.use(async (req: any, res: any, next: any) => {
     try {
       const key = req.ip || req.connection?.remoteAddress || 'unknown';
-      if (req.path === '/health' || req.path?.startsWith('/health/')) return next();
+      if (req.path === '/health' || req.path?.startsWith('/health/') || req.path === '/metrics') return next();
       // softer for swagger/assets
       if (req.path?.startsWith('/api')) return next();
       await rateLimiter.consume(key, 1);
