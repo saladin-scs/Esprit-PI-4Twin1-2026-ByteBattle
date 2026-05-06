@@ -75,7 +75,7 @@ export default function Competitions() {
     originX: 0,
     originY: 0,
   });
-  const pageSize = 12;
+  const pageSize = 6;
   const displayLanguage = (language: string) => (language === 'cpp' ? 'C++' : language);
 
   const getSortConfig = () =>
