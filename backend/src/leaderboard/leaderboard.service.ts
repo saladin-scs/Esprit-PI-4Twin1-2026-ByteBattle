@@ -335,9 +335,7 @@ export class LeaderboardService {
   /**
    * Get user detailed stats
    */
-  async getUserDetailedStats(userId: string, period: LeaderboardPeriod = 'all-time') {
-    const dateFilter = this.getDateFilter(period);
-
+  async getUserDetailedStats(userId: string, _period: LeaderboardPeriod = 'all-time') {
     const user = await this.userModel.findById(userId);
     if (!user) return null;
 

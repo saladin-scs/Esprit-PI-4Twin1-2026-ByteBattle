@@ -1,0 +1,63 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    parameters {
+        booleanParam(name: 'DEPLOY_MONITORING', defaultValue: true, description: 'Apply monitoring and alerting manifests')
+    }
+
+    environment {
+        K8S_NAMESPACE = 'bytebattle-devops'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Apply Core Kubernetes Manifests') {
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+                    sh 'mkdir -p $HOME/.kube && cp "$KUBECONFIG_FILE" $HOME/.kube/config'
+                    sh 'kubectl apply -f k8s/namespace.yaml'
+                    sh 'kubectl apply -f k8s/configmap.yaml'
+                    sh 'kubectl apply -f k8s/secret.template.yaml'
+                    sh 'kubectl apply -f k8s/mongodb.yaml'
+                    sh 'kubectl apply -f k8s/redis.yaml'
+                    sh 'kubectl apply -f k8s/rabbitmq.yaml'
+                    sh 'kubectl apply -f k8s/backend.yaml'
+                    sh 'kubectl apply -f k8s/frontend.yaml'
+                    sh 'kubectl apply -f k8s/ingress.yaml'
+                    sh 'kubectl apply -f k8s/hpa.yaml'
+                }
+            }
+        }
+
+        stage('Deploy Monitoring') {
+            when {
+                expression { params.DEPLOY_MONITORING }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+                    sh 'mkdir -p $HOME/.kube && cp "$KUBECONFIG_FILE" $HOME/.kube/config'
+                    sh 'kubectl apply -k k8s/monitoring'
+                }
+            }
+        }
+
+        stage('Cluster Status') {
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+                    sh 'mkdir -p $HOME/.kube && cp "$KUBECONFIG_FILE" $HOME/.kube/config'
+                    sh 'kubectl -n ${K8S_NAMESPACE} get pods,svc,hpa,ingress'
+                }
+            }
+        }
+    }
+}

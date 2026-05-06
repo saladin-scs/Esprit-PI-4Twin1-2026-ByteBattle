@@ -1,0 +1,304 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for src/gamification/badges.config.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../prettify.css" />
+    <link rel="stylesheet" href="../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/gamification</a> badges.config.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>10/10</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>9/9</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">36x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
+ * ByteBattle badges catalog - conditions and rewards.
+ */
+import type { BadgeDefinition } from './gamification.constants';
+&nbsp;
+export const BADGES_STREAK: BadgeDefinition[] = [
+  { id: 'streak_7', name: '🔥 Consistent Beginner', condition: '7-day streak', rarity: 'COMMON', xpReward: 50 },
+  { id: 'streak_30', name: '⚡ Code Warrior', condition: '30-day streak', rarity: 'RARE', xpReward: 200, streakFreezes: 1 },
+  { id: 'streak_100', name: '🏆 Living Legend', condition: '100-day streak', rarity: 'EPIC', xpReward: 500, streakFreezes: 3 },
+  { id: 'streak_365', name: '👑 Immortal', condition: '1-year streak', rarity: 'LEGENDARY', xpReward: 2000 },
+  { id: 'streak_recovery', name: '🛡️ Phoenix', condition: 'Recover a streak after losing it', rarity: 'RARE', xpReward: 100 },
+];
+&nbsp;
+export const BADGES_SOLVER: BadgeDefinition[] = [
+  { id: 'solver_10', name: '🌱 Novice', condition: 'Solve 10 problems', rarity: 'COMMON', xpReward: 50 },
+  { id: 'solver_50', name: '🌿 Apprentice', condition: 'Solve 50 problems', rarity: 'COMMON', xpReward: 100 },
+  { id: 'solver_100', name: '🌳 Coder', condition: 'Solve 100 problems', rarity: 'RARE', xpReward: 200 },
+  { id: 'solver_250', name: '🏔️ Expert', condition: 'Solve 250 problems', rarity: 'RARE', xpReward: 500 },
+  { id: 'solver_500', name: '🗻 Master', condition: 'Solve 500 problems', rarity: 'EPIC', xpReward: 1000 },
+  { id: 'solver_1000', name: '🏔️🏔️ Grand Master', condition: 'Solve 1000 problems', rarity: 'LEGENDARY', xpReward: 2000 },
+];
+&nbsp;
+export const BADGES_DIFFICULTY: BadgeDefinition[] = [
+  { id: 'easy_25', name: '📘 Easy Hunter', condition: 'Solve 25 easy problems', rarity: 'COMMON', xpReward: 50 },
+  { id: 'easy_50', name: '📘 Easy Expert', condition: 'Solve 50 easy problems', rarity: 'RARE', xpReward: 100 },
+  { id: 'medium_25', name: '📙 Medium Tamer', condition: 'Solve 25 medium problems', rarity: 'RARE', xpReward: 100 },
+  { id: 'medium_50', name: '📙 Strategist', condition: 'Solve 50 medium problems', rarity: 'EPIC', xpReward: 250 },
+  { id: 'hard_10', name: '📕 Brave', condition: 'Solve 10 hard problems', rarity: 'EPIC', xpReward: 200 },
+  { id: 'hard_25', name: '📕 Legend', condition: 'Solve 25 hard problems', rarity: 'LEGENDARY', xpReward: 500 },
+  { id: 'hard_50', name: '📕 Code Deity', condition: 'Solve 50 hard problems', rarity: 'MYTHIC', xpReward: 1000 },
+];
+&nbsp;
+export const BADGES_QUALITY: BadgeDefinition[] = [
+  { id: 'perfect_week', name: '💯 Perfect Week', condition: '100% success rate for 7 days', rarity: 'EPIC', xpReward: 300 },
+  { id: 'first_blood', name: '🩸 First Blood', condition: 'Be first to solve a challenge', rarity: 'LEGENDARY', xpReward: 500, coinsReward: 100 },
+  { id: 'optimal_solution', name: '⚡ Optimizer', condition: 'Top 5% performance solution', rarity: 'EPIC', xpReward: 250 },
+  { id: 'bug_hunter', name: '🐛 Bug Hunter', condition: 'Find a bug in a challenge', rarity: 'EPIC', xpReward: 300 },
+  { id: 'perfect_score', name: '🎯 Flawless', condition: 'Solve a challenge on first try', rarity: 'RARE', xpReward: 150 },
+];
+&nbsp;
+export const BADGES_LANGUAGE: BadgeDefinition[] = [
+  { id: 'python_master', name: '🐍 Python Master', condition: 'Solve 50 problems in Python', rarity: 'EPIC', xpReward: 200 },
+  { id: 'js_master', name: '📘 JavaScript Master', condition: 'Solve 50 problems in JS', rarity: 'EPIC', xpReward: 200 },
+  { id: 'java_master', name: '☕ Java Master', condition: 'Solve 50 problems in Java', rarity: 'EPIC', xpReward: 200 },
+  { id: 'cpp_master', name: '⚙️ C++ Master', condition: 'Solve 50 problems in C++', rarity: 'EPIC', xpReward: 200 },
+  { id: 'polyglot', name: '🗣️ Polyglot', condition: 'Solve in 5 different languages', rarity: 'LEGENDARY', xpReward: 500 },
+];
+&nbsp;
+export const BADGES_CONTEST: BadgeDefinition[] = [
+  { id: 'contest_first', name: '🥇 Champion', condition: 'Finish 1st in a contest', rarity: 'LEGENDARY', xpReward: 500 },
+  { id: 'contest_top10', name: '🎖️ Elite', condition: 'Top 10 in a contest', rarity: 'EPIC', xpReward: 250 },
+  { id: 'contest_top50', name: '🏅 Competitor', condition: 'Top 50 in a contest', rarity: 'RARE', xpReward: 100 },
+  { id: 'contest_veteran', name: '⚔️ Veteran', condition: 'Participate in 10 contests', rarity: 'RARE', xpReward: 100 },
+];
+&nbsp;
+export const BADGES_SOCIAL: BadgeDefinition[] = [
+  { id: 'helper', name: '🤝 Helper', condition: '10 useful solutions (upvotes)', rarity: 'RARE', xpReward: 100 },
+  { id: 'mentor', name: '👨‍🏫 Mentor', condition: '50 comment upvotes', rarity: 'EPIC', xpReward: 250 },
+  { id: 'popular', name: '🌟 Influencer', condition: '100 followers', rarity: 'EPIC', xpReward: 250 },
+  { id: 'ambassador', name: '🎙️ Ambassador', condition: 'Refer 5 friends', rarity: 'RARE', xpReward: 150 },
+];
+&nbsp;
+export const ALL_BADGES: BadgeDefinition[] = [
+  ...BADGES_STREAK,
+  ...BADGES_SOLVER,
+  ...BADGES_DIFFICULTY,
+  ...BADGES_QUALITY,
+  ...BADGES_LANGUAGE,
+  ...BADGES_CONTEST,
+  ...BADGES_SOCIAL,
+];
+&nbsp;
+export const BADGE_MAP = new Map(ALL_BADGES.map((b) =&gt; [b.id, b]));
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-05-05T20:54:53.179Z
+            </div>
+        <script src="../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../sorter.js"></script>
+        <script src="../../block-navigation.js"></script>
+    </body>
+</html>
+    

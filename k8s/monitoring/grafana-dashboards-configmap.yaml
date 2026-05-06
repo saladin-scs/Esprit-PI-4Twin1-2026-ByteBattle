@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: bytebattle-devops
+  labels:
+    grafana_dashboard: "1"
+data:
+  app-api-health.json: |
+    {
+      "title": "ByteBattle API Health",
+      "schemaVersion": 39,
+      "timezone": "browser",
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Backend Up",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "expr": "up{job=\"bytebattle-backend\"}" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Request Rate",
+          "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+          "targets": [{ "expr": "sum(rate(bytebattle_http_requests_total[5m]))" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "5xx Error Rate",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [{ "expr": "sum(rate(bytebattle_http_requests_total{status_code=~\"5..\"}[5m]))" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "P95 Request Duration",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(bytebattle_http_request_duration_seconds_bucket[5m])) by (le))" }]
+        }
+      ]
+    }
+  pod-resources.json: |
+    {
+      "title": "ByteBattle Pod Resources",
+      "schemaVersion": 39,
+      "timezone": "browser",
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "CPU by Pod",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [{ "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"bytebattle-devops\", image!=\"\"}[5m])) by (pod)" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Memory by Pod",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [{ "expr": "sum(container_memory_working_set_bytes{namespace=\"bytebattle-devops\", image!=\"\"}) by (pod)" }]
+        },
+        {
+          "type": "stat",
+          "title": "Restart Count",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [{ "expr": "sum(kube_pod_container_status_restarts_total{namespace=\"bytebattle-devops\"})" }]
+        },
+        {
+          "type": "stat",
+          "title": "HPA Max Replicas",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [{ "expr": "max(kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"bytebattle-devops\"})" }]
+        }
+      ]
+    }
+  rollout-health.json: |
+    {
+      "title": "ByteBattle Rollout Health",
+      "schemaVersion": 39,
+      "timezone": "browser",
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Backend Available Replicas",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "expr": "kube_deployment_status_replicas_available{deployment=\"backend\", namespace=\"bytebattle-devops\"}" }]
+        },
+        {
+          "type": "stat",
+          "title": "Frontend Available Replicas",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+          "targets": [{ "expr": "kube_deployment_status_replicas_available{deployment=\"frontend\", namespace=\"bytebattle-devops\"}" }]
+        },
+        {
+          "type": "stat",
+          "title": "Backend HPA Current Replicas",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+          "targets": [{ "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=\"backend-hpa\", namespace=\"bytebattle-devops\"}" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Rollout Generation vs Observed",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+          "targets": [
+            { "expr": "kube_deployment_metadata_generation{namespace=\"bytebattle-devops\"}" },
+            { "expr": "kube_deployment_status_observed_generation{namespace=\"bytebattle-devops\"}" }
+          ]
+        }
+      ]
+    }

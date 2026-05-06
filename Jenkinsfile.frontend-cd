@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    parameters {
+        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'Docker image tag to build and deploy')
+    }
+
+    environment {
+        FRONTEND_IMAGE = 'registry/project-frontend'
+        K8S_NAMESPACE = 'bytebattle-devops'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t ${FRONTEND_IMAGE}:${IMAGE_TAG} frontend'
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'dockerhub-username', variable: 'DOCKERHUB_USERNAME'),
+                    string(credentialsId: 'dockerhub-token', variable: 'DOCKERHUB_TOKEN')
+                ]) {
+                    sh 'echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin'
+                    sh 'docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}'
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+                    sh 'mkdir -p $HOME/.kube && cp "$KUBECONFIG_FILE" $HOME/.kube/config'
+                    sh 'kubectl apply -f k8s/frontend.yaml'
+                    sh 'kubectl -n ${K8S_NAMESPACE} set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG}'
+                    sh 'kubectl -n ${K8S_NAMESPACE} rollout status deployment/frontend --timeout=180s'
+                }
+            }
+        }
+    }
+}

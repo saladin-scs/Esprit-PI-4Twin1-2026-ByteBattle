@@ -1,0 +1,6 @@
+resources:
+  - prometheus-configmap.yaml
+  - prometheus-rules.yaml
+  - alertmanager-configmap.yaml
+  - grafana-dashboards-configmap.yaml
+  - prometheus-stack.yaml

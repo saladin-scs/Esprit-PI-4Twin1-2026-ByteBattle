@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: bytebattle-devops
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+
+    route:
+      receiver: webhook-demo
+      group_by: ['alertname', 'severity']
+      group_wait: 10s
+      group_interval: 30s
+      repeat_interval: 2h
+
+    receivers:
+      - name: webhook-demo
+        webhook_configs:
+          - url_file: /etc/alertmanager/secrets/ALERTMANAGER_WEBHOOK_URL
+            send_resolved: true
+
+      - name: email-demo
+        email_configs:
+          - to: replace-with-real-email@example.com
+            from: bytebattle-alerts@example.com
+            smarthost: smtp.example.com:587
+            auth_username: replace-me
+            auth_password: replace-me
+            send_resolved: true
+
+    templates:
+      - /etc/alertmanager/templates/*.tmpl
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-templates
+  namespace: bytebattle-devops
+data:
+  notification.tmpl: |
+    {{ define "bytebattle.title" }}[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}{{ end }}
+    {{ define "bytebattle.body" }}
+    Alert: {{ .CommonLabels.alertname }}
+    Severity: {{ .CommonLabels.severity }}
+    Summary: {{ .CommonAnnotations.summary }}
+    Description: {{ .CommonAnnotations.description }}
+    Namespace: {{ .CommonLabels.namespace }}
+    {{ end }}
