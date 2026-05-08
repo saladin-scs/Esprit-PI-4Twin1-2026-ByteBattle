@@ -13,7 +13,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { feedbackApi } from '../../services/api';
+import { challengesApi } from '../../services/api';
 import type { FeedbackResponse } from '../../types/feedback';
 import { cn } from '../../lib/utils';
 
@@ -22,6 +22,8 @@ export interface AiCodeFeedbackPanelProps {
   language: string;
   taskDescription?: string;
   testsPassed?: boolean;
+  testsPassedCount?: number;
+  testsTotal?: number;
   executionError?: string;
   runtimeMs?: number;
   className?: string;
@@ -73,6 +75,8 @@ export function AiCodeFeedbackPanel({
   language,
   taskDescription,
   testsPassed,
+  testsPassedCount,
+  testsTotal,
   executionError,
   runtimeMs,
   className,
@@ -80,17 +84,9 @@ export function AiCodeFeedbackPanel({
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const lastAnalyzedSig = useRef<string>('');
-  const lastPayloadRef = useRef<{
-    code: string;
-    language: string;
-    task_description?: string;
-    tests_passed?: boolean;
-    execution_error?: string;
-    runtime_ms?: number;
-  } | null>(null);
 
   const contextSig = useMemo(
     () =>
@@ -99,10 +95,12 @@ export function AiCodeFeedbackPanel({
         language,
         taskDescription,
         testsPassed,
+        testsPassedCount,
+        testsTotal,
         executionError,
         runtimeMs,
       }),
-    [code, language, taskDescription, testsPassed, executionError, runtimeMs],
+    [code, language, taskDescription, testsPassed, testsPassedCount, testsTotal, executionError, runtimeMs],
   );
 
   const stale =
@@ -121,57 +119,40 @@ export function AiCodeFeedbackPanel({
     }
     setLoading(true);
     setErr(null);
-    setStatusMessage('Starting analysis');
-    const payload = {
-      code,
-      language,
-      task_description: taskDescription,
-      tests_passed: testsPassed,
-      execution_error: executionError,
-      runtime_ms: runtimeMs,
-    };
-    lastPayloadRef.current = payload;
+    setStatusMessage('Analyzing your code with AI...');
+
     try {
-      const res = await feedbackApi.analyze(payload);
-      const data = res.data as FeedbackResponse;
-      setFeedback(data);
+      const response = await challengesApi.analyzeCode({
+        code,
+        language,
+        taskDescription,
+        testsPassed,
+        testsPassedCount,
+        testsTotal,
+        executionError,
+        runtimeMs,
+      });
+      setFeedback(response.data);
       lastAnalyzedSig.current = contextSig;
-      setStatusMessage(`Analysis completed. Score ${data.overall_score} out of 100.`);
-    } catch (e: unknown) {
-      const ax = e as { response?: { status?: number; data?: { message?: string } } };
-      if (ax.response?.status === 429) {
+      setStatusMessage(null);
+    } catch (ax: any) {
+      if (ax.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
+        setErr('Session expired. Please sign in again to use AI coach.');
+      } else if (ax.response?.status === 429) {
         setErr('Too many requests. Please try again shortly.');
-      } else if (ax.response?.status === 503 || ax.response?.status === 502 || ax.response?.status === 504) {
-        setErr('Analysis service is temporarily unavailable. Please retry.');
-      } else if (ax.response?.status === 408) {
-        setErr('Analysis timed out. Retry with shorter code or less context.');
       } else {
-        setErr(ax.response?.data?.message ?? 'Analysis unavailable.');
+        setErr(ax.response?.data?.message || 'Failed to get AI feedback. Please try again.');
       }
-      setStatusMessage('Analysis failed.');
+      setStatusMessage(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const retryLast = async () => {
-    if (!lastPayloadRef.current || loading) return;
-    setLoading(true);
-    setErr(null);
-    setStatusMessage('Retrying analysis');
-    try {
-      const res = await feedbackApi.analyze(lastPayloadRef.current);
-      const data = res.data as FeedbackResponse;
-      setFeedback(data);
-      lastAnalyzedSig.current = contextSig;
-      setStatusMessage(`Analysis completed. Score ${data.overall_score} out of 100.`);
-    } catch (e: unknown) {
-      const ax = e as { response?: { status?: number; data?: { message?: string } } };
-      setErr(ax.response?.data?.message ?? 'Analysis unavailable.');
-      setStatusMessage('Retry failed.');
-    } finally {
-      setLoading(false);
-    }
+  const retryLast = () => {
+    analyze();
   };
 
   const copyReport = async () => {
@@ -233,7 +214,7 @@ export function AiCodeFeedbackPanel({
               {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
               {loading ? 'Analyzing...' : 'Analyze my code'}
             </button>
-            {err && lastPayloadRef.current && (
+            {err && (
               <button
                 type="button"
                 onClick={() => void retryLast()}
@@ -262,7 +243,13 @@ export function AiCodeFeedbackPanel({
             icon={FlaskConical}
             label="Tests"
             value={
-              testsPassed === true ? 'OK' : testsPassed === false ? 'Failed / partial' : 'Not run'
+              testsPassedCount != null && testsTotal != null
+                ? `${testsPassedCount}/${testsTotal}`
+                : testsPassed === true
+                  ? 'OK'
+                  : testsPassed === false
+                    ? 'Failed / partial'
+                    : 'Not run'
             }
             variant={testVariant}
           />
@@ -273,17 +260,9 @@ export function AiCodeFeedbackPanel({
             <ContextChip icon={AlertTriangle} label="Exec error" value={executionError.slice(0, 40) + (executionError.length > 40 ? '...' : '')} variant="warn" />
           )}
         </div>
-        <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-          Your code and context are sent to the internal analysis service to generate coaching feedback.
-        </p>
       </div>
 
       <div className="p-4">
-        {!feedback && !loading && !err && (
-          <div className="mb-3 rounded-xl border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs text-violet-900 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-200">
-            Better reports come from running tests first, including the task description, and sharing runtime/error context.
-          </div>
-        )}
         {stale && (
           <p
             className="mb-3 flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-100 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100"
@@ -306,7 +285,7 @@ export function AiCodeFeedbackPanel({
         {loading && (
           <div className="flex flex-col items-center justify-center gap-3 py-10" aria-busy="true">
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600 dark:border-violet-900 dark:border-t-violet-400" />
-            <p className="text-sm text-slate-700 dark:text-slate-400">Sending to analysis model...</p>
+            <p className="text-sm text-slate-700 dark:text-slate-400">{statusMessage || 'Sending to analysis model...'}</p>
           </div>
         )}
 

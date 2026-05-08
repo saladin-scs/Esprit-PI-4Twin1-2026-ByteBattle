@@ -12,6 +12,14 @@ export type AdminReclamationRow = {
   createdAt: string;
 };
 
+export type AdminReclamationSummary = {
+  total: number;
+  unresolved: number;
+  staleUnresolved: number;
+  byStatus: Record<'open' | 'read' | 'resolved' | 'cancelled', number>;
+  byCategory: Record<'bug' | 'account' | 'content' | 'harassment' | 'other', number>;
+};
+
 export const adminApi = {
   listUsers: (params?: Record<string, unknown>) => apiClient.get('/admin/users', { params }),
   updateUser: (id: string, data: Record<string, unknown>) =>
@@ -21,7 +29,14 @@ export const adminApi = {
   getGamificationStats: () => apiClient.get('/admin/gamification/stats'),
   getChatReports: (params?: { page?: number; limit?: number; status?: 'open' | 'reviewed' }) =>
     apiClient.get('/admin/chat-reports', { params }),
-  listReclamations: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
+  listReclamations: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    category?: string;
+    q?: string;
+    sort?: 'newest' | 'oldest';
+  }) =>
     apiClient.get<{
       items: AdminReclamationRow[];
       total: number;
@@ -29,6 +44,7 @@ export const adminApi = {
       limit: number;
       totalPages: number;
     }>('/admin/reclamations', { params }),
+  getReclamationSummary: () => apiClient.get<AdminReclamationSummary>('/admin/reclamations/summary'),
   patchReclamationStatus: (
     id: string,
     status: 'open' | 'read' | 'resolved' | 'cancelled',

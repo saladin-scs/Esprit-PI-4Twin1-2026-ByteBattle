@@ -14,10 +14,11 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, loginPath = '/login' }: ProtectedRouteProps) {
-  const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const { isAuthenticated, token } = useSelector((s: RootState) => s.auth);
   const location = useLocation();
+  const hasSession = isAuthenticated || !!token;
 
-  if (!isAuthenticated) {
+  if (!hasSession) {
     return (
       <Navigate
         to={loginPath}

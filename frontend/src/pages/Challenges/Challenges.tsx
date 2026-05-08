@@ -7,7 +7,8 @@ import { useRecommendations } from '../../hooks/useRecommendations';
 import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
 import { ChatAvailabilityCallout } from '../../shared/components';
-import { type RecommendedChallengeItem } from '../../services/api';
+import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
+
 import { RootState } from '../../store/store';
 
 const PAGE_SIZE = 15;
@@ -74,14 +75,10 @@ const Challenges = () => {
         </p>
         {isAdmin && (
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => navigate('/admin/challenges')}>+ Create Challenge</Button>
+            <Button onClick={() => navigate('/admin/challenges')}>Challenge Management</Button>
           </div>
         )}
       </header>
-
-      <div className="relative mb-6">
-        <ChatAvailabilityCallout variant="compact" />
-      </div>
 
       {isAuthenticated && (
         <section  className="relative mb-8 bb-card p-4 sm:p-5" aria-label="Recommended challenges">

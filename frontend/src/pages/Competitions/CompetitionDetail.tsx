@@ -233,6 +233,8 @@ export default function CompetitionDetail() {
                   language={selectedLang}
                   taskDescription={`${competition.name} — ${challenge.title}\n\n${(challenge.description || '').slice(0, 8000)}`}
                   testsPassed={submitResult?.status === 'accepted'}
+                  testsPassedCount={submitResult?.passedTests}
+                  testsTotal={submitResult?.totalTests}
                   executionError={submitError ?? undefined}
                   runtimeMs={submitResult?.executionTimeMs}
                 />

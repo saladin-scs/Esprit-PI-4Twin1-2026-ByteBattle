@@ -5,6 +5,16 @@
 export type CompetitionType = 'code_golf' | 'speed' | 'algorithmic';
 export type CompetitionStatus = 'scheduled' | 'active' | 'closed' | 'archived';
 
+export interface CompetitionChallengeSummary {
+  _id: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  languages: string[];
+  examples: Array<{ input: string; output: string; explanation?: string }>;
+  starterCode: Record<string, string>;
+}
+
 export interface CompetitionListItem {
   _id: string;
   name: string;
@@ -23,6 +33,7 @@ export interface CompetitionListItem {
 
 export interface CompetitionDetail extends CompetitionListItem {
   rules?: string;
+  challenges?: CompetitionChallengeSummary[];
 }
 
 export interface LeaderboardEntry {

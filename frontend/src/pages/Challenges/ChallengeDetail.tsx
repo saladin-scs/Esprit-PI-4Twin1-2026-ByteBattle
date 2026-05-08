@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { initVimMode } from 'monaco-vim';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
   Send,
@@ -18,16 +19,22 @@ import {
   MessageCircle,
   Sparkles,
   Timer,
+  Code2,
+  Clock,
+  BarChart3,
+  Focus,
+  Minimize2,
 } from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
-import { challengesApi } from '../../services/api';
+import { useWindowSize } from '../../hooks';
+import { challengesApi, gamificationApi } from '../../services/api';
 import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
 import { SubmissionSuccessModal } from '../../components/Gamification/SubmissionSuccessModal';
 import { useChallengeDetailStore } from '../../stores/challengeDetailStore';
 import { useGamificationStore, type RankProgress } from '../../stores/gamificationStore';
 import { SiteRatingWidget } from '../Home/SiteRatingWidget';
 import { RootState } from '../../store/store';
-import { Modal } from '../../shared/components';
+import { Modal, Spinner, Button } from '../../shared/components';
 
 const CommunitySolutions = lazy(() => import('./CommunitySolutions'));
 const MonacoEditor = lazy(() => import('@monaco-editor/react'));
@@ -51,6 +58,12 @@ const HINT_TIER_LABEL: Record<string, string> = {
   premium: 'Advanced hint',
 };
 
+function getChallengeRatingPromptKey(userId: string, challengeId: string): string {
+  return `bb:challenge-rating-prompted:${userId}:${challengeId}`;
+}
+
+const CHALLENGE_TIME_LIMIT_MS = 5 * 60 * 1000;
+
 function formatAttemptClock(elapsedMs: number): string {
   const s = Math.max(0, Math.floor(elapsedMs / 1000));
   const h = Math.floor(s / 3600);
@@ -58,6 +71,13 @@ function formatAttemptClock(elapsedMs: number): string {
   const sec = s % 60;
   if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+function normalizeSubmissionStatus(status: unknown): string {
+  return String(status ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
 }
 
 interface Challenge {
@@ -103,7 +123,6 @@ interface SubmissionResult {
   testResults: Array<{
     testNumber: number;
     passed: boolean;
-    /** Submission hidden case: input/output not exposed (server anti-cheat). */
     isHiddenCase?: boolean;
     message?: string;
     input?: string;
@@ -113,13 +132,31 @@ interface SubmissionResult {
   }>;
 }
 
+interface SubmissionHistoryItem {
+  _id: string;
+  status: string;
+  passedTests: number;
+  totalTests: number;
+  executionTimeMs: number;
+  language: string;
+  createdAt: string;
+}
+
+interface ChallengeAnalyticsView {
+  totalSolved: number;
+  totalParticipated: number;
+  avgAttempts: number;
+  solveRate: number;
+}
+
 const ChallengeDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { theme, setTheme } = useTheme();
+  const { width } = useWindowSize();
+  const isMobile = width !== undefined && width < 1024;
   const langFromUrl = searchParams.get('lang');
-  /** Global theme before opening IDE (restored when leaving URL with ?lang=). */
   const challengeIdeThemeRef = useRef<Theme | null>(null);
 
   const {
@@ -139,18 +176,25 @@ const ChallengeDetail = () => {
     setError: setStoreError,
     reset: resetStore,
   } = useChallengeDetailStore();
+
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'description' | 'hints' | 'result' | 'solutions' | 'chat' | 'coach'
+    'description' | 'hints' | 'result' | 'solutions' | 'official-solution' | 'attempts' | 'analytics' | 'chat' | 'coach' | 'code'
   >('description');
+  const [challengeAnalytics, setChallengeAnalytics] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
+  const authUserId = useSelector((s: RootState) => s.auth.user?.id ?? '');
   const [isVimMode, setIsVimMode] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
   const [attemptStartedAt, setAttemptStartedAt] = useState<string | null>(null);
+  const [localAttemptStartedAt, setLocalAttemptStartedAt] = useState<string | null>(null);
   const [progressSolved, setProgressSolved] = useState(false);
+  const [challengeExpired, setChallengeExpired] = useState(false);
   const [attemptTick, setAttemptTick] = useState(0);
   const [selectedTestCase, setSelectedTestCase] = useState(0);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -163,21 +207,25 @@ const ChallengeDetail = () => {
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [submissionHistory, setSubmissionHistory] = useState<SubmissionHistoryItem[]>([]);
+  const [showHistoryAfterAttempts, setShowHistoryAfterAttempts] = useState(false);
+  const [officialSolutionCode, setOfficialSolutionCode] = useState<string | null>(null);
+  const [officialSolutionLoading, setOfficialSolutionLoading] = useState(false);
+  const [analyticsView, setAnalyticsView] = useState<ChallengeAnalyticsView | null>(null);
 
+  const gamificationSummary = useGamificationStore((s) => s.summary);
   const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
 
   const editorRef = useRef<any>(null);
   const vimModeRef = useRef<any>(null);
   const prevChallengeIdRef = useRef<string | undefined>(undefined);
   const prevLangParamRef = useRef<string | null>(null);
+  const hasNavigatedOnExpireRef = useRef(false);
 
-  /** `vs` is a clearer Monaco light theme than `light` (better syntax contrast). */
   const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs';
   const loading = loadingChallenge;
   const error = storeError;
 
-  // On IDE open (?lang=), switch to dark theme for LeetCode-like rendering; restore on exit.
-  /* eslint-disable react-hooks/exhaustive-deps -- do not depend on `theme` to allow manual page toggle */
   useEffect(() => {
     if (!langFromUrl) {
       if (challengeIdeThemeRef.current !== null) {
@@ -191,9 +239,7 @@ const ChallengeDetail = () => {
     }
     setTheme('dark');
   }, [langFromUrl, setTheme]);
-  /* eslint-enable react-hooks/exhaustive-deps */
 
-  // Always show Description tab when opening a challenge or moving from language picker to editor (?lang=).
   useEffect(() => {
     const idChanged = id !== prevChallengeIdRef.current;
     const langJustOpened = Boolean(langFromUrl) && prevLangParamRef.current === null;
@@ -201,6 +247,7 @@ const ChallengeDetail = () => {
     prevLangParamRef.current = langFromUrl;
     if (idChanged || langJustOpened) {
       setActiveTab('description');
+      setIsFocusMode(false);
     }
   }, [id, langFromUrl]);
 
@@ -233,7 +280,7 @@ const ChallengeDetail = () => {
       try {
         const res = await challengesApi.getOne(id);
         const data = res.data as Challenge;
-        setChallenge(data as import('../../stores/challengeDetailStore').ChallengeDetailChallenge);
+        setChallenge(data as any);
         const langs = data.languages ?? [];
         const preferred = langFromUrl && langs.includes(langFromUrl) ? langFromUrl : langs[0] || 'javascript';
         setSelectedLang(preferred);
@@ -263,6 +310,7 @@ const ChallengeDetail = () => {
   useEffect(() => {
     if (!id || !isAuthed) {
       setAttemptStartedAt(null);
+      setLocalAttemptStartedAt(null);
       setProgressSolved(false);
       return;
     }
@@ -274,13 +322,18 @@ const ChallengeDetail = () => {
         if (data.solved) {
           setProgressSolved(true);
           setAttemptStartedAt(null);
+          setLocalAttemptStartedAt(null);
         } else {
           setProgressSolved(false);
           setAttemptStartedAt(data.startedAt);
+          setLocalAttemptStartedAt(data.startedAt);
           setRevealedHints(data.revealedHintIndices ?? []);
         }
       } catch {
-        if (!cancelled) setAttemptStartedAt(null);
+        if (!cancelled) {
+          setAttemptStartedAt(null);
+          setLocalAttemptStartedAt(null);
+        }
       }
     })();
     return () => {
@@ -289,12 +342,11 @@ const ChallengeDetail = () => {
   }, [id, isAuthed]);
 
   useEffect(() => {
-    if (!attemptStartedAt || progressSolved) return;
+    if (!localAttemptStartedAt || progressSolved) return;
     const t = window.setInterval(() => setAttemptTick((x) => x + 1), 1000);
     return () => window.clearInterval(t);
-  }, [attemptStartedAt, progressSolved]);
+  }, [localAttemptStartedAt, progressSolved]);
 
-  // Sync URL lang → store (and code) when challenge is loaded so code always matches selected language
   useEffect(() => {
     if (!challenge || !langFromUrl || !challenge.languages?.includes(langFromUrl)) return;
     setSelectedLang(langFromUrl);
@@ -315,10 +367,10 @@ const ChallengeDetail = () => {
   };
 
   const attemptElapsedMs = useMemo(() => {
-    if (!attemptStartedAt || progressSolved) return 0;
+    if (!localAttemptStartedAt || progressSolved) return 0;
     void attemptTick;
-    return Date.now() - new Date(attemptStartedAt).getTime();
-  }, [attemptStartedAt, progressSolved, attemptTick]);
+    return Date.now() - new Date(localAttemptStartedAt).getTime();
+  }, [localAttemptStartedAt, progressSolved, attemptTick]);
 
   const handleRevealHint = async (hintIndex: number) => {
     if (!id) return;
@@ -329,6 +381,7 @@ const ChallengeDetail = () => {
     try {
       const { data } = await challengesApi.revealChallengeHint(id, hintIndex);
       setAttemptStartedAt(data.startedAt);
+      setLocalAttemptStartedAt(data.startedAt);
       setRevealedHints(data.revealedHintIndices);
     } catch {
       setRevealedHints((prev) => [...new Set([...prev, hintIndex])].sort((a, b) => a - b));
@@ -373,6 +426,7 @@ const ChallengeDetail = () => {
       if (data.status === 'accepted') {
         setProgressSolved(true);
         setAttemptStartedAt(null);
+        setLocalAttemptStartedAt(null);
         try {
           const [comp, summary] = await Promise.all([
             challengesApi.getMyCompletion(id),
@@ -406,7 +460,7 @@ const ChallengeDetail = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] text-gray-500 dark:text-gray-400">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary-500 border-t-transparent" />
+        <Spinner size="lg" />
       </div>
     );
   }
@@ -418,7 +472,6 @@ const ChallengeDetail = () => {
     );
   }
 
-  // Language selection page: no lang in URL -> show grid with Unsolved/Solved per language
   if (!langFromUrl) {
     return (
       <div className="relative mx-auto max-w-3xl px-4 py-8 sm:px-6 md:py-12">
@@ -476,608 +529,485 @@ const ChallengeDetail = () => {
 
   return (
     <>
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 font-sans dark:bg-[#010409]">
-      <Group {...({ direction: 'horizontal' } as any)}>
-        <Panel defaultSize={38} minSize={28}>
-          <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
-           <div role="tablist" aria-label="Challenge sections" className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
-            <button
-  role="tab"
-  aria-selected={activeTab === 'description'}
-  type="button"
-  onClick={() => setActiveTab('description')}
-  className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
-    activeTab === 'description'
-      ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-      : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
-  }`}
->
-  Description
-</button>
-              {challenge.hints && challenge.hints.length > 0 && (
+      <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 font-sans dark:bg-[#010409]">
+        <Group {...({ direction: 'horizontal' } as any)}>
+          <Panel defaultSize={38} minSize={28}>
+            <div className="flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white dark:border-[#30363d] dark:bg-[#0d1117]">
+              <div role="tablist" aria-label="Challenge sections" className="flex shrink-0 border-b border-slate-200 dark:border-[#30363d]">
                 <button
-                role="tab"
-aria-selected={activeTab === 'hints'}
+                  role="tab"
+                  aria-selected={activeTab === 'description'}
                   type="button"
-                  onClick={() => setActiveTab('hints')}
-                  className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
-                    activeTab === 'hints'
+                  onClick={() => setActiveTab('description')}
+                  className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${activeTab === 'description'
+                    ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+                    : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                    }`}
+                >
+                  Description
+                </button>
+                {challenge.hints && challenge.hints.length > 0 && (
+                  <button
+                    role="tab"
+                    aria-selected={activeTab === 'hints'}
+                    type="button"
+                    onClick={() => setActiveTab('hints')}
+                    className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${activeTab === 'hints'
                       ? 'border-amber-500 text-amber-700 dark:border-amber-400 dark:text-amber-300'
                       : 'border-transparent text-slate-700 hover:text-amber-800 dark:text-[#8b949e] dark:hover:text-amber-200/90'
-                  }`}
-                  aria-label="Hints and help"
-                >
-                  <Lightbulb className="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" aria-hidden />
-                  Hints
-                </button>
-              )}
-              {(displayResult?.status === 'accepted' || (completedLanguages?.length ?? 0) > 0) && (
-                <button
-                role="tab"
-aria-selected={activeTab === 'solutions'}
-                  type="button"
-                  onClick={() => setActiveTab('solutions')}
-                  className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
-                    activeTab === 'solutions'
+                      }`}
+                  >
+                    <Lightbulb className="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" aria-hidden />
+                    Hints
+                  </button>
+                )}
+                {(displayResult?.status === 'accepted' || (completedLanguages?.length ?? 0) > 0) && (
+                  <button
+                    role="tab"
+                    aria-selected={activeTab === 'solutions'}
+                    type="button"
+                    onClick={() => setActiveTab('solutions')}
+                    className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${activeTab === 'solutions'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
                       : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
-                  }`}
-                >
-                  Solutions
-                </button>
-              )}
-              {(displayResult || submitError) && (
-                <button
-                role="tab"
-aria-selected={activeTab === 'result'}
-                
-                  type="button"
-                  onClick={() => setActiveTab('result')}
-                  className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
-                    activeTab === 'result'
+                      }`}
+                  >
+                    Solutions
+                  </button>
+                )}
+                {(displayResult || submitError) && (
+                  <button
+                    role="tab"
+                    aria-selected={activeTab === 'result'}
+                    type="button"
+                    onClick={() => setActiveTab('result')}
+                    className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${activeTab === 'result'
                       ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
                       : 'border-transparent text-slate-700 dark:text-[#8b949e]'
-                  }`}
-                >
-                  Result {displayResult?.status === 'accepted' ? '✅' : displayResult ? '❌' : '⚠️'}
-                </button>
-              )}
-              {isAuthed && (
-                <>
-                  <button
-                  role="tab"
-aria-selected={activeTab === 'chat'}
-                    type="button"
-                    onClick={() => setActiveTab('chat')}
-                    className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
-                      activeTab === 'chat'
-                        ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                        : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
-                    }`}
+                      }`}
                   >
-                    <MessageCircle className="h-4 w-4" aria-hidden />
-                    Chat
+                    Result {displayResult?.status === 'accepted' ? '✅' : displayResult ? '❌' : '⚠️'}
                   </button>
-                  <button
-                  role="tab"
-aria-selected={activeTab === 'coach'}
-                    type="button"
-                    onClick={() => setActiveTab('coach')}
-                    className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
-                      activeTab === 'coach'
-                        ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
-                        : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
-                    }`}
-                  >
-                    <Sparkles className="h-4 w-4" aria-hidden />
-                    AI coach
-                  </button>
-                </>
-              )}
-            </div>
-
-            {isAuthed && activeTab !== 'chat' && (
-              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-emerald-500/25 bg-emerald-500/5 px-4 py-2.5 text-xs text-emerald-900 dark:border-emerald-500/20 dark:bg-[#0c1412] dark:text-emerald-100/95">
-                <span>
-                  <span className="font-semibold">Live chat</span> - discuss this challenge with others.
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('chat')}
-                  className="shrink-0 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-700 dark:bg-[#238636] dark:hover:bg-[#2ea043]"
-                >
-                  Open chat
-                </button>
-              </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto p-5">
-              {activeTab === 'description' && (
-                <>
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-[#f0f6fc]">{challenge.title}</h2>
-                    <DifficultyBadge difficulty={challenge.difficulty} />
-                    <span className="ml-auto font-semibold text-amber-600 dark:text-[#e3b341]">+{challenge.xpReward} XP</span>
-                  </div>
-                  <div className="mb-4 flex flex-wrap gap-1.5">
-                    {challenge.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-md border border-primary-500/20 bg-primary-500/10 px-2 py-0.5 text-xs text-primary-800 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                  {challenge.hints && challenge.hints.length > 0 ? (
+                )}
+                {isAuthed && (
+                  <>
                     <button
+                      role="tab"
+                      aria-selected={activeTab === 'chat'}
                       type="button"
-                      onClick={() => setActiveTab('hints')}
-                      className="mb-5 flex w-full items-start gap-3 rounded-xl border border-amber-400/35 bg-gradient-to-br from-amber-500/12 via-amber-500/5 to-transparent p-4 text-left transition hover:border-amber-400/55 hover:from-amber-500/18 dark:border-amber-500/25 dark:from-amber-500/15 dark:via-amber-500/5 dark:hover:border-amber-400/35"
+                      onClick={() => setActiveTab('chat')}
+                      className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${activeTab === 'chat'
+                        ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+                        : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                        }`}
                     >
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-500/25 shadow-[0_0_20px_rgba(245,158,11,0.25)] dark:bg-amber-500/20 dark:shadow-[0_0_24px_rgba(251,191,36,0.2)]">
-                        <Lightbulb className="h-6 w-6 text-amber-600 dark:text-amber-300" strokeWidth={2} aria-hidden />
-                      </span>
-                      <span className="min-w-0 pt-0.5">
-                        <span className="block text-sm font-semibold text-amber-950 dark:text-amber-100">
-                          Need a hint?
-                        </span>
-                        <span className="mt-0.5 block text-sm text-amber-950 dark:text-amber-200/80">
-                          {challenge.hints.length} hint{challenge.hints.length > 1 ? 's' : ''} available - open the{' '}
-                          <strong className="font-semibold">Hints</strong> tab (lightbulb icon).
-                        </span>
-                      </span>
+                      <MessageCircle className="h-4 w-4" aria-hidden />
+                      Chat
                     </button>
-                  ) : (
-                    <div className="mb-5 flex items-start gap-3 rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-[#30363d] dark:bg-[#161b22]">
-                      <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/80 dark:text-amber-400/90" aria-hidden />
-                      <p className="text-sm leading-relaxed text-slate-800 dark:text-[#8b949e]">
-                        <span className="font-semibold text-slate-900 dark:text-[#c9d1d9]">Quick reminder:</span>{' '}
-                        read the statement and examples carefully, use <strong>Run</strong> on visible tests, then{' '}
-                        <strong>Submit</strong> when ready.
+                    <button
+                      role="tab"
+                      aria-selected={activeTab === 'coach'}
+                      type="button"
+                      onClick={() => setActiveTab('coach')}
+                      className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${activeTab === 'coach'
+                        ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+                        : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                        }`}
+                    >
+                      <Sparkles className="h-4 w-4" aria-hidden />
+                      AI coach
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5">
+                {activeTab === 'description' && (
+                  <>
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-[#f0f6fc]">{challenge.title}</h2>
+                      <DifficultyBadge difficulty={challenge.difficulty} />
+                      <span className="ml-auto font-semibold text-amber-600 dark:text-[#e3b341]">+{challenge.xpReward} XP</span>
+                    </div>
+                    <div className="mb-4 flex flex-wrap gap-1.5">
+                      {challenge.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="rounded-md border border-primary-500/20 bg-primary-500/10 px-2 py-0.5 text-xs text-primary-800 dark:border-[#30363d] dark:bg-[#161b22] dark:text-slate-300"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    {challenge.hints && challenge.hints.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('hints')}
+                        className="mb-5 flex w-full items-start gap-3 rounded-xl border border-amber-400/35 bg-gradient-to-br from-amber-500/12 via-amber-500/5 to-transparent p-4 text-left transition hover:border-amber-400/55 hover:from-amber-500/18 dark:border-amber-500/25 dark:from-amber-500/15 dark:via-amber-500/5 dark:hover:border-amber-400/35"
+                      >
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-500/25 shadow-[0_0_20px_rgba(245,158,11,0.25)] dark:bg-amber-500/20 dark:shadow-[0_0_24px_rgba(251,191,36,0.15)]">
+                          <Lightbulb className="h-6 w-6 text-amber-600 dark:text-amber-300" strokeWidth={2} aria-hidden />
+                        </span>
+                        <span className="min-w-0 pt-0.5">
+                          <span className="block text-sm font-semibold text-amber-950 dark:text-amber-100">
+                            Need a hint?
+                          </span>
+                          <span className="mt-0.5 block text-sm text-amber-950 dark:text-amber-200/80">
+                            {challenge.hints.length} hint{challenge.hints.length > 1 ? 's' : ''} available.
+                          </span>
+                        </span>
+                      </button>
+                    )}
+                    <div className="markdown-body prose prose-slate prose-sm mb-6 max-w-none text-gray-800 prose-headings:text-gray-900 dark:prose-invert dark:text-[#c9d1d9]">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                        {challenge.description}
+                      </ReactMarkdown>
+                    </div>
+                    {challenge.examples?.length > 0 && (
+                      <>
+                        <h3 className="mt-6 mb-2 text-sm font-semibold text-gray-900 dark:text-[#f0f6fc]">Examples</h3>
+                        {challenge.examples.map((ex, i) => (
+                          <div
+                            key={i}
+                            className="mb-3 rounded-lg border border-slate-200 bg-gray-50 p-3 text-sm dark:border-[#30363d] dark:bg-[#161b22]"
+                          >
+                            <div>
+                              <strong className="text-gray-900 dark:text-[#c9d1d9]">Input:</strong>{' '}
+                              <code className="rounded-md bg-gray-200 px-1.5 py-0.5 font-mono text-xs text-gray-900 dark:bg-[#0d1117] dark:text-[#79c0ff]">
+                                {ex.input}
+                              </code>
+                            </div>
+                            <div className="mt-2">
+                              <strong className="text-gray-900 dark:text-[#c9d1d9]">Output:</strong>{' '}
+                              <code className="rounded-md bg-gray-200 px-1.5 py-0.5 font-mono text-xs text-gray-900 dark:bg-[#0d1117] dark:text-[#79c0ff]">
+                                {ex.output}
+                              </code>
+                            </div>
+                            {ex.explanation && (
+                              <div className="mt-2 text-gray-600 dark:text-[#8b949e]">
+                                <strong>Explanation:</strong> {ex.explanation}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {activeTab === 'hints' && challenge.hints && challenge.hints.length > 0 && (
+                  <div className="space-y-5">
+                    <div className="rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent p-5 dark:border-amber-500/20 dark:from-amber-500/12 dark:via-transparent">
+                      <h2 className="text-lg font-bold text-amber-950 dark:text-amber-50">Hints</h2>
+                      <p className="mt-1 text-sm text-amber-900/85 dark:text-amber-100/75">
+                        Reveal hints one by one. Each hint costs XP.
                       </p>
                     </div>
-                  )}
-                  <div className="markdown-body prose prose-slate prose-sm mb-6 max-w-none text-gray-800 prose-headings:text-gray-900 dark:prose-invert dark:text-[#c9d1d9]">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                      {challenge.description}
-                    </ReactMarkdown>
-                  </div>
-                  {challenge.examples?.length > 0 && (
-                    <>
-                      <h3 className="mt-6 mb-2 text-sm font-semibold text-gray-900 dark:text-[#f0f6fc]">Examples</h3>
-                      {challenge.examples.map((ex, i) => (
+                    {challenge.hints.map((hint, i) => {
+                      const isRevealed = revealedHints.includes(i);
+                      const tierLabel = HINT_TIER_LABEL[hint.tier] ?? hint.tier;
+                      return (
                         <div
                           key={i}
-                          className="mb-3 rounded-lg border border-slate-200 bg-gray-50 p-3 text-sm dark:border-[#30363d] dark:bg-[#161b22]"
-                        >
-                          <div>
-                            <strong className="text-gray-900 dark:text-[#c9d1d9]">Input:</strong>{' '}
-                            <code className="rounded-md bg-gray-200 px-1.5 py-0.5 font-mono text-xs text-gray-900 dark:bg-[#0d1117] dark:text-[#79c0ff]">
-                              {ex.input}
-                            </code>
-                          </div>
-                          <div className="mt-2">
-                            <strong className="text-gray-900 dark:text-[#c9d1d9]">Output:</strong>{' '}
-                            <code className="rounded-md bg-gray-200 px-1.5 py-0.5 font-mono text-xs text-gray-900 dark:bg-[#0d1117] dark:text-[#79c0ff]">
-                              {ex.output}
-                            </code>
-                          </div>
-                          {ex.explanation && (
-                            <div className="mt-2 text-gray-600 dark:text-[#8b949e]">
-                              <strong>Explanation:</strong> {ex.explanation}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                  {challenge.constraints?.length > 0 && (
-                    <>
-                      <h3 className="mt-6 mb-2 text-sm font-semibold text-gray-900 dark:text-[#f0f6fc]">Constraints</h3>
-                      <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700 dark:text-[#c9d1d9]">
-                        {challenge.constraints.map((c, i) => (
-                          <li key={i}><code className="px-1 rounded bg-gray-200 dark:bg-gray-600 text-xs">{c}</code></li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                </>
-              )}
-
-              {activeTab === 'hints' && challenge.hints && challenge.hints.length > 0 && (
-                <div className="space-y-5">
-                  <div className="rounded-xl border border-amber-400/30 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent p-5 dark:border-amber-500/20 dark:from-amber-500/12 dark:via-transparent">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/25 shadow-[0_0_28px_rgba(245,158,11,0.2)] dark:bg-amber-500/15 dark:shadow-[0_0_32px_rgba(251,191,36,0.15)]">
-                        <Lightbulb className="h-8 w-8 text-amber-600 dark:text-amber-300" strokeWidth={1.75} aria-hidden />
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-bold text-amber-950 dark:text-amber-50">Indices</h2>
-                        <p className="mt-1 text-sm text-amber-900/85 dark:text-amber-100/75">
-                          Reveal hints one by one. Each hint costs XP (see cost). A longer attempt also reduces XP on
-                          your first solve — tracked from when you open the challenge.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  {challenge.hints.map((hint, i) => {
-                    const isRevealed = revealedHints.includes(i);
-                    const tierLabel = HINT_TIER_LABEL[hint.tier] ?? hint.tier;
-                    return (
-                      <div
-                        key={i}
-                        className={`rounded-xl border p-4 text-sm transition ${
-                          isRevealed
+                          className={`rounded-xl border p-4 text-sm transition ${isRevealed
                             ? 'border-amber-400/45 bg-amber-50/90 text-amber-950 dark:border-amber-500/30 dark:bg-[#1c1917] dark:text-amber-50'
                             : 'border-slate-200 bg-slate-50/80 dark:border-[#30363d] dark:bg-[#161b22]'
-                        }`}
-                      >
-                        {isRevealed ? (
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
+                            }`}
+                        >
+                          {isRevealed ? (
+                            <div className="space-y-2">
                               <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
-                                <Lightbulb className="h-3.5 w-3.5" aria-hidden />
                                 Hint {i + 1} · {tierLabel}
                               </span>
-                              {hint.cost > 0 && (
-                                <span className="text-xs text-amber-800/70 dark:text-amber-200/60">
-                                  Cost: {hint.cost} XP
-                                </span>
-                              )}
-                            </div>
-                            <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>
-                                {hint.text}
-                              </ReactMarkdown>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-start gap-2">
-                              <Lightbulb
-                                className="mt-0.5 h-5 w-5 shrink-0 text-amber-500/70 dark:text-amber-400/60"
-                                aria-hidden
-                              />
-                              <div>
-                                <p className="font-medium text-slate-800 dark:text-[#c9d1d9]">Hint {i + 1}</p>
-                                <p className="text-sm text-slate-700 dark:text-[#8b949e]">
-                                  {tierLabel}
-                                  {hint.cost > 0 ? ` · ${hint.cost} XP` : ''} - hidden for now.
-                                </p>
+                              <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeKatex]}>
+                                  {hint.text}
+                                </ReactMarkdown>
                               </div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => void handleRevealHint(i)}
-                              className="shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-amber-950 shadow-sm hover:bg-amber-400 dark:bg-amber-600 dark:text-white dark:hover:bg-amber-500"
-                            >
-                              Show hint
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {activeTab === 'result' && (
-                <div className="space-y-4">
-                  {submitError && (
-                    <div className="p-4 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800">
-                      <div className="font-semibold">❌ Error</div>
-                      <p className="mt-1 text-sm">{submitError}</p>
-                    </div>
-                  )}
-                  {displayResult && (
-                    <>
-                      <div
-                        className={`rounded-lg p-4 ${
-                          displayResult.status === 'accepted'
-                            ? 'border border-primary-500/30 bg-primary-500/10 text-primary-900 dark:text-primary-100'
-                            : 'border border-red-500/30 bg-red-500/10 text-red-900 dark:text-red-100'
-                        }`}
-                      >
-                        <div className="font-semibold">
-                          {displayResult.status === 'accepted' ? '✅ Accepted!' : displayResult.status === 'wrong_answer' ? '❌ Wrong Answer' : '❌ Runtime Error'}
-                        </div>
-                        <div className="mt-1 text-sm">
-                          Tests: <strong>{displayResult.passedTests}/{displayResult.totalTests}</strong> passed · {displayResult.executionTimeMs}ms
-                          {displayResult.xpEarned > 0 && <span className="ml-2 font-semibold text-amber-600 dark:text-amber-400">+{displayResult.xpEarned} XP 🎉</span>}
-                        </div>
-                        {displayResult.badgesUnlocked && displayResult.badgesUnlocked.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {displayResult.badgesUnlocked.map((name, i) => (
-                              <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                                🏅 {name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {displayResult.status === 'accepted' && displayResult.xpModifiers && (
-                          <p className="mt-2 text-xs text-slate-600 dark:text-[#8b949e]">
-                            XP (first solve): time factor ×{displayResult.xpModifiers.timeMultiplier.toFixed(2)} · hint
-                            penalty −{displayResult.xpModifiers.hintFlatPenalty} XP · time on challenge{' '}
-                            {formatAttemptClock(displayResult.xpModifiers.elapsedMs)}
-                          </p>
-                        )}
-                      </div>
-                      {displayResult.testResults.map((t) => (
-                        <div
-                          key={t.testNumber}
-                          className={`p-3 rounded-lg border text-sm ${
-                            t.passed
-                              ? 'border border-primary-500/25 bg-primary-500/5 dark:bg-primary-500/10'
-                              : 'border border-red-500/25 bg-red-500/5 dark:bg-red-500/10'
-                          }`}
-                        >
-                          <div className={`font-medium ${t.passed ? 'text-primary-800 dark:text-primary-300' : 'text-red-700 dark:text-red-300'}`}>
-                            {t.passed ? '✅' : '❌'} Test #{t.testNumber}
-                          </div>
-                          {!t.passed && (
-                            <div className="mt-2 space-y-1 text-xs">
-                              {t.isHiddenCase ? (
-                                <p className="rounded-md border border-amber-500/25 bg-amber-500/5 px-2 py-1.5 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100/90">
-                                  🔒 {t.message || 'Hidden test case - details are not shown to prevent cheating.'}
-                                </p>
-                              ) : (
-                                <>
-                                  {t.input != null && (
-                                    <div>
-                                      <strong>Input:</strong> <code className="ml-1">{t.input}</code>
-                                    </div>
-                                  )}
-                                  {t.expectedOutput != null && (
-                                    <div>
-                                      <strong>Expected:</strong> <code className="ml-1">{t.expectedOutput}</code>
-                                    </div>
-                                  )}
-                                  {t.actualOutput != null && (
-                                    <div>
-                                      <strong>Got:</strong> <code className="ml-1">{t.actualOutput}</code>
-                                    </div>
-                                  )}
-                                  {t.error && (
-                                    <div className="text-red-600 dark:text-red-400">
-                                      <strong>Error:</strong> {t.error}
-                                    </div>
-                                  )}
-                                </>
-                              )}
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-slate-800 dark:text-[#c9d1d9]">Hint {i + 1} ({tierLabel})</span>
+                              <button
+                                type="button"
+                                onClick={() => void handleRevealHint(i)}
+                                className="rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-400 dark:bg-amber-600 dark:text-white"
+                              >
+                                Show hint (+{hint.cost} XP)
+                              </button>
                             </div>
                           )}
                         </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )}
 
-              {activeTab === 'solutions' && (
-                <div className="h-full min-h-0">
-                  <Suspense fallback={<p className="text-sm text-slate-500 dark:text-[#8b949e]">Loading solutions…</p>}>
-                    <CommunitySolutions challengeId={id!} />
-                  </Suspense>
-                </div>
-              )}
-
-              {activeTab === 'chat' && isAuthed && id && (
-                <Suspense fallback={<p className="text-sm text-slate-500 dark:text-[#8b949e]">Loading chat…</p>}>
-                  <CollaborationChat
-                    room={`challenge:${id}`}
-                    title="Challenge chat"
-                    className="h-[min(420px,calc(100vh-12rem))]"
-                    enabled
-                  />
-                </Suspense>
-              )}
-
-              {activeTab === 'coach' && isAuthed && challenge && (
-                <Suspense fallback={<p className="text-sm text-slate-500 dark:text-[#8b949e]">Loading AI coach…</p>}>
-                  <AiCodeFeedbackPanel
-                    code={code}
-                    language={selectedLang}
-                    taskDescription={`${challenge.title}\n\n${(challenge.description || '').slice(0, 12_000)}`}
-                    testsPassed={displayResult?.status === 'accepted'}
-                    executionError={
-                      submitError ??
-                      (() => {
-                        const f = displayResult?.testResults?.find((t) => !t.passed);
-                        return f?.error ?? f?.message;
-                      })() ??
-                      undefined
-                    }
-                    runtimeMs={displayResult?.executionTimeMs ?? runResult?.executionTimeMs}
-                  />
-                </Suspense>
-              )}
-            </div>
-          </div>
-        </Panel>
-
-        <Separator className="w-2 cursor-col-resize bg-gray-200 transition-colors hover:bg-primary-500/30 dark:bg-[#30363d]" />
-
-        <Panel minSize={32}>
-          <Group {...({ direction: 'vertical' } as any)}>
-            <Panel defaultSize={68} minSize={22}>
-              <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
-                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {attemptStartedAt && !progressSolved && langFromUrl && (
-                      <div
-                        className="mr-2 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-mono text-slate-800 dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9]"
-                        title="Time since you started this attempt (first open while unsolved). XP decreases over time on first solve."
-                      >
-                        <Timer className="h-3.5 w-3.5 shrink-0 text-primary-600 dark:text-primary-400" aria-hidden />
-                        <span aria-live="polite">{formatAttemptClock(attemptElapsedMs)}</span>
+                {activeTab === 'result' && (
+                  <div className="space-y-4">
+                    {submitError && (
+                      <div className="p-4 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800">
+                        <div className="font-semibold">❌ Error</div>
+                        <p className="mt-1 text-sm">{submitError}</p>
                       </div>
                     )}
-                    {challenge.languages.map((lang) => (
-                      <button
-                        key={lang}
-                        type="button"
-                        onClick={() => handleLangChange(lang)}
-                        className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-                          selectedLang === lang
-                            ? 'bg-primary-600 text-white dark:bg-[#1f6feb] dark:text-white'
-                            : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d]'
-                        }`}
-                      >
-                        {lang}
-                        {completedLanguages.includes(lang) && ' ✓'}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setSearchParams({})}
-                      className="rounded px-3 py-1.5 text-xs font-medium text-slate-800 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-100"
-                      title="Change language"
-                    >
-                      Change language
-                    </button>
-                    <div className="h-5 w-px bg-slate-300 dark:bg-[#30363d]" />
-                    <button
-                      type="button"
-                      title="Vim mode"
-                      className={`rounded p-1.5 ${isVimMode ? 'text-primary-600 dark:text-primary-400' : 'text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200'}`}
-                      onClick={() => setIsVimMode(!isVimMode)}
-                    >
-                      <Keyboard className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      title="Format"
-                      className="rounded p-1.5 text-slate-700 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200"
-                      onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
-                    >
-                      <AlignLeft className="h-4 w-4" />
-                    </button>
+                    {displayResult && (
+                      <>
+                        <div
+                          className={`rounded-lg p-4 ${displayResult.status === 'accepted'
+                            ? 'border border-primary-500/30 bg-primary-500/10 text-primary-900 dark:text-primary-100'
+                            : 'border border-red-500/30 bg-red-500/10 text-red-900 dark:text-red-100'
+                            }`}
+                        >
+                          <div className="font-semibold">
+                            {displayResult.status === 'accepted' ? '✅ Accepted!' : displayResult.status === 'wrong_answer' ? '❌ Wrong Answer' : '❌ Runtime Error'}
+                          </div>
+                          <div className="mt-1 text-sm">
+                            Tests: <strong>{displayResult.passedTests}/{displayResult.totalTests}</strong> passed · {displayResult.executionTimeMs}ms
+                          </div>
+                          {displayResult.xpEarned > 0 && <p className="mt-2 text-xs font-semibold text-amber-600">+{displayResult.xpEarned} XP earned!</p>}
+                        </div>
+                        {displayResult.testResults.map((t) => (
+                          <div
+                            key={t.testNumber}
+                            className={`p-3 rounded-lg border text-sm ${t.passed
+                              ? 'border border-primary-500/25 bg-primary-500/5 dark:bg-primary-500/10'
+                              : 'border border-red-500/25 bg-red-500/5 dark:bg-red-500/10'
+                              }`}
+                          >
+                            <div className={`font-medium ${t.passed ? 'text-primary-800 dark:text-primary-300' : 'text-red-700 dark:text-red-300'}`}>
+                              {t.passed ? '✅' : '❌'} Test #{t.testNumber}
+                            </div>
+                            {!t.passed && (
+                              <div className="mt-2 space-y-1 text-xs">
+                                {t.isHiddenCase ? (
+                                  <p className="opacity-80 italic">Hidden test case.</p>
+                                ) : (
+                                  <>
+                                    {t.input != null && <div><strong>Input:</strong> <code>{t.input}</code></div>}
+                                    {t.expectedOutput != null && <div><strong>Expected:</strong> <code>{t.expectedOutput}</code></div>}
+                                    {t.actualOutput != null && <div><strong>Got:</strong> <code>{t.actualOutput}</code></div>}
+                                    {t.error && <div className="text-red-600"><strong>Error:</strong> {t.error}</div>}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleRun}
-                      disabled={running || !challenge.examples?.length}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d]"
-                    >
-                      <Play className="h-4 w-4" /> {running ? 'Running...' : 'Run'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={submitting}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#238636] dark:hover:bg-[#2ea043]"
-                    >
-                      <Send className="h-4 w-4" /> {submitting ? 'Submitting...' : 'Submit'}
-                    </button>
+                )}
+
+                {activeTab === 'solutions' && (
+                  <div className="h-full min-h-0">
+                    <Suspense fallback={<Spinner />}>
+                      <CommunitySolutions challengeId={id!} />
+                    </Suspense>
                   </div>
-                </div>
-                <div className="flex-1 min-h-0 relative">
-                  <Suspense fallback={<div className="p-4 text-sm text-slate-500 dark:text-[#8b949e]">Loading editor…</div>}>
-                    <MonacoEditor
-                      key={selectedLang}
-                      height="100%"
-                      onMount={handleEditorDidMount}
-                      language={MONACO_LANG[selectedLang] || 'javascript'}
-                      value={code}
-                      onChange={(val) => setCode(val ?? '')}
-                      theme={editorTheme}
-                      options={{
-                        fontSize: 14,
-                        minimap: { enabled: false },
-                        scrollBeyondLastLine: false,
-                        accessibilitySupport: 'on',
-                        tabSize: 2,
-                        wordWrap: 'on',
-                        automaticLayout: true,
-                        padding: { top: 16 },
-                      }}
+                )}
+
+                {activeTab === 'chat' && isAuthed && id && (
+                  <Suspense fallback={<Spinner />}>
+                    <CollaborationChat
+                      room={`challenge:${id}`}
+                      title="Challenge chat"
+                      className="h-[min(420px,calc(100vh-12rem))]"
+                      enabled
                     />
                   </Suspense>
-                  <div id="vim-status-node" className={`flex h-6 items-center bg-primary-600 px-2 font-mono text-xs text-white ${isVimMode ? '' : 'hidden'}`} />
-                </div>
+                )}
+
+                {activeTab === 'coach' && isAuthed && challenge && (
+                  <Suspense fallback={<Spinner />}>
+                    <AiCodeFeedbackPanel
+                      code={code}
+                      language={selectedLang}
+                      taskDescription={`${challenge.title}\n\n${(challenge.description || '').slice(0, 12_000)}`}
+                      testsPassed={displayResult?.status === 'accepted'}
+                      testsPassedCount={displayResult?.passedTests}
+                      testsTotal={displayResult?.totalTests}
+                      executionError={submitError || undefined}
+                      runtimeMs={displayResult?.executionTimeMs}
+                    />
+                  </Suspense>
+                )}
               </div>
-            </Panel>
+            </div>
+          </Panel>
 
-            <Separator className="h-1.5 cursor-row-resize bg-slate-200 hover:bg-primary-500/30 dark:bg-[#30363d]" />
+          <Separator className="w-2 cursor-col-resize bg-gray-200 transition-colors hover:bg-primary-500/30 dark:bg-[#30363d]" />
 
-            <Panel defaultSize={32} minSize={10}>
-              <div className="flex h-full flex-col bg-slate-50 text-slate-800 dark:bg-[#0d1117] dark:text-[#c9d1d9]">
-                <div className="border-b border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#f0f6fc]">
-                  Test cases
-                </div>
-                <div className="flex-1 overflow-y-auto p-4 text-sm">
-                  {challenge.examples?.length > 0 ? (
-                    <>
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {challenge.examples.map((_, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => setSelectedTestCase(i)}
-                            className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                              selectedTestCase === i
-                                ? 'bg-primary-600 text-white dark:bg-[#1f6feb] dark:text-white'
-                                : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-[#21262d] dark:text-[#c9d1d9] dark:hover:bg-[#30363d]'
-                            }`}
-                          >
-                            Case {i + 1}
-                          </button>
-                        ))}
-                      </div>
-                      {challenge.examples[selectedTestCase] && (
-                        <div className="space-y-4">
-                          <div>
-                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-[#8b949e]">
-                              Input
-                            </div>
-                            <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#c9d1d9]">
-                              {challenge.examples[selectedTestCase].input}
-                            </pre>
-                          </div>
-                          <div>
-                            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-[#8b949e]">
-                              Expected output
-                            </div>
-                            <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#c9d1d9]">
-                              {challenge.examples[selectedTestCase].output}
-                            </pre>
-                          </div>
+          <Panel minSize={32}>
+            <Group {...({ direction: 'vertical' } as any)}>
+              <Panel defaultSize={68} minSize={22}>
+                <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
+                  <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {attemptElapsedMs > 0 && (
+                        <div className="mr-2 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-mono text-slate-800 dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9]">
+                          <Timer className="h-3.5 w-3.5 shrink-0 text-primary-600" />
+                          <span>{formatAttemptClock(attemptElapsedMs)}</span>
                         </div>
                       )}
-                    </>
-                  ) : (
-                    <p className="text-slate-700 dark:text-[#8b949e]">No examples. Run or submit to see results.</p>
-                  )}
+                      {challenge.languages.map((lang) => (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => handleLangChange(lang)}
+                          className={`rounded-lg px-3 py-1.5 text-sm font-medium ${selectedLang === lang
+                            ? 'bg-primary-600 text-white dark:bg-[#1f6feb]'
+                            : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-[#21262d] dark:text-[#c9d1d9]'
+                            }`}
+                        >
+                          {lang}
+                          {completedLanguages.includes(lang) && ' ✓'}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setSearchParams({})}
+                        className="rounded px-3 py-1.5 text-xs font-medium text-slate-800 hover:text-slate-950 dark:text-gray-400"
+                      >
+                        Change language
+                      </button>
+                      <div className="h-5 w-px bg-slate-300 dark:bg-[#30363d]" />
+                      <button
+                        type="button"
+                        title="Vim mode"
+                        className={`rounded p-1.5 ${isVimMode ? 'text-primary-600' : 'text-slate-700 hover:text-slate-950 dark:text-gray-400'}`}
+                        onClick={() => setIsVimMode(!isVimMode)}
+                      >
+                        <Keyboard className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Format"
+                        className="rounded p-1.5 text-slate-700 hover:text-slate-950 dark:text-gray-400"
+                        onClick={() => editorRef.current?.getAction('editor.action.formatDocument')?.run()}
+                      >
+                        <AlignLeft className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleRun}
+                        disabled={running || !challenge.examples?.length}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                      >
+                        <Play className="h-4 w-4" /> {running ? 'Running...' : 'Run'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={submitting}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50 dark:bg-[#238636]"
+                      >
+                        <Send className="h-4 w-4" /> {submitting ? 'Submitting...' : 'Submit'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-h-0 relative">
+                    <Suspense fallback={<div className="p-4 text-sm text-slate-500">Loading editor…</div>}>
+                      <MonacoEditor
+                        key={selectedLang}
+                        height="100%"
+                        onMount={handleEditorDidMount}
+                        language={MONACO_LANG[selectedLang] || 'javascript'}
+                        value={code}
+                        onChange={(val) => setCode(val ?? '')}
+                        theme={editorTheme}
+                        options={{
+                          fontSize: 14,
+                          minimap: { enabled: false },
+                          scrollBeyondLastLine: false,
+                          accessibilitySupport: 'on',
+                          tabSize: 2,
+                          wordWrap: 'on',
+                          automaticLayout: true,
+                          padding: { top: 16 },
+                        }}
+                      />
+                    </Suspense>
+                    <div id="vim-status-node" className={`flex h-6 items-center bg-primary-600 px-2 font-mono text-xs text-white ${isVimMode ? '' : 'hidden'}`} />
+                  </div>
                 </div>
-              </div>
-            </Panel>
-          </Group>
-        </Panel>
-      </Group>
-    </div>
+              </Panel>
 
-    {successModalOpen && successModalPayload && (
-      <SubmissionSuccessModal
-        open={successModalOpen}
-        onClose={() => { setSuccessModalOpen(false); setSuccessModalPayload(null); }}
-        xpEarned={successModalPayload.xpEarned}
-        badgesUnlocked={successModalPayload.badgesUnlocked}
-        rankProgress={successModalPayload.rankProgress}
-        totalXp={successModalPayload.totalXp}
-        rankTier={successModalPayload.rankTier}
-      />
-    )}
-    <Modal
-      isOpen={showRatingModal}
-      onClose={() => setShowRatingModal(false)}
-      title="Rate your challenge experience"
-      description="Give a quick star rating after your submission."
-      className="max-w-lg"
-    >
-      <SiteRatingWidget compact className="max-w-none" />
-    </Modal>
+              <Separator className="h-1.5 cursor-row-resize bg-slate-200 hover:bg-primary-500/30 dark:bg-[#30363d]" />
+
+              <Panel defaultSize={32} minSize={10}>
+                <div className="flex h-full flex-col bg-slate-50 text-slate-800 dark:bg-[#0d1117] dark:text-[#c9d1d9]">
+                  <div className="border-b border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#f0f6fc]">
+                    Test cases
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 text-sm">
+                    {challenge.examples?.length > 0 ? (
+                      <>
+                        <div className="mb-4 flex flex-wrap gap-2">
+                          {challenge.examples.map((_, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setSelectedTestCase(i)}
+                              className={`rounded-lg px-4 py-2 text-sm font-medium ${selectedTestCase === i
+                                ? 'bg-primary-600 text-white dark:bg-[#1f6feb]'
+                                : 'bg-slate-200 text-slate-800 hover:bg-slate-300 dark:bg-[#21262d] dark:text-[#c9d1d9]'
+                                }`}
+                            >
+                              Case {i + 1}
+                            </button>
+                          ))}
+                        </div>
+                        {challenge.examples[selectedTestCase] && (
+                          <div className="space-y-4">
+                            <div>
+                              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-[#8b949e]">Input</div>
+                              <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#c9d1d9]">
+                                {challenge.examples[selectedTestCase].input}
+                              </pre>
+                            </div>
+                            <div>
+                              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:text-[#8b949e]">Expected output</div>
+                              <pre className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 font-mono text-xs text-slate-900 dark:border-[#30363d] dark:bg-[#161b22] dark:text-[#c9d1d9]">
+                                {challenge.examples[selectedTestCase].output}
+                              </pre>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-slate-700 dark:text-[#8b949e]">No examples. Run or submit to see results.</p>
+                    )}
+                  </div>
+                </div>
+              </Panel>
+            </Group>
+          </Panel>
+        </Group>
+      </div>
+
+      {successModalOpen && successModalPayload && (
+        <SubmissionSuccessModal
+          open={successModalOpen}
+          onClose={() => { setSuccessModalOpen(false); setSuccessModalPayload(null); }}
+          xpEarned={successModalPayload.xpEarned}
+          badgesUnlocked={successModalPayload.badgesUnlocked}
+          rankProgress={successModalPayload.rankProgress}
+          totalXp={successModalPayload.totalXp}
+          rankTier={successModalPayload.rankTier}
+        />
+      )}
+      <Modal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        title="Rate your challenge experience"
+        description="Give a quick star rating after your submission."
+        className="max-w-lg"
+      >
+        <SiteRatingWidget compact className="max-w-none" />
+      </Modal>
     </>
   );
 };

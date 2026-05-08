@@ -45,6 +45,10 @@ export class Challenge {
   @Prop({ type: Object, default: () => ({}) })
   starterCode: Record<Language, string>;
 
+  // Official solution shown to admins only
+  @Prop({ type: Object, default: () => ({}), select: false })
+  officialSolution: Record<Language, string>;
+
   // Tags (ex: "arrays", "recursion", "dp"...)
   @Prop({ type: [String], default: [] })
   tags: string[];

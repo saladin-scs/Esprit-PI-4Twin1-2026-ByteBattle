@@ -5,8 +5,8 @@ type Props = {
 };
 
 const LABEL: Record<ReclamationStatus, string> = {
-  open: 'Open',
-  read: 'Read',
+  open: 'Pending',
+  read: 'Under review',
   resolved: 'Resolved',
   cancelled: 'Cancelled',
 };

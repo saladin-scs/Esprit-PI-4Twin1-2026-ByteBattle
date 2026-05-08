@@ -9,6 +9,7 @@ import { BattleRealtimeService } from './battle-realtime.service';
 import { ChallengeModule } from '../challenges/challenges.module';
 import { CodeExecutionModule } from '../code-execution/code-execution.module';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AuthModule } from '../auth/auth.module';
     ChallengeModule,
     CodeExecutionModule,
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [BattleController],
   providers: [BattleGateway, BattleService, BattleRealtimeService],

@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Header } from '../Header';
 import Footer from './Footer';
 import { AppDispatch, RootState } from '../../store/store';
-import { fetchMe } from '../../store/slices/authSlice';
+import { fetchMe, logout } from '../../store/slices/authSlice';
 
 interface LayoutProps {
   children: ReactNode;
@@ -15,14 +15,16 @@ function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     if (token && !user) {
-      dispatch(fetchMe());
+      dispatch(fetchMe()).unwrap().catch(() => {
+        dispatch(logout());
+      });
     }
   }, [token, user, dispatch]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white">
+    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white w-full">
       <Header />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow w-full">{children}</main>
       <Footer />
     </div>
   );

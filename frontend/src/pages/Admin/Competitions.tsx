@@ -4,6 +4,10 @@ import { CompetitionStatusBadge } from '../Competitions/components/CompetitionSt
 import { CompetitionTypeBadge } from '../Competitions/components/CompetitionTypeBadge';
 import toast from 'react-hot-toast';
 import { Trash2, Edit2, Plus } from 'lucide-react';
+import { competitionsApi } from '../../services/api';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 
 interface Competition {
   _id: string;
@@ -20,23 +24,34 @@ interface Competition {
   participants?: string[];
 }
 
-interface FormData {
-  name: string;
-  description: string;
-  type: 'code_golf' | 'speed' | 'algorithmic';
-  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
-  challengeIds: string[];
-  startTime: string;
-  endTime: string;
-  supportedLanguages: string[];
-  prizes: string[];
-  rules?: string;
-}
+const competitionSchema = yup.object().shape({
+  name: yup.string().required('Name is required').max(100, 'Name cannot exceed 100 characters'),
+  description: yup.string().required('Description is required').max(1000, 'Description is too long'),
+  type: yup.mixed<'code_golf' | 'speed' | 'algorithmic'>().oneOf(['code_golf', 'speed', 'algorithmic']).required('Type is required'),
+  difficulty: yup.mixed<'easy' | 'medium' | 'hard' | 'expert'>().oneOf(['easy', 'medium', 'hard', 'expert']).required('Difficulty is required'),
+  challengeIds: yup.array().of(yup.string().required()).min(1, 'Select at least one challenge').required('Challenges are required'),
+  startTime: yup.string().required('Start time is required').test('is-future', 'Start time must be in the future', function(value) {
+    // Only check future for new comps if needed, but the original logic said: `new Date(formData.startTime) > new Date()` is required on create. We will check it later on submit if context demands it.
+    if (!value) return true;
+    return true;
+  }),
+  endTime: yup.string()
+    .required('End time is required')
+    .test('is-after-start', 'End time must be after start time', function(value) {
+      const { startTime } = this.parent;
+      if (!startTime || !value) return true; 
+      return new Date(value) > new Date(startTime);
+    }),
+  prizesText: yup.string().optional()
+});
+
+type CompetitionFormData = yup.InferType<typeof competitionSchema>;
 
 export default function AdminCompetitions() {
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [challenges, setChallenges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [backfilling, setBackfilling] = useState(false);
   
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -44,18 +59,18 @@ export default function AdminCompetitions() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCompetition, setSelectedCompetition] = useState<Competition | null>(null);
 
-  // Form state
-  const [formData, setFormData] = useState<FormData>({
-    name: '',
-    description: '',
-    type: 'speed',
-    difficulty: 'medium',
-    challengeIds: [],
-    startTime: '',
-    endTime: '',
-    supportedLanguages: ['javascript', 'python', 'java', 'cpp'],
-    prizes: [],
-    rules: '',
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<CompetitionFormData>({
+    resolver: yupResolver(competitionSchema) as any,
+    defaultValues: {
+      name: '',
+      description: '',
+      type: 'speed',
+      difficulty: 'medium',
+      challengeIds: [],
+      startTime: '',
+      endTime: '',
+      prizesText: ''
+    }
   });
 
   const loadData = async () => {
@@ -77,8 +92,8 @@ export default function AdminCompetitions() {
     loadData();
   }, []);
 
-  const resetForm = () => {
-    setFormData({
+  const openCreateModal = () => {
+    reset({
       name: '',
       description: '',
       type: 'speed',
@@ -86,20 +101,14 @@ export default function AdminCompetitions() {
       challengeIds: [],
       startTime: '',
       endTime: '',
-      supportedLanguages: ['javascript', 'python', 'java', 'cpp'],
-      prizes: [],
-      rules: '',
+      prizesText: ''
     });
-  };
-
-  const openCreateModal = () => {
-    resetForm();
     setShowCreateModal(true);
   };
 
   const openEditModal = (comp: Competition) => {
     setSelectedCompetition(comp);
-    setFormData({
+    reset({
       name: comp.name,
       description: comp.description,
       type: comp.type,
@@ -107,9 +116,7 @@ export default function AdminCompetitions() {
       challengeIds: comp.challengeIds,
       startTime: new Date(comp.startTime).toISOString().slice(0, 16),
       endTime: new Date(comp.endTime).toISOString().slice(0, 16),
-      supportedLanguages: comp.supportedLanguages,
-      prizes: comp.prizes || [],
-      rules: '',
+      prizesText: (comp.prizes || []).join('\n')
     });
     setShowEditModal(true);
   };
@@ -119,23 +126,26 @@ export default function AdminCompetitions() {
     setShowDeleteModal(true);
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async (data: CompetitionFormData) => {
     try {
-      const isScheduled = new Date(formData.startTime) > new Date();
+      const isScheduled = new Date(data.startTime) > new Date();
       if (!isScheduled) {
         toast.error('Start time must be in the future');
         return;
       }
-      if (formData.challengeIds.length === 0) {
-        toast.error('Please select at least one challenge');
-        return;
-      }
+
+      const prizes = (data.prizesText || '').split('\n').filter(Boolean);
 
       await apiClient.post('/competitions', {
-        ...formData,
-        startTime: new Date(formData.startTime).toISOString(),
-        endTime: new Date(formData.endTime).toISOString(),
+        name: data.name,
+        description: data.description,
+        type: data.type,
+        difficulty: data.difficulty,
+        challengeIds: data.challengeIds,
+        startTime: new Date(data.startTime).toISOString(),
+        endTime: new Date(data.endTime).toISOString(),
+        supportedLanguages: ['javascript', 'python', 'java', 'cpp'],
+        prizes
       });
       
       toast.success('Competition created successfully!');
@@ -146,20 +156,22 @@ export default function AdminCompetitions() {
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUpdate = async (data: CompetitionFormData) => {
     if (!selectedCompetition) return;
     
     try {
-      if (formData.challengeIds.length === 0) {
-        toast.error('Please select at least one challenge');
-        return;
-      }
+      const prizes = (data.prizesText || '').split('\n').filter(Boolean);
 
       await apiClient.put(`/competitions/${selectedCompetition._id}`, {
-        ...formData,
-        startTime: new Date(formData.startTime).toISOString(),
-        endTime: new Date(formData.endTime).toISOString(),
+        name: data.name,
+        description: data.description,
+        type: data.type,
+        difficulty: data.difficulty,
+        challengeIds: data.challengeIds,
+        startTime: new Date(data.startTime).toISOString(),
+        endTime: new Date(data.endTime).toISOString(),
+        supportedLanguages: ['javascript', 'python', 'java', 'cpp'],
+        prizes
       });
       
       toast.success('Competition updated successfully!');
@@ -183,49 +195,68 @@ export default function AdminCompetitions() {
     }
   };
 
-  const renderModal = (title: string, onSubmit: (e: React.FormEvent) => Promise<void>, isEdit: boolean) => (
+  const handleBackfillChallenges = async () => {
+    setBackfilling(true);
+    try {
+      const res = await competitionsApi.backfillChallenges();
+      const updatedCount = res.data.updated?.length ?? 0;
+      const skippedCount = res.data.skipped?.length ?? 0;
+      if (updatedCount > 0) {
+        toast.success(`Challenges assigned for ${updatedCount} competition(s).`);
+      } else {
+        toast.success('All competitions already have challenges.');
+      }
+      if (skippedCount > 0) {
+        toast(`${skippedCount} competition(s) unchanged.`, { icon: 'ℹ️' });
+      }
+      await loadData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to backfill competition challenges');
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
+  const renderModal = (title: string, onSubmitHandler: (data: CompetitionFormData) => Promise<void>, isEdit: boolean) => (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-6">
         <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">{title}</h2>
         
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmitHandler)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name *</label>
               <input
                 type="text"
-                required
                 className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:border-blue-500 outline-none"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                {...register('name')}
               />
+              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type *</label>
               <select
-                required
                 className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:border-blue-500 outline-none"
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                {...register('type')}
                 disabled={isEdit}
               >
                 <option value="speed">Speed Challenge</option>
                 <option value="code_golf">Code Golf</option>
                 <option value="algorithmic">Algorithmic</option>
               </select>
+              {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description *</label>
             <textarea
-              required
               rows={3}
               className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:border-blue-500 outline-none"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              {...register('description')}
             />
+            {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -233,27 +264,22 @@ export default function AdminCompetitions() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Difficulty</label>
               <select
                 className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:border-blue-500 outline-none"
-                value={formData.difficulty}
-                onChange={(e) => setFormData({ ...formData, difficulty: e.target.value as any })}
+                {...register('difficulty')}
               >
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
                 <option value="expert">Expert</option>
               </select>
+              {errors.difficulty && <p className="text-red-500 text-sm mt-1">{errors.difficulty.message}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Challenges *</label>
               <select
                 multiple
-                required
-                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:border-blue-500 outline-none"
-                value={formData.challengeIds}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  challengeIds: Array.from(e.target.selectedOptions, (opt) => opt.value)
-                })}
+                className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:border-blue-500 outline-none min-h-[100px]"
+                {...register('challengeIds')}
               >
                 {challenges.map((c) => (
                   <option key={c._id} value={c._id}>
@@ -262,6 +288,7 @@ export default function AdminCompetitions() {
                 ))}
               </select>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Hold Ctrl/Cmd to select multiple</p>
+              {errors.challengeIds && <p className="text-red-500 text-sm mt-1">{errors.challengeIds.message}</p>}
             </div>
           </div>
 
@@ -270,22 +297,20 @@ export default function AdminCompetitions() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Time *</label>
               <input
                 type="datetime-local"
-                required
                 className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:border-blue-500 outline-none"
-                value={formData.startTime}
-                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                {...register('startTime')}
               />
+              {errors.startTime && <p className="text-red-500 text-sm mt-1">{errors.startTime.message}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Time *</label>
               <input
                 type="datetime-local"
-                required
                 className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:border-blue-500 outline-none"
-                value={formData.endTime}
-                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                {...register('endTime')}
               />
+              {errors.endTime && <p className="text-red-500 text-sm mt-1">{errors.endTime.message}</p>}
             </div>
           </div>
 
@@ -295,9 +320,9 @@ export default function AdminCompetitions() {
               rows={2}
               className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded text-gray-900 dark:text-white focus:border-blue-500 outline-none"
               placeholder="$500 Prize Pool&#10;Premium Badge"
-              value={formData.prizes.join('\n')}
-              onChange={(e) => setFormData({ ...formData, prizes: e.target.value.split('\n').filter(Boolean) })}
+              {...register('prizesText')}
             />
+            {errors.prizesText && <p className="text-red-500 text-sm mt-1">{errors.prizesText.message}</p>}
           </div>
 
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -333,13 +358,20 @@ export default function AdminCompetitions() {
         </div>
 
         {/* Create Button */}
-        <div className="mb-6">
+        <div className="mb-6 flex flex-wrap items-center gap-3">
           <button
             onClick={openCreateModal}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
           >
             <Plus size={20} />
             Create New Competition
+          </button>
+          <button
+            onClick={handleBackfillChallenges}
+            disabled={backfilling}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg font-medium transition"
+          >
+            {backfilling ? 'Assigning...' : 'Assign Challenges To Competitions'}
           </button>
         </div>
 

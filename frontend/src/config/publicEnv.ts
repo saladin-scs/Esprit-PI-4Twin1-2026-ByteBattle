@@ -4,7 +4,7 @@
  * - **Dev without `VITE_API_URL`**: `/bb-api` -> Vite proxy to `localhost:3000` (avoids CORS and SPA conflict
  *   where GET `/challenges` could return JSON instead of the app).
  * - **Dev with `VITE_API_URL`**: explicit URL (e.g. tests against another host).
- * - **Prod**: `VITE_API_URL` recommended; default `http://localhost:3000` if missing.
+ * - **Prod**: `VITE_API_URL` recommended; fallback to the deployed Render API if missing.
  */
 function trimmedApiEnv(): string | undefined {
   const raw = import.meta.env.VITE_API_URL;
@@ -13,14 +13,22 @@ function trimmedApiEnv(): string | undefined {
   return t || undefined;
 }
 
+function stripTrailingSlash(value: string): string {
+  return value.replace(/\/$/, '');
+}
+
+function isAbsoluteUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
 export function getHttpApiBaseUrl(): string {
   const explicit = trimmedApiEnv();
   if (import.meta.env.DEV) {
-    if (explicit) return explicit.replace(/\/$/, '');
+    if (explicit) return stripTrailingSlash(explicit);
     return '/bb-api';
   }
-  if (explicit) return explicit.replace(/\/$/, '');
-  return 'http://localhost:3000';
+  if (explicit) return stripTrailingSlash(explicit);
+  return 'https://esprit-pi-4twin1-2026-bytebattle.onrender.com';
 }
 
 /** Historical alias - same value as `getHttpApiBaseUrl`. */
@@ -29,11 +37,16 @@ export function getPublicApiUrl(): string {
 }
 
 /**
- * For Socket.IO we always prefer an explicit backend origin in dev.
- * This avoids noisy Vite ws-proxy ECONNABORTED logs when sockets reconnect/disconnect rapidly.
+ * For Socket.IO in dev: connect directly to backend to avoid noisy Vite WS-proxy
+ * `ECONNABORTED` logs when sockets reconnect during backend restarts.
+ *
+ * If `VITE_API_URL` is set, that value is used.
  */
 export function getSocketIoServerUrl(): string | undefined {
   const explicit = trimmedApiEnv();
   if (import.meta.env.DEV && !explicit) return 'http://127.0.0.1:3000';
-  return getHttpApiBaseUrl();
+  if (explicit && !isAbsoluteUrl(explicit)) return undefined;
+
+  const httpBase = getHttpApiBaseUrl();
+  return isAbsoluteUrl(httpBase) ? httpBase : undefined;
 }

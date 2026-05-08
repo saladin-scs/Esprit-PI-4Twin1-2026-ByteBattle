@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { randomUUID } from 'crypto';
+import { httpRequestDurationSeconds, httpRequestsTotal } from './health/prometheus';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,13 +22,23 @@ async function bootstrap() {
     res.setHeader('X-Request-Id', id);
     const start = Date.now();
     res.on('finish', () => {
+      const route = req.route?.path || req.originalUrl?.split('?')[0] || req.url;
+      const labels = {
+        method: req.method,
+        route,
+        status_code: String(res.statusCode),
+      };
+
+      httpRequestsTotal.inc(labels);
+      httpRequestDurationSeconds.observe(labels, (Date.now() - start) / 1000);
+
       try {
         console.log(
           JSON.stringify({
             level: 'http',
             correlationId: id,
             method: req.method,
-            path: req.originalUrl?.split('?')[0] ?? req.url,
+            path: route,
             status: res.statusCode,
             ms: Date.now() - start,
           }),
@@ -56,13 +67,14 @@ async function bootstrap() {
   // Enable CORS
   const corsOrigins = (
     process.env.CORS_ORIGIN ||
-    'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175'
+    'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,https://*.vercel.app'
   )
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
   const nodeEnv = process.env.NODE_ENV || 'development';
   const localhostOriginOk = (o: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(o);
+  const vercelOriginOk = (o: string) => /^https:\/\/[a-z0-9-]+(?:-[a-z0-9-]+)*\.vercel\.app$/i.test(o);
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -70,6 +82,7 @@ async function bootstrap() {
       if (!origin) return callback(null, true);
       if (corsOrigins.includes(origin)) return callback(null, true);
       if (nodeEnv !== 'production' && localhostOriginOk(origin)) return callback(null, true);
+      if (vercelOriginOk(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
@@ -84,7 +97,7 @@ async function bootstrap() {
   app.use(async (req: any, res: any, next: any) => {
     try {
       const key = req.ip || req.connection?.remoteAddress || 'unknown';
-      if (req.path === '/health' || req.path?.startsWith('/health/')) return next();
+      if (req.path === '/health' || req.path?.startsWith('/health/') || req.path === '/metrics') return next();
       // softer for swagger/assets
       if (req.path?.startsWith('/api')) return next();
       await rateLimiter.consume(key, 1);
@@ -122,4 +135,15 @@ async function bootstrap() {
   console.log(`📚 Swagger documentation: http://localhost:${port}/api`);
 }
 
-bootstrap();
+const BOOTSTRAP_GUARD_KEY = '__BYTEBATTLE_BACKEND_BOOTSTRAPPED__';
+const globalRef = globalThis as Record<string, unknown>;
+
+if (globalRef[BOOTSTRAP_GUARD_KEY]) {
+  console.warn('[bootstrap] main.ts already initialized, skipping duplicate startup.');
+} else {
+  globalRef[BOOTSTRAP_GUARD_KEY] = true;
+  bootstrap().catch((error) => {
+    globalRef[BOOTSTRAP_GUARD_KEY] = false;
+    throw error;
+  });
+}

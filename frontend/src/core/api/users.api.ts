@@ -1,7 +1,11 @@
 import { apiClient } from './client';
 
 export const usersApi = {
-  me: () => apiClient.get('/users/me'),
+  me: () =>
+    apiClient.get('/users/me', {
+      params: { _ts: Date.now() },
+      headers: { 'Cache-Control': 'no-store, no-cache', Pragma: 'no-cache' },
+    }),
   updateMe: (data: Record<string, unknown> | object) => apiClient.put('/users/me', data),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     apiClient.post('/users/me/change-password', data),

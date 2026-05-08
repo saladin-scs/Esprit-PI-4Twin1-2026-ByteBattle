@@ -45,6 +45,15 @@ export class CompetitionsController {
     return this.competitionsService.seedOne();
   }
 
+  @Post('admin/backfill-challenges')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Attach challenges to competitions that have none (admin only)' })
+  async backfillChallenges() {
+    return this.competitionsService.backfillChallengesForCompetitions();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get competition by ID' })
   async findOne(@Param('id') id: string) {
@@ -93,6 +102,18 @@ export class CompetitionsController {
   @ApiOperation({ summary: 'Join a competition' })
   async join(@Param('id') id: string, @Request() req: any) {
     return this.competitionsService.join(id, req.user.userId);
+  }
+
+  @Post(':id/run')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Run code for a competition challenge without saving' })
+  async run(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() dto: SubmitCompetitionDto,
+  ) {
+    return this.competitionsService.run(id, req.user.userId, dto);
   }
 
   @Post(':id/submit')

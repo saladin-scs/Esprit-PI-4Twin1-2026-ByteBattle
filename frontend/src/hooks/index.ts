@@ -18,9 +18,5 @@ export {
   type UseVirtualListReturn,
   type VirtualItem,
 } from './useVirtualList';
-export {
-  useWebSocket,
-  type UseWebSocketOptions,
-  type UseWebSocketReturn,
-  type WebSocketStatus,
-} from './useWebSocket';
+export { useWebSocket, type UseWebSocketOptions, type UseWebSocketReturn, type WebSocketStatus } from './useWebSocket';
+export { useWindowSize } from './useWindowSize';

@@ -22,7 +22,7 @@ export default function Explore() {
 
   useEffect(() => {
     const term = debounced.trim();
-    if (!term) {
+    if (!term || term.length < 2) {
       setData(null);
       return;
     }
@@ -80,7 +80,11 @@ export default function Explore() {
         <p className="text-center text-slate-500 dark:text-slate-400">Enter a term to start searching.</p>
       )}
 
-      {!loading && debounced.trim() && data && (
+      {!loading && debounced.trim().length === 1 && (
+        <p className="text-center text-slate-500 dark:text-slate-400">Type at least 2 characters to search.</p>
+      )}
+
+      {!loading && debounced.trim().length >= 2 && data && (
         <div className="grid gap-8 md:grid-cols-3">
           <section>
             <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">

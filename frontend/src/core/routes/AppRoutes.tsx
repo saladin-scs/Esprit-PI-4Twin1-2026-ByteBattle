@@ -22,6 +22,8 @@ const {
   Reclamation,
   Competitions,
   CompetitionDetail,
+  History,
+  Notifications,
   ProfileSettings,
   SecuritySettings,
   DeveloperSettings,
@@ -63,6 +65,8 @@ export function AppRoutes() {
           <Route path="/reclamation" element={<ProtectedRoute><Reclamation /></ProtectedRoute>} />
           <Route path="/competitions" element={<ProtectedRoute><Competitions /></ProtectedRoute>} />
           <Route path="/competitions/:id" element={<ProtectedRoute><CompetitionDetail /></ProtectedRoute>} />
+          <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/battle/matchmaking" element={<ProtectedRoute><BattleMatchmaking /></ProtectedRoute>} />
           <Route path="/battle/room/:battleId" element={<ProtectedRoute><BattleRoom /></ProtectedRoute>} />
           <Route path="/battle/result/:battleId" element={<ProtectedRoute><BattleResult /></ProtectedRoute>} />

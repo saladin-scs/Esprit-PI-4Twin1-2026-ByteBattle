@@ -525,6 +525,7 @@ ${code}
     fs.writeFileSync(file, fullCode, 'utf8');
     try {
       const result = spawnSync('node', [file], {
+        input,
         encoding: 'utf8',
         timeout: this.localTimeoutMs,
         maxBuffer: this.localMaxBuffer,

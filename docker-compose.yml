@@ -100,4 +100,3 @@ volumes:
 networks:
   bytebattle:
     driver: bridge
-

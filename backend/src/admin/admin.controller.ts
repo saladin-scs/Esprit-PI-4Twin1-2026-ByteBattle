@@ -102,12 +102,22 @@ export class AdminController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: string,
+    @Query('category') category?: string,
     @Query('q') q?: string,
+    @Query('sort') sort?: 'newest' | 'oldest',
   ) {
     return this.reclamationsService.listForAdmin(page ? Number(page) : 1, limit ? Number(limit) : 20, {
       status: status || undefined,
+      category: category || undefined,
       q: q || undefined,
+      sort: sort === 'oldest' ? 'oldest' : 'newest',
     });
+  }
+
+  @Get('reclamations/summary')
+  @ApiOperation({ summary: 'Reports summary KPI (admin)' })
+  getReclamationSummary() {
+    return this.reclamationsService.getAdminSummary();
   }
 
   @Get('reclamations/:id')
