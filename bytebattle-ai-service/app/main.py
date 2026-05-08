@@ -8,13 +8,11 @@ from fastapi import FastAPI, Request
 from app.core.config import setup_logging
 from app.routes.analyze import router as analyze_router
 
-
 setup_logging()
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="ByteBattle AI Service")
-
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -40,12 +38,13 @@ async def log_requests(request: Request, call_next):
 
     return response
 
-
 @app.get("/health", tags=["System"])
 async def health_check():
     return {"status": "ok"}
 
-
 app.include_router(analyze_router)
 
-
+# Add this for Render compatibility
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
