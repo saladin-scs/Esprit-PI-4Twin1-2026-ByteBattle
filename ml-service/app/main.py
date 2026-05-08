@@ -48,8 +48,8 @@ async def startup_event():
     from app.services.recommendation_service import RecommendationService
 
     try:
-        # Safe absolute path (Render-safe)
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+        # Fixed path: look in parent of 'app' directory (ml-service root)
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         model_path = os.path.join(base_dir, "models", "recommender_artifacts.pkl")
 
         logger.info(f"Loading model from: {model_path}")

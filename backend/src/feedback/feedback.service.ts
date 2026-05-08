@@ -2,7 +2,10 @@
 // src/feedback/feedback.service.ts
 
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import axios from 'axios';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { lastValueFrom, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 interface FeedbackPoint {
@@ -34,17 +37,33 @@ interface CodeAnalysisRequest {
 @Injectable()
 export class FeedbackService {
   private readonly logger = new Logger(FeedbackService.name);
-  /** Abuse limit: 40 requests per hour per user. */
   private readonly userLimiter = new RateLimiterMemory({
     points: 40,
     duration: 3600,
   });
-  private readonly aiServiceUrl = (process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
-  private readonly aiServiceTimeoutMs = Math.min(
-    60000,
-    Math.max(1000, Number(process.env.AI_SERVICE_TIMEOUT_MS || 12000)),
-  );
-  private readonly aiServiceApiKey = (process.env.AI_SERVICE_API_KEY || '').trim();
+
+  private readonly aiServiceUrl?: string;
+  private readonly aiServiceTimeoutMs: number;
+  private readonly aiServiceApiKey?: string;
+  private readonly isEnabled: boolean;
+
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.aiServiceUrl = this.configService.get<string>('AI_SERVICE_URL');
+    this.isEnabled = !!this.aiServiceUrl;
+
+    if (!this.isEnabled) {
+      this.logger.warn('AI_SERVICE_URL not found. AI Coach will run in local-heuristic fallback mode.');
+    }
+
+    this.aiServiceTimeoutMs = Math.min(
+      60000,
+      Math.max(1000, Number(this.configService.get<number>('AI_SERVICE_TIMEOUT_MS') || 12000)),
+    );
+    this.aiServiceApiKey = (this.configService.get<string>('AI_SERVICE_API_KEY') || '').trim();
+  }
 
   private clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));
@@ -359,7 +378,13 @@ export class FeedbackService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    const endpoint = `${this.aiServiceUrl}/ai/analyze-code`;
+
+    if (!this.isEnabled || !this.aiServiceUrl) {
+      return this.runLocalAnalysis(request, 'ai_service_disabled');
+    }
+
+    const endpoint = `${this.aiServiceUrl.replace(/\/+$/, '')}/ai/analyze-code`;
+    
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -367,27 +392,28 @@ export class FeedbackService {
       if (this.aiServiceApiKey) {
         headers['x-api-key'] = this.aiServiceApiKey;
       }
-      const response = await axios.post(endpoint, request, {
-        timeout: this.aiServiceTimeoutMs,
-        headers,
-        validateStatus: () => true,
-      });
-      if (response.status >= 200 && response.status < 300) {
-        return this.normalizeFeedback(response.data);
+
+      const response = await lastValueFrom(
+        this.httpService.post(endpoint, request, {
+          timeout: this.aiServiceTimeoutMs,
+          headers,
+        }).pipe(
+          map(res => res.data),
+          catchError(err => {
+            this.logger.warn(`AI analysis request failed: ${err.message}`);
+            return of(null);
+          })
+        )
+      );
+
+      if (response) {
+        return this.normalizeFeedback(response);
       }
-      if (response.status === 429) {
-        throw new HttpException('AI analysis service is busy. Please retry in a moment.', HttpStatus.TOO_MANY_REQUESTS);
-      }
-      this.logger.warn(`AI service returned status ${response.status}`);
+
       return this.runLocalAnalysis(request, 'upstream_error');
     } catch (e: unknown) {
-      if (e instanceof HttpException) throw e;
-      const msg = e instanceof Error ? e.message : String(e);
-      this.logger.warn(`AI analysis failed: ${msg}`);
-      return this.runLocalAnalysis(
-        request,
-        msg.toLowerCase().includes('timeout') ? 'timeout' : 'service_unavailable',
-      );
+      this.logger.warn(`AI analysis failed (catch): ${e instanceof Error ? e.message : String(e)}`);
+      return this.runLocalAnalysis(request, 'service_unavailable');
     }
   }
 
@@ -403,5 +429,17 @@ export class FeedbackService {
     userId = 'anonymous',
   ): Promise<FeedbackResponse> {
     return this.getFeedback({ code, language }, userId);
+  }
+
+  async checkHealth() {
+    if (!this.isEnabled || !this.aiServiceUrl) return { status: 'disabled' };
+    try {
+      await lastValueFrom(
+        this.httpService.get(`${this.aiServiceUrl.replace(/\/+$/, '')}/health`, { timeout: 2000 })
+      );
+      return { status: 'up', url: this.aiServiceUrl };
+    } catch (e: any) {
+      return { status: 'down', url: this.aiServiceUrl, error: e.message };
+    }
   }
 }

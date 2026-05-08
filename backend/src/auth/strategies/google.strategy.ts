@@ -33,12 +33,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       );
     }
 
+    const baseUrl = configService.get('BASE_URL') || 'http://localhost:3000';
+    const finalCallbackURL = callbackURL || `${baseUrl.replace(/\/+$/, '')}/auth/google/callback`;
+
     super({
       clientID: clientID || 'dummy-client-id',
       clientSecret: clientSecret || 'dummy-client-secret',
-      // Default path matches AuthController route: /auth/google/callback
-      callbackURL:
-        callbackURL || 'http://localhost:3000/auth/google/callback',
+      callbackURL: finalCallbackURL,
       scope: ['email', 'profile'],
     });
   }

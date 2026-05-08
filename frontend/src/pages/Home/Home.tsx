@@ -52,14 +52,8 @@ function Home() {
         </div>
       </div>
 
-      <div className="mt-12 text-center text-xs text-gray-400 opacity-20">
-        Personalized AI Recommendations Below
-      </div>
       <div className="mt-4">
-        <RecommendationSection
-          title={isAuthenticated ? "🔥 Top Picks for Your Next Battle" : "🔥 Trending Challenges"}
-          limit={4}
-        />
+        <RecommendationSection context="home" limit={4} />
       </div>
 
       <div className="relative mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 md:gap-8">

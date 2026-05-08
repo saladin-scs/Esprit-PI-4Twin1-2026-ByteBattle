@@ -7,10 +7,28 @@ export const useRecommendationTracking = (itemId: string | undefined) => {
   const username = useSelector((state: RootState) => state.auth.user?.username);
   const startTimeRef = useRef<number | null>(null);
 
+  const getEngagementContext = () => ({
+    device: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+    userAgent: navigator.userAgent,
+    timeOfDay: new Date().getHours(),
+    referrer: document.referrer || 'direct',
+    screenResolution: `${window.screen.width}x${window.screen.height}`,
+    sessionStart: startTimeRef.current,
+    url: window.location.href,
+  });
+
   useEffect(() => {
     if (!username || !itemId) return;
 
     startTimeRef.current = Date.now();
+
+    // Track impression immediately
+    challengesApi.trackEngagement({
+      userId: username,
+      itemId,
+      eventType: 'impression',
+      context: getEngagementContext(),
+    }).catch(() => {});
 
     return () => {
       if (startTimeRef.current) {
@@ -22,11 +40,10 @@ export const useRecommendationTracking = (itemId: string | undefined) => {
             eventType: 'dwell',
             value: dwellTime,
             context: {
-              device: navigator.userAgent,
-              timeOfDay: new Date().getHours().toString(),
-              referrer: document.referrer || 'direct',
+              ...getEngagementContext(),
+              dwellTimeMs: dwellTime,
             },
-          }).catch(() => { }); // Silent fail for telemetry
+          }).catch(() => {}); // Silent fail for telemetry
         }
       }
     };
@@ -38,10 +55,8 @@ export const useRecommendationTracking = (itemId: string | undefined) => {
       userId: username,
       itemId,
       eventType: 'click',
-      context: {
-        device: navigator.userAgent,
-      },
-    }).catch(() => { });
+      context: getEngagementContext(),
+    }).catch(() => {});
   };
 
   return { trackClick };
