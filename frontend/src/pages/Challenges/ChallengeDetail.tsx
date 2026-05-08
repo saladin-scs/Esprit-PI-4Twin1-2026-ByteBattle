@@ -39,6 +39,8 @@ import { RootState } from '../../store/store';
 import { CollaborationChat } from '../../shared/components/CollaborationChat';
 import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
 import { Modal } from '../../shared/components';
+import RecommendationSection from '../../components/Recommendations/RecommendationSection';
+import { useRecommendationTracking } from '../../hooks/useRecommendationTracking';
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -153,8 +155,7 @@ const ChallengeDetail = () => {
   const { width } = useWindowSize();
   const isMobile = width !== undefined && width < 1024;
   const langFromUrl = searchParams.get('lang');
-  /** Global theme before opening IDE (restored when leaving URL with ?lang=). */
-  const challengeIdeThemeRef = useRef<Theme | null>(null);
+
 
   const {
     challenge,
@@ -217,27 +218,15 @@ const ChallengeDetail = () => {
   const prevLangParamRef = useRef<string | null>(null);
   const hasNavigatedOnExpireRef = useRef(false);
 
+  // Track user engagement for real-time personalization
+  useRecommendationTracking(id);
+
   /** `vs` is a clearer Monaco light theme than `light` (better syntax contrast). */
   const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs';
   const loading = loadingChallenge;
   const error = storeError;
 
-  // On IDE open (?lang=), switch to dark theme for LeetCode-like rendering; restore on exit.
-  /* eslint-disable react-hooks/exhaustive-deps -- do not depend on `theme` to allow manual page toggle */
-  useEffect(() => {
-    if (!langFromUrl) {
-      if (challengeIdeThemeRef.current !== null) {
-        setTheme(challengeIdeThemeRef.current);
-        challengeIdeThemeRef.current = null;
-      }
-      return;
-    }
-    if (challengeIdeThemeRef.current === null) {
-      challengeIdeThemeRef.current = theme;
-    }
-    setTheme('dark');
-  }, [langFromUrl, setTheme]);
-  /* eslint-enable react-hooks/exhaustive-deps */
+
 
   // Always show Description tab when opening a challenge or moving from language picker to editor (?lang=).
   useEffect(() => {
@@ -292,7 +281,7 @@ const ChallengeDetail = () => {
       }
     };
     run();
-  }, [id, langFromUrl, resetStore, setChallenge, setSelectedLang, setCode, setLoadingChallenge, setStoreError]);
+  }, [id, resetStore, setChallenge, setSelectedLang, setCode, setLoadingChallenge, setStoreError]);
 
   useEffect(() => {
     if (!id) return;
@@ -385,7 +374,9 @@ const ChallengeDetail = () => {
     const effectiveStart = attemptStartedAt || localAttemptStartedAt;
     if (!effectiveStart) return 0;
     void attemptTick;
-    return Date.now() - new Date(effectiveStart).getTime();
+    const start = new Date(effectiveStart).getTime();
+    if (isNaN(start)) return 0;
+    return Date.now() - start;
   }, [attemptStartedAt, localAttemptStartedAt, attemptTick]);
 
   const remainingMs = useMemo(
@@ -394,22 +385,18 @@ const ChallengeDetail = () => {
   );
 
   useEffect(() => {
-    if (challengeExpired || !langFromUrl) return;
+    if (challengeExpired || !langFromUrl || progressSolved) return;
     const effectiveStart = attemptStartedAt || localAttemptStartedAt;
     if (!effectiveStart || attemptElapsedMs < CHALLENGE_TIME_LIMIT_MS) return;
     setChallengeExpired(true);
     setSubmitError('Time limit reached (5 minutes). Challenge closed.');
-    if (!hasNavigatedOnExpireRef.current) {
-      hasNavigatedOnExpireRef.current = true;
-      window.setTimeout(() => navigate('/challenges'), 1200);
-    }
   }, [
     challengeExpired,
     langFromUrl,
+    progressSolved,
     attemptStartedAt,
     localAttemptStartedAt,
     attemptElapsedMs,
-    navigate,
   ]);
 
   const unlockAdvancedTabs = progressSolved || showHistoryAfterAttempts;
@@ -1553,6 +1540,19 @@ const ChallengeDetail = () => {
       >
         <SiteRatingWidget compact className="max-w-none" />
       </Modal>
+
+      {/* Smart "You May Also Like" - Real-time refresh based on current context */}
+      {!isFocusMode && !isMobile && (
+        <div className="bg-slate-50 dark:bg-[#0d1117] border-t border-slate-200 dark:border-[#30363d] px-8 pb-12">
+          <div className="max-w-[1600px] mx-auto">
+            <RecommendationSection 
+              title="💡 You May Also Like" 
+              limit={4} 
+              context="detail"
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 };

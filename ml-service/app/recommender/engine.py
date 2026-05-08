@@ -27,7 +27,22 @@ class RecommenderEngine:
         return self.global_similarity.loc[user_id, neighbors]
 
     def recommend(self, user_id: str, n_similar: int = 10, n_recommendations: int = 5) -> List[Dict[str, object]]:
-        self._assert_user_exists(user_id)
+        try:
+            self._assert_user_exists(user_id)
+        except KeyError:
+            # Fallback for new/unknown users: return a randomized sample of popular items
+            all_items = self.user_sample.columns.tolist()
+            # In a real scenario, we'd pick items with most reviews/ratings
+            fallback_items = pd.Series(all_items).sample(min(n_recommendations, len(all_items))).tolist()
+            return [{
+                'itemId': str(item_id),
+                'score': 0.0,
+                'title': None,
+                'difficulty': None,
+                'tags': [],
+                'xpReward': None,
+                'languages': [],
+            } for item_id in fallback_items]
 
         user_ratings = self._get_user_scores(user_id)
         seen_items = set(user_ratings[user_ratings > 0].index)

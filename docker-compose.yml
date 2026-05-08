@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mongodb:
@@ -6,11 +6,11 @@ services:
     container_name: bytebattle-mongodb
     restart: unless-stopped
     ports:
-      - '27017:27017'
+      - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-password}
-      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-bytebattle}
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: bytebattle
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
     privileged: true
     ports:
-      - '2000:2000'
+      - "2000:2000"
     volumes:
       - piston_data:/piston
     networks:
@@ -34,62 +34,23 @@ services:
     container_name: bytebattle-ai-service
     restart: unless-stopped
     ports:
-      - '8000:8000'
+      - "8000:8000"
     networks:
       - bytebattle
 
   ml-service:
     build:
       context: ./ml-service
-    dockerfile: Dockerfile
     container_name: bytebattle-ml-service
     restart: unless-stopped
     ports:
-      - '8001:8001'
+      - "8001:8001"
     environment:
       ML_SERVICE_PORT: 8001
       ML_MODEL_PATH: /app/models/recommender_artifacts.pkl
-      ALLOWED_ORIGINS: http://localhost:5173,https://localhost
+      ALLOWED_ORIGINS: http://localhost:5173
     volumes:
-      - ./ml-service/models:/app/models:cached
-    networks:
-      - bytebattle
-
-  backend:
-    build:
-      context: ./backend
-    container_name: bytebattle-backend
-    restart: unless-stopped
-    depends_on:
-      - mongodb
-      - ai-service
-      - ml-service
-      - piston
-    ports:
-      - '3000:3000'
-    environment:
-      NODE_ENV: ${NODE_ENV:-development}
-      PORT: 3000
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      MONGODB_URI: mongodb://mongodb:27017/bytebattle
-      AI_SERVICE_URL: http://ai-service:8000
-      ML_SERVICE_URL: http://ml-service:8001
-      PISTON_ENDPOINT: http://piston:2000/api/v2/execute
-      CORS_ORIGIN: http://localhost:5173,http://127.0.0.1:5173
-    networks:
-      - bytebattle
-
-  frontend:
-    build:
-      context: ./frontend
-    container_name: bytebattle-frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
-    ports:
-      - '5173:5173'
-    environment:
-      VITE_API_URL: http://localhost:3000
+      - ./ml-service/models:/app/models
     networks:
       - bytebattle
 

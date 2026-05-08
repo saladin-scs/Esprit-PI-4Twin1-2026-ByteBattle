@@ -29,6 +29,13 @@ export const challengesApi = {
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>('/challenges/recommended', { params }),
   getRecommendations: (userId: string, params?: { limit?: number }) =>
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>(`/recommendations/${userId}`, { params }),
+  trackEngagement: (data: {
+    userId: string;
+    itemId: string;
+    eventType: 'click' | 'dwell' | 'scroll' | 'impression';
+    value?: number;
+    context?: any;
+  }) => apiClient.post('/recommendations/track', data),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
   getOneAdmin: (id: string) => apiClient.get(`/challenges/admin/${id}`),
   getChallengeAnalytics: (id: string) =>

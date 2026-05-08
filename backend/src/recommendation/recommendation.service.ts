@@ -13,6 +13,10 @@ export class RecommendationService {
   private readonly timeoutMs: number;
   private readonly apiKey?: string;
 
+  // In-memory cache for high-performance recommendations (<200ms)
+  private cache = new Map<string, { data: RecommendationItem[]; expiry: number }>();
+  private readonly CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
   constructor(private readonly httpService: HttpService, private readonly configService: ConfigService) {
     this.baseUrl = this.configService.get<string>('ML_SERVICE_URL');
     if (!this.baseUrl) {
@@ -24,6 +28,12 @@ export class RecommendationService {
   }
 
   async getRecommendations(userId: string, limit = 8): Promise<RecommendationItem[]> {
+    const cacheKey = `${userId}:${limit}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.data;
+    }
+
     const url = `${this.baseUrl.replace(/\/+$/, '')}/recommend`;
     const headers = this.apiKey ? { 'x-api-key': this.apiKey } : undefined;
 
@@ -35,22 +45,38 @@ export class RecommendationService {
             map((res) => res.data),
             catchError((error) => {
               this.logger.error('ML recommendation request failed', error?.message || error);
-              throw new ServiceUnavailableException('Recommendation service unavailable');
+              // Graceful degradation: return empty or fallback if service is down
+              return [];
             }),
           ),
       );
 
-      if (!response || !Array.isArray(response.challenges)) {
-        throw new InternalServerErrorException('Invalid response from recommendation service');
+      const items = Array.isArray(response?.challenges) ? response.challenges : [];
+      
+      // Update cache
+      if (items.length > 0) {
+        this.cache.set(cacheKey, {
+          data: items,
+          expiry: Date.now() + this.CACHE_TTL_MS,
+        });
       }
 
-      return response.challenges;
+      return items;
     } catch (error) {
-      if (error instanceof ServiceUnavailableException || error instanceof InternalServerErrorException) {
-        throw error;
-      }
       this.logger.error('Recommendation service call failed', error);
-      throw new ServiceUnavailableException('Recommendation service request failed');
+      return []; // Return empty list for graceful degradation
+    }
+  }
+
+  clearCache(userId?: string) {
+    if (userId) {
+      for (const key of this.cache.keys()) {
+        if (key.startsWith(`${userId}:`)) {
+          this.cache.delete(key);
+        }
+      }
+    } else {
+      this.cache.clear();
     }
   }
 }
