@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
 import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
+import { useRecommendations } from '../../hooks/useRecommendations';
 import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
 import { ChatAvailabilityCallout } from '../../shared/components';
-import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
+import { type RecommendedChallengeItem } from '../../services/api';
 import { RootState } from '../../store/store';
 
 const PAGE_SIZE = 15;
@@ -25,8 +26,8 @@ const Challenges = () => {
   const navigate = useNavigate();
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
   const isAdmin = useSelector((s: RootState) => Boolean(s.auth.user?.roles?.includes('admin')));
-  const [reco, setReco] = useState<RecommendedChallengeItem[]>([]);
-  const [recoLoading, setRecoLoading] = useState(false);
+  const userId = useSelector((s: RootState) => s.auth.user?.id ?? null);
+  const { recommendations: reco, loading: recoLoading } = useRecommendations(userId, 8);
 
   const {
     challenges,
@@ -44,29 +45,6 @@ const Challenges = () => {
   useEffect(() => {
     fetchChallenges();
   }, [filters.difficulty, filters.language, filters.search, page, fetchChallenges]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setReco([]);
-      return;
-    }
-    let cancelled = false;
-    setRecoLoading(true);
-    challengesApi
-      .getRecommended({ limit: 8 })
-      .then((res) => {
-        if (!cancelled) setReco(res.data.challenges || []);
-      })
-      .catch(() => {
-        if (!cancelled) setReco([]);
-      })
-      .finally(() => {
-        if (!cancelled) setRecoLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

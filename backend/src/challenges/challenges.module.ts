@@ -8,6 +8,7 @@ import { GamificationModule } from '../gamification/gamification.module';
 import { UsersModule } from '../users/users.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
+import { RecommendationModule } from '../recommendation/recommendation.module';
 import { SensitiveRateLimitService } from '../common/sensitive-rate-limit.service';
 import { Challenge, ChallengeSchema } from './schemas/challenge.schema';
 import { Submission, SubmissionSchema } from './schemas/Submission.schema';
@@ -29,6 +30,7 @@ import { CommonRateLimitModule } from '../common/common.module';
     GamificationModule,
     NotificationsModule,
     AuthModule,
+    RecommendationModule,
   ],
   controllers: [ChallengeController],
   providers: [ChallengeService, SensitiveRateLimitService],

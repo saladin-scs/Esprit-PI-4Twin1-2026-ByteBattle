@@ -27,6 +27,8 @@ export const challengesApi = {
     apiClient.get('/challenges', { params }),
   getRecommended: (params?: { limit?: number }) =>
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>('/challenges/recommended', { params }),
+  getRecommendations: (userId: string, params?: { limit?: number }) =>
+    apiClient.get<{ challenges: RecommendedChallengeItem[] }>(`/recommendations/${userId}`, { params }),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
   getMyCompletion: (id: string) => apiClient.get<{ completedLanguages: string[] }>(`/challenges/${id}/my-completion`),
   getChallengeProgress: (id: string) =>
