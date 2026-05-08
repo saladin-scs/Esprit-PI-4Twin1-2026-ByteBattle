@@ -26,6 +26,21 @@ export class RecommendationController {
     };
   }
 
+  @Get('item/:itemId')
+  async getSimilarItems(
+    @Param('itemId') itemId: string,
+    @Query('limit') limit?: string,
+  ): Promise<{ challenges: RecommendationItem[] }> {
+    const parsedLimit = limit ? Number(limit) : 5;
+    if (Number.isNaN(parsedLimit) || parsedLimit <= 0 || parsedLimit > 20) {
+      throw new BadRequestException('limit must be a positive integer up to 20');
+    }
+
+    return {
+      challenges: await this.recommendationService.getSimilarChallenges(itemId, parsedLimit),
+    };
+  }
+
   @Post('track')
   async trackEngagement(@Body() dto: TrackEngagementDto) {
     // In a real scenario, this would be sent to a buffer or a real-time ingestion service (Kafka/Redis)

@@ -56,7 +56,7 @@ function Home() {
         Personalized AI Recommendations Below
       </div>
       <div className="mt-4">
-        <RecommendationSection 
+        <RecommendationSection
           title={isAuthenticated ? "🔥 Top Picks for Your Next Battle" : "🔥 Trending Challenges"}
           limit={4}
         />

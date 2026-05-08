@@ -29,12 +29,28 @@ const RecommendationSection: React.FC<Props> = ({
   const user = useSelector((state: RootState) => state.auth.user);
   const username = user?.username;
   const sectionRef = useRef<HTMLDivElement>(null);
+  
+  // For context='detail', we might need an itemId. We can get it from the URL or props.
+  // Assuming the challenge detail page has the ID in the URL.
+  const pathParts = window.location.pathname.split('/');
+  const currentItemId = pathParts[pathParts.length - 1];
 
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
         setLoading(true);
         
+        if (context === 'detail' && currentItemId) {
+          console.log(`[Recs] Fetching similar items for ${currentItemId}...`);
+          const { data } = await challengesApi.getSimilar(currentItemId, { limit });
+          if (data.challenges && data.challenges.length > 0) {
+            setItems(data.challenges);
+            setIsFallback(false);
+            setError(false);
+            return;
+          }
+        }
+
         if (username) {
           // We pass the 'username' (handle) because the ML model was trained on usernames
           console.log(`[Recs] Fetching personalized for ${username}...`);
@@ -75,7 +91,7 @@ const RecommendationSection: React.FC<Props> = ({
     };
 
     fetchRecommendations();
-  }, [username, limit]);
+  }, [username, limit, context, currentItemId]);
 
   if (loading) return <div className="py-8"><RecommendationSkeleton /></div>;
   if (error || items.length === 0) return null;

@@ -29,6 +29,8 @@ export const challengesApi = {
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>('/challenges/recommended', { params }),
   getRecommendations: (userId: string, params?: { limit?: number }) =>
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>(`/recommendations/${userId}`, { params }),
+  getSimilar: (itemId: string, params?: { limit?: number }) =>
+    apiClient.get<{ challenges: RecommendedChallengeItem[] }>(`/recommendations/item/${itemId}`, { params }),
   trackEngagement: (data: {
     userId: string;
     itemId: string;
