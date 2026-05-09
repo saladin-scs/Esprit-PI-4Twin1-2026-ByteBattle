@@ -56,3 +56,15 @@ def analyze_code(request: CodeAnalysisRequest):
         ],
         "extra": feedback_result.extra,
     }
+
+
+# ============================================
+# NEW ENDPOINT - Supports frontend's /code/analyze URL
+# ============================================
+@router.post("/code/analyze")
+def analyze_code_alias(request: CodeAnalysisRequest):
+    """
+    Alias endpoint for /analyze-code.
+    This exists to support frontend calls to /ai/code/analyze.
+    """
+    return analyze_code(request)
