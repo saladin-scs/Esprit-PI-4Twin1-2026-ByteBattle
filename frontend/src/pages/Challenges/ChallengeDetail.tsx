@@ -26,7 +26,7 @@ import {
   Focus,
   Minimize2,
 } from 'lucide-react';
-import { useTheme, type Theme } from '../../contexts/ThemeContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useWindowSize } from '../../hooks';
 import { challengesApi, gamificationApi } from '../../services/api';
 import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
@@ -151,7 +151,7 @@ const ChallengeDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   const { width } = useWindowSize();
   const isMobile = width !== undefined && width < 1024;
   const langFromUrl = searchParams.get('lang');
@@ -216,7 +216,6 @@ const ChallengeDetail = () => {
   const vimModeRef = useRef<any>(null);
   const prevChallengeIdRef = useRef<string | undefined>(undefined);
   const prevLangParamRef = useRef<string | null>(null);
-  const hasNavigatedOnExpireRef = useRef(false);
 
   // Track user engagement for real-time personalization
   useRecommendationTracking(id);

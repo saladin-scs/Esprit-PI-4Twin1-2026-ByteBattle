@@ -199,6 +199,7 @@ const RecommendationSection: React.FC<Props> = ({
                   </div>
                 </div>
               </div>
+            </div>
 
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-1 group-hover:text-primary-500 transition-colors">
                 {item.title}

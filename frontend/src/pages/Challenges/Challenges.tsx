@@ -6,8 +6,6 @@ import { useChallengesStore, type ChallengeListItem } from '../../stores/challen
 import { useRecommendations } from '../../hooks/useRecommendations';
 import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
-import { ChatAvailabilityCallout } from '../../shared/components';
-import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
 
 import { RootState } from '../../store/store';
 

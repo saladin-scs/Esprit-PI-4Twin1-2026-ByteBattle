@@ -4,7 +4,6 @@ import { RootState } from '../../store/store';
 import { ByteBattleLogo } from '../../components/ByteBattleLogo';
 import { PageContainer, Card, Button } from '../../shared/components';
 import { Trophy, Zap, BarChart3, MessageCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
 import RecommendationSection from '../../components/Recommendations/RecommendationSection';
 
 function Home() {
