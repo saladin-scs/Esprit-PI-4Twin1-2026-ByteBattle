@@ -1,16 +1,27 @@
 /**
  * Admin management for user reports.
+ * Features: urgency sorting (critical first), auto-mark as 'read' when opened,
+ * filter by urgency, display tags with urgency badges.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi, type AdminReclamationRow } from '../../core/api';
 import { Button, Input, Card, Alert, PageContainer, Spinner } from '../../shared/components';
 import {
-  RECLAMATION_CATEGORY_LABELS,
   RECLAMATION_STATUS_LABELS,
+  TAG_OPTIONS,
+  URGENCY_ORDER,
+  getUrgencyFromTag,
+  type ReportTag,
+  type UrgencyLevel,
 } from '../../modules/reclamation/constants';
-import type { ReclamationCategory, ReclamationStatus } from '../../services/api';
+import type { ReclamationStatus } from '../../services/api';
 import { ReclamationStatusBadge } from '../../modules/reclamation/components/ReclamationStatusBadge';
+
+// Extend the API type to include 'tag' (assuming backend returns it)
+interface ExtendedAdminReclamationRow extends AdminReclamationRow {
+  tag: ReportTag;
+}
 
 const PAGE_SIZE = 15;
 
@@ -30,6 +41,28 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'cancelled', label: RECLAMATION_STATUS_LABELS.cancelled },
 ];
 
+const URGENCY_FILTERS: { value: UrgencyLevel | ''; label: string }[] = [
+  { value: '', label: 'All urgencies' },
+  { value: 'critical', label: 'Critical' },
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
+];
+
+function getTagLabel(tag: string): string {
+  const found = TAG_OPTIONS.find(t => t.value === tag);
+  return found?.label ?? tag;
+}
+
+function getUrgencyBadgeClass(urgency: UrgencyLevel): string {
+  switch (urgency) {
+    case 'critical': return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
+    case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300';
+    case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
+    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+  }
+}
+
 function AdminReclamations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,16 +70,34 @@ function AdminReclamations() {
   const [inputQuery, setInputQuery] = useState('');
   const [appliedQuery, setAppliedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [urgencyFilter, setUrgencyFilter] = useState<UrgencyLevel | ''>('');
   const [page, setPage] = useState(1);
-  const [data, setData] = useState<{
+  const [rawData, setRawData] = useState<{
     items: AdminReclamationRow[];
     total: number;
     page: number;
     totalPages: number;
   } | null>(null);
-  const [selected, setSelected] = useState<AdminReclamationRow | null>(null);
+  const [selected, setSelected] = useState<ExtendedAdminReclamationRow | null>(null);
   const [statusDraft, setStatusDraft] = useState<ReclamationStatus>('open');
   const [saving, setSaving] = useState(false);
+
+  // Sort items by urgency (critical first) and apply urgency filter
+  const sortedAndFilteredItems = useMemo((): ExtendedAdminReclamationRow[] => {
+    if (!rawData) return [];
+    let filtered = rawData.items as ExtendedAdminReclamationRow[];
+    if (urgencyFilter) {
+      filtered = filtered.filter(item => {
+        const urgency = getUrgencyFromTag(item.tag);
+        return urgency === urgencyFilter;
+      });
+    }
+    return [...filtered].sort((a, b) => {
+      const urgencyA = URGENCY_ORDER[getUrgencyFromTag(a.tag)];
+      const urgencyB = URGENCY_ORDER[getUrgencyFromTag(b.tag)];
+      return urgencyA - urgencyB;
+    });
+  }, [rawData, urgencyFilter]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,7 +109,7 @@ function AdminReclamations() {
         q: appliedQuery.trim() || undefined,
         status: statusFilter || undefined,
       });
-      setData({
+      setRawData({
         items: res.data.items,
         total: res.data.total,
         page: res.data.page,
@@ -66,7 +117,7 @@ function AdminReclamations() {
       });
       setSelected((prev) => {
         if (!prev) return null;
-        const still = res.data.items.find((i) => i.id === prev.id);
+        const still = res.data.items.find((i) => i.id === prev.id) as ExtendedAdminReclamationRow | undefined;
         return still ?? null;
       });
     } catch (err: unknown) {
@@ -80,7 +131,7 @@ function AdminReclamations() {
       } else {
         setError(msg || (err instanceof Error ? err.message : 'Unable to load data.'));
       }
-      setData(null);
+      setRawData(null);
     } finally {
       setLoading(false);
     }
@@ -110,12 +161,13 @@ function AdminReclamations() {
     try {
       const res = await adminApi.patchReclamationStatus(selected.id, statusDraft);
       setSuccess('Status updated.');
-      setSelected(res.data.reclamation);
-      setData((prev) => {
+      const updated = res.data.reclamation as ExtendedAdminReclamationRow;
+      setSelected(updated);
+      setRawData((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
-          items: prev.items.map((i) => (i.id === res.data.reclamation.id ? res.data.reclamation : i)),
+          items: prev.items.map((i) => (i.id === updated.id ? updated : i)),
         };
       });
     } catch (err: unknown) {
@@ -127,10 +179,33 @@ function AdminReclamations() {
     }
   };
 
-  const selectRow = (row: AdminReclamationRow) => {
+  // Auto-update status to 'read' when admin opens a report (if currently 'open')
+  const selectRow = async (row: ExtendedAdminReclamationRow) => {
     setSelected(row);
     setSuccess('');
     setError('');
+    if (row.status === 'open') {
+      setSaving(true);
+      try {
+        const res = await adminApi.patchReclamationStatus(row.id, 'read');
+        setSuccess('Report marked as under review (auto-updated).');
+        const updated = res.data.reclamation as ExtendedAdminReclamationRow;
+        setSelected(updated);
+        setRawData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            items: prev.items.map((i) => (i.id === updated.id ? updated : i)),
+          };
+        });
+      } catch (err: unknown) {
+        const ax = err as { response?: { data?: { message?: string | string[] } }; message?: string };
+        const msg = ax?.response?.data?.message;
+        setError(Array.isArray(msg) ? msg.join(', ') : msg || ax?.message || 'Failed to update status.');
+      } finally {
+        setSaving(false);
+      }
+    }
   };
 
   return (
@@ -139,20 +214,14 @@ function AdminReclamations() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Reports</h1>
           <p className="text-gray-500 dark:text-gray-400 max-w-xl">
-            Review user reports, filter by status, and update tracking (pending, under review, resolved).
+            Review user reports, sorted by urgency (critical first). Click any report to mark it as "Under review".
           </p>
         </div>
         <div className="flex flex-wrap gap-3 text-sm">
-          <Link
-            to="/admin/users"
-            className="text-indigo-500 dark:text-indigo-400 hover:underline font-medium"
-          >
+          <Link to="/admin/users" className="text-indigo-500 dark:text-indigo-400 hover:underline font-medium">
             ← Users
           </Link>
-          <Link
-            to="/admin/gamification"
-            className="text-indigo-500 dark:text-indigo-400 hover:underline font-medium"
-          >
+          <Link to="/admin/gamification" className="text-indigo-500 dark:text-indigo-400 hover:underline font-medium">
             Gamification →
           </Link>
         </div>
@@ -179,6 +248,17 @@ function AdminReclamations() {
             </option>
           ))}
         </select>
+        <select
+          value={urgencyFilter}
+          onChange={(e) => setUrgencyFilter(e.target.value as UrgencyLevel | '')}
+          className="min-w-[150px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+        >
+          {URGENCY_FILTERS.map((u) => (
+            <option key={u.value || 'all'} value={u.value}>
+              {u.label}
+            </option>
+          ))}
+        </select>
         <Button type="submit" variant="secondary">
           Search
         </Button>
@@ -198,10 +278,8 @@ function AdminReclamations() {
       <div className="grid gap-6 lg:grid-cols-12">
         <Card className="lg:col-span-5 !p-0 overflow-hidden border-gray-200 dark:border-gray-700">
           <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50/80 dark:bg-gray-800/80 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-900 dark:text-white">Liste</span>
-            {data && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">{data.total} total</span>
-            )}
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">Reports (sorted by urgency)</span>
+            {rawData && <span className="text-xs text-gray-500 dark:text-gray-400">{rawData.total} total</span>}
           </div>
           <div className="min-h-[200px] max-h-[min(70vh,560px)] overflow-y-auto relative">
             {loading && (
@@ -209,50 +287,56 @@ function AdminReclamations() {
                 <Spinner />
               </div>
             )}
-            {!loading && data && data.items.length === 0 && (
+            {!loading && sortedAndFilteredItems.length === 0 && (
               <p className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
                 No reports match these criteria.
               </p>
             )}
-            {data?.items.map((row) => (
-              <button
-                key={row.id}
-                type="button"
-                onClick={() => selectRow(row)}
-                className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700/80 transition-colors ${
-                  selected?.id === row.id
-                    ? 'bg-indigo-50 dark:bg-indigo-950/40'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2">{row.subject}</span>
-                  <ReclamationStatusBadge status={row.status} />
-                </div>
-                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
-                  <div>
-                    {row.username ? (
-                      <Link
-                        to={`/u/${row.username}`}
-                        className="text-indigo-600 dark:text-indigo-400 hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        @{row.username}
-                      </Link>
-                    ) : (
-                      <span>User</span>
-                    )}
-                    {row.userEmail && <span className="ml-2 opacity-90">{row.userEmail}</span>}
+            {sortedAndFilteredItems.map((row) => {
+              const urgency = getUrgencyFromTag(row.tag);
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  onClick={() => selectRow(row)}
+                  className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700/80 transition-colors ${
+                    selected?.id === row.id
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium text-gray-900 dark:text-white text-sm line-clamp-2">{row.subject}</span>
+                    <ReclamationStatusBadge status={row.status} />
                   </div>
-                  <div>
-                    {RECLAMATION_CATEGORY_LABELS[row.category as ReclamationCategory] ?? row.category} ·{' '}
-                    {formatDateEn(row.createdAt)}
+                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getUrgencyBadgeClass(urgency)}`}>
+                        {urgency.toUpperCase()}
+                      </span>
+                      <span>{getTagLabel(row.tag)}</span>
+                    </div>
+                    <div>
+                      {row.username ? (
+                        <Link
+                          to={`/u/${row.username}`}
+                          className="text-indigo-600 dark:text-indigo-400 hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          @{row.username}
+                        </Link>
+                      ) : (
+                        <span>User</span>
+                      )}
+                      {row.userEmail && <span className="ml-2 opacity-90">{row.userEmail}</span>}
+                    </div>
+                    <div>{formatDateEn(row.createdAt)}</div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
-          {data && data.totalPages > 1 && (
+          {rawData && rawData.totalPages > 1 && (
             <div className="flex items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-700 px-4 py-3 text-sm">
               <Button
                 type="button"
@@ -263,12 +347,12 @@ function AdminReclamations() {
                 Previous
               </Button>
               <span className="text-gray-600 dark:text-gray-400">
-                Page {data.page} / {data.totalPages}
+                Page {rawData.page} / {rawData.totalPages}
               </span>
               <Button
                 type="button"
                 variant="secondary"
-                disabled={page >= data.totalPages || loading}
+                disabled={page >= rawData.totalPages || loading}
                 onClick={() => setPage((p) => p + 1)}
               >
                 Next
@@ -287,8 +371,9 @@ function AdminReclamations() {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <ReclamationStatusBadge status={selected.status} />
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {RECLAMATION_CATEGORY_LABELS[selected.category as ReclamationCategory] ?? selected.category}
+                <span className="text-xs text-gray-500 dark:text-gray-400">{getTagLabel(selected.tag)}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getUrgencyBadgeClass(getUrgencyFromTag(selected.tag))}`}>
+                  {getUrgencyFromTag(selected.tag).toUpperCase()}
                 </span>
               </div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{selected.subject}</h2>

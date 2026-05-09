@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { usersApi } from '../../services/api';
 import { AppDispatch, RootState } from '../../store/store';

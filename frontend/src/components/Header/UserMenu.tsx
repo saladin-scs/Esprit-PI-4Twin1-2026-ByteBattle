@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { createPortal } from 'react-dom';
 import { logout } from '../../store/slices/authSlice';
 import { RootState } from '../../store/store';
 import { Avatar, DropdownMenu, DropdownMenuItem, DropdownMenuSeparator, Modal, Button } from '../../shared/components';
@@ -33,7 +32,7 @@ export function UserMenu() {
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowLogoutConfirm(false);
+      if (e.key === 'Escape') setShowLogoutModal(false);
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
@@ -60,16 +59,6 @@ export function UserMenu() {
       dispatch(logout());
       navigate('/');
       toast.success('Successfully logged out');
-    }
-  };
-
-  const handleLogoutCancel = () => {
-    setShowLogoutConfirm(false);
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      setShowLogoutConfirm(false);
     }
   };
 

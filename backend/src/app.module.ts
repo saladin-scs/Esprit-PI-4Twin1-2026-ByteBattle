@@ -16,6 +16,7 @@ import { SiteRatingsModule } from './site-ratings/site-ratings.module';
 import { ChatModule } from './chat/chat.module';
 import { BattleModule } from './battle/battle.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { AIModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     ChatModule,
     BattleModule,
     FeedbackModule,
+    AIModule,
   ],
 })
 export class AppModule {}

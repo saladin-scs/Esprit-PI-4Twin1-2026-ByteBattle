@@ -347,6 +347,113 @@ public class Solution {
     return { draft };
   }
 
+  /**
+   * Find a challenge by id or title (case-insensitive). Returns null if not found.
+   */
+  async findByIdOrTitle(value: string) {
+    if (!value) return null;
+    // try by ObjectId
+    try {
+      if (Types.ObjectId.isValid(value)) {
+        const byId = await this.challengeModel.findById(value).lean().exec();
+        if (byId) return byId;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // exact title match
+    const exact = await this.challengeModel.findOne({ title: value }).lean().exec();
+    if (exact) return exact;
+
+    // case-insensitive title
+    const ci = await this.challengeModel.findOne({ title: { $regex: `^${value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}$`, $options: 'i' } }).lean().exec();
+    if (ci) return ci;
+
+    // try substring match (title contains the value)
+    try {
+      const substr = await this.challengeModel.findOne({ title: { $regex: value.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&'), $options: 'i' } }).lean().exec();
+      if (substr) return substr;
+    } catch (e) {
+      // ignore
+    }
+
+    // tokenized match: require all words appear in order (but possibly with other words between)
+    try {
+      const tokens = String(value)
+        .toLowerCase()
+        .replace(/[^a-z0-9\\s]/g, ' ')
+        .split(/\\s+/)
+        .filter(Boolean);
+      if (tokens.length) {
+        const pattern = tokens.map((t) => t.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')).join('.*');
+        const tokenMatch = await this.challengeModel.findOne({ title: { $regex: pattern, $options: 'i' } }).lean().exec();
+        if (tokenMatch) return tokenMatch;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // try matching by tag
+    try {
+      const tagMatch = await this.challengeModel.findOne({ tags: { $in: [value.toLowerCase()] } }).lean().exec();
+      if (tagMatch) return tagMatch;
+    } catch (e) {
+      // ignore
+    }
+
+    return null;
+  }
+
+  /**
+   * Best-effort fuzzy match: try to find the most relevant challenge for a free-text value.
+   * Returns the best candidate or null.
+   */
+  async findBestMatchForText(value: string) {
+    if (!value) return null;
+    const norm = String(value).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+    const tokens = norm.split(/\s+/).filter(Boolean);
+    if (!tokens.length) return null;
+
+    // Build OR queries for tokens against title and tags
+    const orClauses: any[] = [];
+    for (const t of tokens.slice(0, 6)) {
+      orClauses.push({ title: { $regex: t.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&'), $options: 'i' } });
+      orClauses.push({ tags: { $in: [t] } });
+    }
+
+    const candidates = await this.challengeModel.find({ $or: orClauses }).lean().limit(50).exec();
+    if (!candidates || !candidates.length) return null;
+
+    // simple scoring: count tokens matched in title+tags
+    let best: any = null;
+    let bestScore = 0;
+    for (const c of candidates) {
+      const hay = (String(c.title || '').toLowerCase() + ' ' + (Array.isArray(c.tags) ? c.tags.join(' ') : '')).toLowerCase();
+      let score = 0;
+      for (const t of tokens) if (hay.indexOf(t) !== -1) score++;
+      if (score > bestScore) {
+        bestScore = score;
+        best = c;
+      }
+    }
+
+    // require at least one token match
+    return bestScore > 0 ? best : null;
+  }
+
+  /**
+   * Return a small sample of published challenges as a fallback.
+   */
+  async getFallbackRecommendations(count: number = 5, difficulty?: string) {
+    const match: any = { isPublished: true };
+    if (difficulty) match.difficulty = difficulty.toLowerCase();
+
+    const pipeline: any[] = [{ $match: match }, { $sample: { size: Math.max(1, Number(count) || 1) } }];
+    const docs = await this.challengeModel.aggregate(pipeline).exec();
+    return docs || [];
+  }
+
   // Create a challenge (admin)
   async create(dto: CreateChallengeDto): Promise<ChallengeDocument> {
     if (!dto.xpReward) {
