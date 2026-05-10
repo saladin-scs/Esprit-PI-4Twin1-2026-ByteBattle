@@ -27,7 +27,20 @@ export class ChallengeController {
   @Get()
   @ApiOperation({ summary: 'List challenges with filters' })
   async findAll(@Query() query: GetChallengesDto) {
-    return this.challengeService.findAll(query);
+    const result = await this.challengeService.findAll(query);
+
+    // If result is already an array, return it
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    // Return only the challenges array (what the frontend expects)
+    if (result && Array.isArray(result.challenges)) {
+      return result.challenges;
+    }
+
+    // Fallback: return empty array
+    return [];
   }
 
   @Post('dev/post-easy-medium-hard')
