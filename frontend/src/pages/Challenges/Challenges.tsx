@@ -41,6 +41,8 @@ const Challenges = () => {
     fetchChallenges,
   } = useChallengesStore();
 
+  const safeChallenges = Array.isArray(challenges) ? challenges : [];
+
   useEffect(() => {
     fetchChallenges();
   }, [filters.difficulty, filters.language, filters.search, page, fetchChallenges]);
@@ -173,23 +175,25 @@ const Challenges = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {challenges.length === 0 ? (
+                {safeChallenges.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="bb-body-text px-4 py-14 text-center text-sm">
                       No challenges found
                     </td>
                   </tr>
                 ) : (
-                  challenges.map((c, i) => (
-                   <tr
-  key={c._id}
-  onClick={() => navigate(`/challenges/${c._id}`)}
-  tabIndex={0}
-  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/challenges/${c._id}`); }}
-  onFocus={(e) => (e.currentTarget.style.outline = '2px solid #6366f1')}
-  onBlur={(e) => (e.currentTarget.style.outline = '')}
-  className="cursor-pointer transition-colors hover:bg-primary-500/5 dark:hover:bg-primary-500/10"
->
+                  safeChallenges.map((c, i) => (
+                    <tr
+                      key={c._id}
+                      onClick={() => navigate(`/challenges/${c._id}`)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') navigate(`/challenges/${c._id}`);
+                      }}
+                      onFocus={(e) => (e.currentTarget.style.outline = '2px solid #6366f1')}
+                      onBlur={(e) => (e.currentTarget.style.outline = '')}
+                      className="cursor-pointer transition-colors hover:bg-primary-500/5 dark:hover:bg-primary-500/10"
+                    >
                       <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                         {(page - 1) * PAGE_SIZE + i + 1}
                       </td>

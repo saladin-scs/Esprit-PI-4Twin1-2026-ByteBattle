@@ -72,15 +72,22 @@ export const useChallengesStore = create<ChallengesState>((set, get) => ({
       if (filters.search.trim()) params.search = filters.search.trim();
 
       const res = await challengesApi.getAll(params);
-      const data = res.data as {
-        challenges: ChallengeListItem[];
-        total: number;
-        totalPages: number;
-      };
+      const payload = (res.data && typeof res.data === 'object' ? (res.data as any).data ?? res.data : {}) as Record<string, any>;
+      const challengesList = Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload?.challenges)
+        ? payload.challenges
+        : [];
+      const total = typeof payload?.total === 'number' ? payload.total : 0;
+      const totalPages = typeof payload?.totalPages === 'number'
+        ? payload.totalPages
+        : typeof payload?.limit === 'number' && total > 0
+        ? Math.max(1, Math.ceil(total / payload.limit))
+        : 1;
       set({
-        challenges: data.challenges ?? [],
-        total: data.total ?? 0,
-        totalPages: data.totalPages ?? 1,
+        challenges: Array.isArray(challengesList) ? challengesList : [],
+        total,
+        totalPages,
         loading: false,
         error: null,
       });
