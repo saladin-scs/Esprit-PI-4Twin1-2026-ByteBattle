@@ -1,9 +1,23 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Max,
+  Min,
+} from 'class-validator';
 
 const RECLAMATION_STATUSES = ['open', 'read', 'resolved', 'cancelled'] as const;
-const RECLAMATION_CATEGORIES = ['bug', 'account', 'content', 'harassment', 'other'] as const;
+const RECLAMATION_CATEGORIES = [
+  'bug',
+  'account',
+  'content',
+  'harassment',
+  'other',
+] as const;
 const SORT_VALUES = ['newest', 'oldest'] as const;
 
 export class ListMineReclamationsDto {
@@ -34,7 +48,10 @@ export class ListMineReclamationsDto {
   @IsIn(RECLAMATION_CATEGORIES)
   category?: (typeof RECLAMATION_CATEGORIES)[number];
 
-  @ApiPropertyOptional({ description: 'Search in subject and message', maxLength: 200 })
+  @ApiPropertyOptional({
+    description: 'Search in subject and message',
+    maxLength: 200,
+  })
   @IsOptional()
   @IsString()
   @Length(1, 200)

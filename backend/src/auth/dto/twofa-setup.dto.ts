@@ -10,4 +10,3 @@ export class TwoFaSetupResponseDto {
   @ApiProperty({ type: [String] })
   backupCodes: string[];
 }
-

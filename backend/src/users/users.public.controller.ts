@@ -25,4 +25,3 @@ export class UsersPublicController {
     return this.usersService.findPublicByUsername(username);
   }
 }
-

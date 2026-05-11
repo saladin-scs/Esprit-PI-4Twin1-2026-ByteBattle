@@ -22,4 +22,3 @@ export class Achievement {
 }
 
 export const AchievementSchema = SchemaFactory.createForClass(Achievement);
-

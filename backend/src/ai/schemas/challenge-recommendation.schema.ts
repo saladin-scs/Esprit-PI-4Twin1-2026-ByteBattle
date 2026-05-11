@@ -34,4 +34,6 @@ export class ChallengeRecommendation extends Document {
   recommendedAt: Date;
 }
 
-export const ChallengeRecommendationSchema = SchemaFactory.createForClass(ChallengeRecommendation);
+export const ChallengeRecommendationSchema = SchemaFactory.createForClass(
+  ChallengeRecommendation,
+);

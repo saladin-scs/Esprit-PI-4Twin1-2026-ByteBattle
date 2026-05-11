@@ -9,7 +9,7 @@ import { UserSchema } from '../users/schemas/user.schema';
 
 @Module({
   imports: [
-  MongooseModule.forFeature([{ name: 'User', schema: UserSchema }]),
+    MongooseModule.forFeature([{ name: 'User', schema: UserSchema }]),
     UsersModule,
     CompetitionsModule,
   ],
@@ -18,4 +18,3 @@ import { UserSchema } from '../users/schemas/user.schema';
   exports: [LeaderboardService, SetupCache],
 })
 export class LeaderboardModule {}
-

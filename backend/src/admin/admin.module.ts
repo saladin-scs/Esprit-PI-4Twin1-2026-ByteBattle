@@ -16,4 +16,3 @@ import { ReclamationsModule } from '../reclamations/reclamations.module';
   providers: [AdminService],
 })
 export class AdminModule {}
-

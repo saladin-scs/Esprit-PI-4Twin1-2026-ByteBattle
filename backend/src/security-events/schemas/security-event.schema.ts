@@ -22,4 +22,3 @@ export class SecurityEvent {
 }
 
 export const SecurityEventSchema = SchemaFactory.createForClass(SecurityEvent);
-

@@ -19,4 +19,3 @@ export class BattleListQueryDto {
   @Max(100)
   limit?: number = 20;
 }
-

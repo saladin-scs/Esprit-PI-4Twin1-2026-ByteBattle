@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Notification, NotificationDocument } from './schemas/notification.schema';
+import {
+  Notification,
+  NotificationDocument,
+} from './schemas/notification.schema';
 
 type NotificationItem = {
   id: string;
@@ -28,7 +31,9 @@ export class NotificationsService {
       body: String(doc.body ?? ''),
       meta: (doc.meta as Record<string, unknown>) ?? {},
       read: Boolean(doc.read),
-      createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString(),
+      createdAt: doc.createdAt
+        ? new Date(doc.createdAt).toISOString()
+        : new Date().toISOString(),
     };
   }
 
@@ -65,7 +70,9 @@ export class NotificationsService {
         .lean()
         .exec(),
       this.notificationModel.countDocuments({ userId: userObjectId }).exec(),
-      this.notificationModel.countDocuments({ userId: userObjectId, read: false }).exec(),
+      this.notificationModel
+        .countDocuments({ userId: userObjectId, read: false })
+        .exec(),
     ]);
 
     return {
@@ -79,7 +86,10 @@ export class NotificationsService {
 
   async markAllRead(userId: string): Promise<void> {
     await this.notificationModel
-      .updateMany({ userId: new Types.ObjectId(userId), read: false }, { $set: { read: true } })
+      .updateMany(
+        { userId: new Types.ObjectId(userId), read: false },
+        { $set: { read: true } },
+      )
       .exec();
   }
 

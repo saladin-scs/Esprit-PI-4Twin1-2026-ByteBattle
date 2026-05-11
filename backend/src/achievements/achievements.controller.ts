@@ -13,4 +13,3 @@ export class AchievementsController {
     return this.achievementsService.findAll();
   }
 }
-

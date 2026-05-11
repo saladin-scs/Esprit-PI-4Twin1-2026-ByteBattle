@@ -15,4 +15,3 @@ export class Verify2FALoginDto {
   @IsBoolean()
   rememberMe?: boolean;
 }
-

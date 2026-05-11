@@ -26,4 +26,5 @@ export class ChatMessageReport {
 }
 
 export type ChatMessageReportDocument = HydratedDocument<ChatMessageReport>;
-export const ChatMessageReportSchema = SchemaFactory.createForClass(ChatMessageReport);
+export const ChatMessageReportSchema =
+  SchemaFactory.createForClass(ChatMessageReport);

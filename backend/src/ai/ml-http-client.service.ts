@@ -14,7 +14,10 @@ export class MLHttpClientService {
     private httpService: HttpService,
     private configService: ConfigService,
   ) {
-    this.aiServiceUrl = this.configService.get('AI_SERVICE_URL', 'http://localhost:8001');
+    this.aiServiceUrl = this.configService.get(
+      'AI_SERVICE_URL',
+      'http://localhost:8001',
+    );
   }
 
   private pick(payload: any, camelKey: string, snakeKey: string) {
@@ -27,11 +30,18 @@ export class MLHttpClientService {
         user_id: this.pick(payload, 'userId', 'user_id'),
         challenge_id: this.pick(payload, 'challengeId', 'challenge_id'),
         user_features: this.pick(payload, 'userFeatures', 'user_features'),
-        challenge_features: this.pick(payload, 'challengeFeatures', 'challenge_features'),
+        challenge_features: this.pick(
+          payload,
+          'challengeFeatures',
+          'challenge_features',
+        ),
       };
 
       const response = await firstValueFrom(
-        this.httpService.post(`${this.aiServiceUrl}/api/predictions/performance`, requestBody),
+        this.httpService.post(
+          `${this.aiServiceUrl}/api/predictions/performance`,
+          requestBody,
+        ),
       );
       return response.data;
     } catch (error) {
@@ -44,12 +54,20 @@ export class MLHttpClientService {
     try {
       const requestBody = {
         user_id: this.pick(payload, 'userId', 'user_id'),
-        n_recommendations: this.pick(payload, 'count', 'n_recommendations') ?? 5,
-        preferred_difficulty: this.pick(payload, 'difficulty', 'preferred_difficulty'),
+        n_recommendations:
+          this.pick(payload, 'count', 'n_recommendations') ?? 5,
+        preferred_difficulty: this.pick(
+          payload,
+          'difficulty',
+          'preferred_difficulty',
+        ),
       };
 
       const response = await firstValueFrom(
-        this.httpService.post(`${this.aiServiceUrl}/api/recommendations/challenges`, requestBody),
+        this.httpService.post(
+          `${this.aiServiceUrl}/api/recommendations/challenges`,
+          requestBody,
+        ),
       );
       return response.data;
     } catch (error) {
@@ -80,12 +98,19 @@ export class MLHttpClientService {
       const requestBody = {
         user_id: this.pick(payload, 'userId', 'user_id'),
         user_features: this.pick(payload, 'userFeatures', 'user_features'),
-        available_users: this.pick(payload, 'availableUsers', 'available_users'),
+        available_users: this.pick(
+          payload,
+          'availableUsers',
+          'available_users',
+        ),
         n_suggestions: this.pick(payload, 'count', 'n_suggestions') ?? 3,
       };
 
       const response = await firstValueFrom(
-        this.httpService.post(`${this.aiServiceUrl}/api/matchmaking/suggestions`, requestBody),
+        this.httpService.post(
+          `${this.aiServiceUrl}/api/matchmaking/suggestions`,
+          requestBody,
+        ),
       );
       return response.data;
     } catch (error) {
@@ -103,7 +128,10 @@ export class MLHttpClientService {
       };
 
       const response = await firstValueFrom(
-        this.httpService.post(`${this.aiServiceUrl}/api/matchmaking/cluster`, requestBody),
+        this.httpService.post(
+          `${this.aiServiceUrl}/api/matchmaking/cluster`,
+          requestBody,
+        ),
       );
       return response.data;
     } catch (error) {
@@ -116,11 +144,15 @@ export class MLHttpClientService {
     try {
       const requestBody = {
         user_id: this.pick(payload, 'userId', 'user_id'),
-        time_period_days: this.pick(payload, 'daysPeriod', 'time_period_days') ?? 30,
+        time_period_days:
+          this.pick(payload, 'daysPeriod', 'time_period_days') ?? 30,
       };
 
       const response = await firstValueFrom(
-        this.httpService.post(`${this.aiServiceUrl}/api/analytics/user-profile`, requestBody),
+        this.httpService.post(
+          `${this.aiServiceUrl}/api/analytics/user-profile`,
+          requestBody,
+        ),
       );
       return response.data;
     } catch (error) {
@@ -132,7 +164,9 @@ export class MLHttpClientService {
   async getLeaderboardStats() {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.aiServiceUrl}/api/analytics/leaderboard-stats`),
+        this.httpService.get(
+          `${this.aiServiceUrl}/api/analytics/leaderboard-stats`,
+        ),
       );
       return response.data;
     } catch (error) {
@@ -144,9 +178,12 @@ export class MLHttpClientService {
   async getUserProgress(userId: string, days: number = 30) {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`${this.aiServiceUrl}/api/analytics/user-progress/${userId}`, {
-          params: { days },
-        }),
+        this.httpService.get(
+          `${this.aiServiceUrl}/api/analytics/user-progress/${userId}`,
+          {
+            params: { days },
+          },
+        ),
       );
       return response.data;
     } catch (error) {

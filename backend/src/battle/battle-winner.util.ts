@@ -33,14 +33,21 @@ export type ScoredPlayerRow = {
   totalScore: number;
 };
 
-function scoreSubmittedPlayers(players: BattlePlayerOutcome[]): ScoredInternal[] {
+function scoreSubmittedPlayers(
+  players: BattlePlayerOutcome[],
+): ScoredInternal[] {
   const norm = players.map((p) => ({
     userId: String(p.userId),
     teamIndex: p.teamIndex,
     submitted: !!p.submitted,
     passed: !!p.passed,
-    submissionMs: p.submissionTime ? new Date(p.submissionTime).getTime() : Number.POSITIVE_INFINITY,
-    executionMs: typeof p.executionTimeMs === 'number' ? p.executionTimeMs : Number.POSITIVE_INFINITY,
+    submissionMs: p.submissionTime
+      ? new Date(p.submissionTime).getTime()
+      : Number.POSITIVE_INFINITY,
+    executionMs:
+      typeof p.executionTimeMs === 'number'
+        ? p.executionTimeMs
+        : Number.POSITIVE_INFINITY,
     testsPassed: typeof p.testsPassed === 'number' ? p.testsPassed : 0,
     testsTotal: typeof p.testsTotal === 'number' ? p.testsTotal : 0,
     bonusScore: typeof p.bonusScore === 'number' ? p.bonusScore : 0,
@@ -66,12 +73,20 @@ function scoreSubmittedPlayers(players: BattlePlayerOutcome[]): ScoredInternal[]
   const minBonus = Math.min(...submitted.map((s) => s.bonusScore));
   const maxBonus = Math.max(...submitted.map((s) => s.bonusScore));
 
-  const normalizeReverse = (value: number, min: number, max: number): number => {
+  const normalizeReverse = (
+    value: number,
+    min: number,
+    max: number,
+  ): number => {
     if (!Number.isFinite(value)) return 0;
     if (max <= min) return 1;
     return Math.max(0, Math.min(1, (max - value) / (max - min)));
   };
-  const normalizeForward = (value: number, min: number, max: number): number => {
+  const normalizeForward = (
+    value: number,
+    min: number,
+    max: number,
+  ): number => {
     if (!Number.isFinite(value)) return 0;
     if (max <= min) return 1;
     return Math.max(0, Math.min(1, (value - min) / (max - min)));
@@ -80,10 +95,13 @@ function scoreSubmittedPlayers(players: BattlePlayerOutcome[]): ScoredInternal[]
   const byUser = new Map<string, ScoredInternal>();
   for (const p of submitted) {
     const passScore = p.passed ? 50 : 0;
-    const submissionSpeedScore = normalizeReverse(p.submissionMs, minSubmitMs, maxSubmitMs) * 25;
-    const executionEfficiencyScore = normalizeReverse(p.executionMs, minExecMs, maxExecMs) * 15;
+    const submissionSpeedScore =
+      normalizeReverse(p.submissionMs, minSubmitMs, maxSubmitMs) * 25;
+    const executionEfficiencyScore =
+      normalizeReverse(p.executionMs, minExecMs, maxExecMs) * 15;
     const bonusScore = normalizeForward(p.bonusScore, minBonus, maxBonus) * 10;
-    const totalScore = passScore + submissionSpeedScore + executionEfficiencyScore + bonusScore;
+    const totalScore =
+      passScore + submissionSpeedScore + executionEfficiencyScore + bonusScore;
     byUser.set(p.userId, {
       userId: p.userId,
       teamIndex: p.teamIndex,
@@ -112,7 +130,10 @@ function scoreSubmittedPlayers(players: BattlePlayerOutcome[]): ScoredInternal[]
 }
 
 /** Infer team index from lobby order when missing (legacy documents). */
-export function inferTeamIndexFromPosition(playerIndex: number, playerCount: number): number {
+export function inferTeamIndexFromPosition(
+  playerIndex: number,
+  playerCount: number,
+): number {
   if (playerCount <= 0) return 0;
   if (playerCount === 2) return playerIndex;
   const half = playerCount / 2;
@@ -139,23 +160,45 @@ export function resolveBattleOutcome(
   }));
 
   const teamTotals = [0, 1].map((ti) =>
-    scored.filter((s) => s.teamIndex === ti).reduce((sum, s) => sum + s.totalScore, 0),
+    scored
+      .filter((s) => s.teamIndex === ti)
+      .reduce((sum, s) => sum + s.totalScore, 0),
   );
 
-  if (format === '2v2' || format === '3v3' || format === '4v4' || format === '5v5') {
+  if (
+    format === '2v2' ||
+    format === '3v3' ||
+    format === '4v4' ||
+    format === '5v5'
+  ) {
     const a = teamTotals[0];
     const b = teamTotals[1];
     if (Math.abs(a - b) < 1e-9) {
-      return { winnerUserId: null, winnerTeamIndex: null, draw: true, scoredPlayers: rows };
+      return {
+        winnerUserId: null,
+        winnerTeamIndex: null,
+        draw: true,
+        scoredPlayers: rows,
+      };
     }
     const winTeam = a > b ? 0 : 1;
-    return { winnerUserId: null, winnerTeamIndex: winTeam, draw: false, scoredPlayers: rows };
+    return {
+      winnerUserId: null,
+      winnerTeamIndex: winTeam,
+      draw: false,
+      scoredPlayers: rows,
+    };
   }
 
   // 1v1 — legacy ordering on submitted players (weighted score + same tie-breakers as before)
   const submittedPlayers = players.filter((p) => p.submitted);
   if (submittedPlayers.length === 0) {
-    return { winnerUserId: null, winnerTeamIndex: null, draw: true, scoredPlayers: rows };
+    return {
+      winnerUserId: null,
+      winnerTeamIndex: null,
+      draw: true,
+      scoredPlayers: rows,
+    };
   }
 
   const rowByUser = new Map(rows.map((r) => [r.userId, r]));
@@ -171,8 +214,13 @@ export function resolveBattleOutcome(
       ...r,
       _tiePassed: p.testsPassed ?? 0,
       _tieTotal: p.testsTotal ?? 0,
-      _tieExec: typeof p.executionTimeMs === 'number' ? p.executionTimeMs : Number.POSITIVE_INFINITY,
-      _tieSubmit: p.submissionTime ? new Date(p.submissionTime).getTime() : Number.POSITIVE_INFINITY,
+      _tieExec:
+        typeof p.executionTimeMs === 'number'
+          ? p.executionTimeMs
+          : Number.POSITIVE_INFINITY,
+      _tieSubmit: p.submissionTime
+        ? new Date(p.submissionTime).getTime()
+        : Number.POSITIVE_INFINITY,
     };
   });
 
@@ -196,7 +244,12 @@ export function resolveBattleOutcome(
     best._tieSubmit === second._tieSubmit;
 
   if (draw) {
-    return { winnerUserId: null, winnerTeamIndex: null, draw: true, scoredPlayers: rows };
+    return {
+      winnerUserId: null,
+      winnerTeamIndex: null,
+      draw: true,
+      scoredPlayers: rows,
+    };
   }
 
   const winnerP = players.find((x) => String(x.userId) === best.userId);
@@ -210,7 +263,9 @@ export function resolveBattleOutcome(
 
 /** @deprecated Use resolveBattleOutcome — kept for unit tests compatibility */
 export function computeBattleWinner(
-  players: Array<Omit<BattlePlayerOutcome, 'teamIndex'> & { teamIndex?: number }>,
+  players: Array<
+    Omit<BattlePlayerOutcome, 'teamIndex'> & { teamIndex?: number }
+  >,
 ): {
   winnerId: string | null;
   draw: boolean;
@@ -218,7 +273,10 @@ export function computeBattleWinner(
 } {
   const withTeams: BattlePlayerOutcome[] = players.map((p, i) => ({
     ...p,
-    teamIndex: typeof p.teamIndex === 'number' ? p.teamIndex : inferTeamIndexFromPosition(i, players.length),
+    teamIndex:
+      typeof p.teamIndex === 'number'
+        ? p.teamIndex
+        : inferTeamIndexFromPosition(i, players.length),
   }));
   const r = resolveBattleOutcome(withTeams, '1v1');
   return {

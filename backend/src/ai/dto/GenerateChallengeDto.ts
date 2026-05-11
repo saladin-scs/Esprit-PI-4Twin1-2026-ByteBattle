@@ -8,7 +8,10 @@ export enum Difficulty {
 }
 
 export class GenerateChallengeDto {
-  @ApiProperty({ enum: Difficulty, description: 'Difficulty level of the challenge' })
+  @ApiProperty({
+    enum: Difficulty,
+    description: 'Difficulty level of the challenge',
+  })
   @IsEnum(Difficulty)
   difficulty: Difficulty;
 

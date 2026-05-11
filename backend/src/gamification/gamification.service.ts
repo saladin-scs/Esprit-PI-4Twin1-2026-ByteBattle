@@ -49,10 +49,16 @@ export class GamificationService {
   }
 
   /** Records daily login: XP + streak + streak badges */
-  async recordDailyLogin(userId: string): Promise<{ xpAwarded: number; streak: number }> {
-    const user = await this.userModel.findById(userId).select(
-      'xp lastActiveAt lastDailyLoginDate currentStreak longestStreak totalActiveDays streakFreezes badgeIds hasRecoveredStreak',
-    ).lean().exec();
+  async recordDailyLogin(
+    userId: string,
+  ): Promise<{ xpAwarded: number; streak: number }> {
+    const user = await this.userModel
+      .findById(userId)
+      .select(
+        'xp lastActiveAt lastDailyLoginDate currentStreak longestStreak totalActiveDays streakFreezes badgeIds hasRecoveredStreak',
+      )
+      .lean()
+      .exec();
     if (!user) throw new NotFoundException('User not found');
 
     const u = user as any;
@@ -61,7 +67,9 @@ export class GamificationService {
     let newStreak = u.currentStreak ?? 0;
     let updateStreakRecovered = false;
     const lastActive = u.lastActiveAt ? new Date(u.lastActiveAt) : null;
-    const lastActiveDate = lastActive ? lastActive.toISOString().slice(0, 10) : null;
+    const lastActiveDate = lastActive
+      ? lastActive.toISOString().slice(0, 10)
+      : null;
     const lastLoginDate = u.lastDailyLoginDate ?? null;
 
     // Daily login XP (1x per day)
@@ -69,7 +77,9 @@ export class GamificationService {
     if (lastLoginDate !== today) {
       xpAwarded += XP_BY_ACTION.dailyLogin;
       const daysSinceActive = lastActiveDate
-        ? Math.floor((Date.now() - lastActive.getTime()) / (24 * 60 * 60 * 1000))
+        ? Math.floor(
+            (Date.now() - lastActive.getTime()) / (24 * 60 * 60 * 1000),
+          )
         : 999;
       if (daysSinceActive === 0) {
         // already active today, no streak change
@@ -96,7 +106,10 @@ export class GamificationService {
     if (lastLoginDate !== today) inc.totalActiveDays = 1;
     if (xpAwarded > 0) {
       const currentXp = (u.xp ?? 0) + xpAwarded;
-      const streakBonus = Math.min(newStreak * XP_BY_ACTION.streakBonusPerDay, 100);
+      const streakBonus = Math.min(
+        newStreak * XP_BY_ACTION.streakBonusPerDay,
+        100,
+      );
       const totalXp = currentXp + streakBonus;
       inc.xp = xpAwarded + streakBonus;
       update.rankTier = this.getRankTierFromXp(totalXp);
@@ -109,7 +122,14 @@ export class GamificationService {
       await this.checkAndAwardBadges(userId, 'streak');
     }
 
-    return { xpAwarded: xpAwarded + (xpAwarded > 0 ? Math.min(newStreak * XP_BY_ACTION.streakBonusPerDay, 100) : 0), streak: newStreak };
+    return {
+      xpAwarded:
+        xpAwarded +
+        (xpAwarded > 0
+          ? Math.min(newStreak * XP_BY_ACTION.streakBonusPerDay, 100)
+          : 0),
+      streak: newStreak,
+    };
   }
 
   /**
@@ -130,17 +150,24 @@ export class GamificationService {
       xpFlatPenalty?: number;
     },
   ): Promise<{ xpEarned: number; badgesUnlocked: string[] }> {
-    const user = await this.userModel.findById(userId).select(
-      'xp totalChallengesSolved problemsByDifficulty languageStats lastFirstSolveOfDayDate badgeIds lastActiveAt currentStreak longestStreak totalActiveDays lastDailyLoginDate',
-    ).lean().exec();
+    const user = await this.userModel
+      .findById(userId)
+      .select(
+        'xp totalChallengesSolved problemsByDifficulty languageStats lastFirstSolveOfDayDate badgeIds lastActiveAt currentStreak longestStreak totalActiveDays lastDailyLoginDate',
+      )
+      .lean()
+      .exec();
     if (!user) throw new NotFoundException('User not found');
 
     const u = user as any;
     const today = this.todayUtc();
     const baseXp =
-      opts.difficulty === 'easy' ? XP_BY_ACTION.solveEasy
-        : opts.difficulty === 'medium' ? XP_BY_ACTION.solveMedium
-          : opts.difficulty === 'hard' ? XP_BY_ACTION.solveHard
+      opts.difficulty === 'easy'
+        ? XP_BY_ACTION.solveEasy
+        : opts.difficulty === 'medium'
+          ? XP_BY_ACTION.solveMedium
+          : opts.difficulty === 'hard'
+            ? XP_BY_ACTION.solveHard
             : XP_BY_ACTION.solveExpert;
 
     let xpEarned: number = baseXp;
@@ -152,17 +179,27 @@ export class GamificationService {
     const flatPenalty = Math.max(0, Math.floor(opts.xpFlatPenalty ?? 0));
     xpEarned = Math.max(0, Math.floor(xpEarned * timeMult) - flatPenalty);
 
-    const problemsByDifficulty = { ...(u.problemsByDifficulty || { easy: 0, medium: 0, hard: 0, expert: 0 }) };
-    const lang = (opts.language || 'javascript').toLowerCase().replace('c++', 'cpp');
+    const problemsByDifficulty = {
+      ...(u.problemsByDifficulty || { easy: 0, medium: 0, hard: 0, expert: 0 }),
+    };
+    const lang = (opts.language || 'javascript')
+      .toLowerCase()
+      .replace('c++', 'cpp');
     problemsByDifficulty[opts.difficulty as keyof typeof problemsByDifficulty] =
-      (problemsByDifficulty[opts.difficulty as keyof typeof problemsByDifficulty] ?? 0) + 1;
+      (problemsByDifficulty[
+        opts.difficulty as keyof typeof problemsByDifficulty
+      ] ?? 0) + 1;
     const languageStats = { ...(u.languageStats || {}) };
     languageStats[lang] = (languageStats[lang] ?? 0) + 1;
 
     const lastActive = u.lastActiveAt ? new Date(u.lastActiveAt) : null;
-    const lastActiveDate = lastActive ? lastActive.toISOString().slice(0, 10) : null;
+    const lastActiveDate = lastActive
+      ? lastActive.toISOString().slice(0, 10)
+      : null;
     const daysSinceActive = lastActiveDate
-      ? Math.floor((Date.now() - (lastActive?.getTime() ?? 0)) / (24 * 60 * 60 * 1000))
+      ? Math.floor(
+          (Date.now() - (lastActive?.getTime() ?? 0)) / (24 * 60 * 60 * 1000),
+        )
       : 999;
     let newStreak = u.currentStreak ?? 0;
     if (daysSinceActive === 0) {
@@ -178,22 +215,26 @@ export class GamificationService {
     const rankTier = this.getRankTierFromXp(newXp);
 
     // Two updates to avoid MongoDB conflict: cannot mix $inc on nested paths with $set on parent
-    await this.userModel.findByIdAndUpdate(userId, {
-      $inc: { xp: xpEarned, totalChallengesSolved: 1 },
-      $set: {
-        rankTier,
-        lastActiveAt: new Date(),
-        currentStreak: newStreak,
-        longestStreak,
-        ...(firstSolveOfDay ? { lastFirstSolveOfDayDate: today } : {}),
-      },
-    }).exec();
-    await this.userModel.findByIdAndUpdate(userId, {
-      $set: {
-        problemsByDifficulty: { ...problemsByDifficulty },
-        languageStats: { ...languageStats },
-      },
-    }).exec();
+    await this.userModel
+      .findByIdAndUpdate(userId, {
+        $inc: { xp: xpEarned, totalChallengesSolved: 1 },
+        $set: {
+          rankTier,
+          lastActiveAt: new Date(),
+          currentStreak: newStreak,
+          longestStreak,
+          ...(firstSolveOfDay ? { lastFirstSolveOfDayDate: today } : {}),
+        },
+      })
+      .exec();
+    await this.userModel
+      .findByIdAndUpdate(userId, {
+        $set: {
+          problemsByDifficulty: { ...problemsByDifficulty },
+          languageStats: { ...languageStats },
+        },
+      })
+      .exec();
 
     const badgesUnlocked: string[] = [];
     if (opts.isFirstTry) {
@@ -219,10 +260,23 @@ export class GamificationService {
    * Checks and unlocks eligible badges.
    * category: 'streak' | 'solver' | 'difficulty' | 'quality' | 'language' | 'all'
    */
-  async checkAndAwardBadges(userId: string, category: 'streak' | 'solver' | 'difficulty' | 'quality' | 'language' | 'all' = 'all'): Promise<string[]> {
-    const user = await this.userModel.findById(userId).select(
-      'badgeIds xp currentStreak longestStreak totalChallengesSolved problemsByDifficulty languageStats hasRecoveredStreak competitionsParticipated',
-    ).lean().exec();
+  async checkAndAwardBadges(
+    userId: string,
+    category:
+      | 'streak'
+      | 'solver'
+      | 'difficulty'
+      | 'quality'
+      | 'language'
+      | 'all' = 'all',
+  ): Promise<string[]> {
+    const user = await this.userModel
+      .findById(userId)
+      .select(
+        'badgeIds xp currentStreak longestStreak totalChallengesSolved problemsByDifficulty languageStats hasRecoveredStreak competitionsParticipated',
+      )
+      .lean()
+      .exec();
     if (!user) return [];
 
     const u = user as any;
@@ -242,17 +296,26 @@ export class GamificationService {
       }
     };
 
-    if (category === 'streak' || category === 'all') await check(BADGES_STREAK.map((b) => b.id));
-    if (category === 'solver' || category === 'all') await check(BADGES_SOLVER.map((b) => b.id));
-    if (category === 'difficulty' || category === 'all') await check(BADGES_DIFFICULTY.map((b) => b.id));
-    if (category === 'quality' || category === 'all') await check(BADGES_QUALITY.map((b) => b.id));
-    if (category === 'language' || category === 'all') await check(BADGES_LANGUAGE.map((b) => b.id));
+    if (category === 'streak' || category === 'all')
+      await check(BADGES_STREAK.map((b) => b.id));
+    if (category === 'solver' || category === 'all')
+      await check(BADGES_SOLVER.map((b) => b.id));
+    if (category === 'difficulty' || category === 'all')
+      await check(BADGES_DIFFICULTY.map((b) => b.id));
+    if (category === 'quality' || category === 'all')
+      await check(BADGES_QUALITY.map((b) => b.id));
+    if (category === 'language' || category === 'all')
+      await check(BADGES_LANGUAGE.map((b) => b.id));
     if (category === 'all') await check(BADGES_CONTEST.map((b) => b.id));
 
     return newlyUnlocked;
   }
 
-  private async checkBadgeCondition(userId: string, badgeId: string, u: any): Promise<boolean> {
+  private async checkBadgeCondition(
+    userId: string,
+    badgeId: string,
+    u: any,
+  ): Promise<boolean> {
     const total = u.totalChallengesSolved ?? 0;
     const pd = u.problemsByDifficulty || {};
     const streak = u.currentStreak ?? 0;
@@ -262,45 +325,78 @@ export class GamificationService {
     const competitionsParticipated = u.competitionsParticipated ?? 0;
 
     switch (badgeId) {
-      case 'streak_7': return streak >= 7;
-      case 'streak_30': return streak >= 30;
-      case 'streak_100': return streak >= 100;
-      case 'streak_365': return streak >= 365;
-      case 'streak_recovery': return hasRecovered;
-      case 'solver_10': return total >= 10;
-      case 'solver_50': return total >= 50;
-      case 'solver_100': return total >= 100;
-      case 'solver_250': return total >= 250;
-      case 'solver_500': return total >= 500;
-      case 'solver_1000': return total >= 1000;
-      case 'easy_25': return (pd.easy ?? 0) >= 25;
-      case 'easy_50': return (pd.easy ?? 0) >= 50;
-      case 'medium_25': return (pd.medium ?? 0) >= 25;
-      case 'medium_50': return (pd.medium ?? 0) >= 50;
-      case 'hard_10': return (pd.hard ?? 0) >= 10;
-      case 'hard_25': return (pd.hard ?? 0) >= 25;
-      case 'hard_50': return (pd.hard ?? 0) >= 50;
-      case 'python_master': return (langStats.python ?? 0) >= 50;
-      case 'js_master': return (langStats.javascript ?? 0) >= 50;
-      case 'java_master': return (langStats.java ?? 0) >= 50;
-      case 'cpp_master': return (langStats.cpp ?? 0) >= 50;
-      case 'polyglot': return langCount >= 5;
-      case 'contest_veteran': return competitionsParticipated >= 10;
-      default: return false;
+      case 'streak_7':
+        return streak >= 7;
+      case 'streak_30':
+        return streak >= 30;
+      case 'streak_100':
+        return streak >= 100;
+      case 'streak_365':
+        return streak >= 365;
+      case 'streak_recovery':
+        return hasRecovered;
+      case 'solver_10':
+        return total >= 10;
+      case 'solver_50':
+        return total >= 50;
+      case 'solver_100':
+        return total >= 100;
+      case 'solver_250':
+        return total >= 250;
+      case 'solver_500':
+        return total >= 500;
+      case 'solver_1000':
+        return total >= 1000;
+      case 'easy_25':
+        return (pd.easy ?? 0) >= 25;
+      case 'easy_50':
+        return (pd.easy ?? 0) >= 50;
+      case 'medium_25':
+        return (pd.medium ?? 0) >= 25;
+      case 'medium_50':
+        return (pd.medium ?? 0) >= 50;
+      case 'hard_10':
+        return (pd.hard ?? 0) >= 10;
+      case 'hard_25':
+        return (pd.hard ?? 0) >= 25;
+      case 'hard_50':
+        return (pd.hard ?? 0) >= 50;
+      case 'python_master':
+        return (langStats.python ?? 0) >= 50;
+      case 'js_master':
+        return (langStats.javascript ?? 0) >= 50;
+      case 'java_master':
+        return (langStats.java ?? 0) >= 50;
+      case 'cpp_master':
+        return (langStats.cpp ?? 0) >= 50;
+      case 'polyglot':
+        return langCount >= 5;
+      case 'contest_veteran':
+        return competitionsParticipated >= 10;
+      default:
+        return false;
     }
   }
 
   /** Award participation XP and increment competitionsParticipated. Call when user first submits to a competition. */
-  async recordCompetitionParticipated(userId: string): Promise<{ xpAwarded: number }> {
-    const user = await this.userModel.findById(userId).select('xp competitionsParticipated').lean().exec();
+  async recordCompetitionParticipated(
+    userId: string,
+  ): Promise<{ xpAwarded: number }> {
+    const user = await this.userModel
+      .findById(userId)
+      .select('xp competitionsParticipated')
+      .lean()
+      .exec();
     if (!user) throw new NotFoundException('User not found');
     const u = user as any;
     const current = u.competitionsParticipated ?? 0;
     const xpAwarded = XP_BY_ACTION.contestParticipate;
-    await this.userModel.findByIdAndUpdate(userId, {
-      $inc: { xp: xpAwarded, competitionsParticipated: 1 },
-      $set: { rankTier: this.getRankTierFromXp((u.xp ?? 0) + xpAwarded) },
-    }).exec();
+    await this.userModel
+      .findByIdAndUpdate(userId, {
+        $inc: { xp: xpAwarded, competitionsParticipated: 1 },
+        $set: { rankTier: this.getRankTierFromXp((u.xp ?? 0) + xpAwarded) },
+      })
+      .exec();
     await this.checkAndAwardBadges(userId, 'all');
     return { xpAwarded };
   }
@@ -310,7 +406,11 @@ export class GamificationService {
     userId: string,
     opts: { competitionId: string; rank: number; totalParticipants: number },
   ): Promise<{ xpAwarded: number; badgesUnlocked: string[] }> {
-    const user = await this.userModel.findById(userId).select('xp badgeIds').lean().exec();
+    const user = await this.userModel
+      .findById(userId)
+      .select('xp badgeIds')
+      .lean()
+      .exec();
     if (!user) throw new NotFoundException('User not found');
     const u = user as any;
     const unlocked = u.badgeIds || [];
@@ -341,30 +441,50 @@ export class GamificationService {
     }
 
     if (xpAwarded > 0) {
-      await this.userModel.findByIdAndUpdate(userId, {
-        $inc: { xp: xpAwarded },
-        $set: { rankTier: this.getRankTierFromXp((u.xp ?? 0) + xpAwarded) },
-      }).exec();
+      await this.userModel
+        .findByIdAndUpdate(userId, {
+          $inc: { xp: xpAwarded },
+          $set: { rankTier: this.getRankTierFromXp((u.xp ?? 0) + xpAwarded) },
+        })
+        .exec();
     }
     return { xpAwarded, badgesUnlocked };
   }
 
-  private async awardBadge(userId: string, badge: { id: string; name: string; xpReward: number; coinsReward?: number; streakFreezes?: number }): Promise<void> {
-    const user = await this.userModel.findById(userId).select('xp').lean().exec();
+  private async awardBadge(
+    userId: string,
+    badge: {
+      id: string;
+      name: string;
+      xpReward: number;
+      coinsReward?: number;
+      streakFreezes?: number;
+    },
+  ): Promise<void> {
+    const user = await this.userModel
+      .findById(userId)
+      .select('xp')
+      .lean()
+      .exec();
     if (!user) return;
     const newXp = (user as any).xp + badge.xpReward;
     const rankTier = this.getRankTierFromXp(newXp);
     const inc: Record<string, number> = { xp: badge.xpReward };
     if (badge.coinsReward) inc.codynCoins = badge.coinsReward;
     if (badge.streakFreezes) inc.streakFreezes = badge.streakFreezes;
-    await this.userModel.findByIdAndUpdate(userId, {
-      $addToSet: { badgeIds: badge.id },
-      lastUnlockedBadge: { badgeId: badge.id, name: badge.name },
-      $inc: inc,
-      rankTier,
-    }).exec();
+    await this.userModel
+      .findByIdAndUpdate(userId, {
+        $addToSet: { badgeIds: badge.id },
+        lastUnlockedBadge: { badgeId: badge.id, name: badge.name },
+        $inc: inc,
+        rankTier,
+      })
+      .exec();
 
-    await this.pushRecentActivity(userId, 'badge_unlocked', { badgeId: badge.id, name: badge.name });
+    await this.pushRecentActivity(userId, 'badge_unlocked', {
+      badgeId: badge.id,
+      name: badge.name,
+    });
 
     void this.notificationsService
       .create({
@@ -377,30 +497,52 @@ export class GamificationService {
       .catch(() => undefined);
   }
 
-  private async pushRecentActivity(userId: string, type: string, metadata?: Record<string, any>): Promise<void> {
-    await this.userModel.findByIdAndUpdate(userId, {
-      $push: {
-        recentActivity: {
-          $each: [{ type, date: new Date(), success: true, metadata: metadata || {} }],
-          $slice: -100,
+  private async pushRecentActivity(
+    userId: string,
+    type: string,
+    metadata?: Record<string, any>,
+  ): Promise<void> {
+    await this.userModel
+      .findByIdAndUpdate(userId, {
+        $push: {
+          recentActivity: {
+            $each: [
+              {
+                type,
+                date: new Date(),
+                success: true,
+                metadata: metadata || {},
+              },
+            ],
+            $slice: -100,
+          },
         },
-      },
-    }).exec();
+      })
+      .exec();
   }
 
   /** Use a streak freeze to avoid losing streak (e.g. day without login). */
-  async useStreakFreeze(userId: string): Promise<{ success: boolean; remainingFreezes: number }> {
-    const user = await this.userModel.findById(userId).select('streakFreezes currentStreak').exec();
+  async useStreakFreeze(
+    userId: string,
+  ): Promise<{ success: boolean; remainingFreezes: number }> {
+    const user = await this.userModel
+      .findById(userId)
+      .select('streakFreezes currentStreak')
+      .exec();
     if (!user) throw new NotFoundException('User not found');
     const freezes = (user as any).streakFreezes ?? 0;
     if (freezes < 1) return { success: false, remainingFreezes: 0 };
-    await this.userModel.findByIdAndUpdate(userId, { $inc: { streakFreezes: -1 } }).exec();
+    await this.userModel
+      .findByIdAndUpdate(userId, { $inc: { streakFreezes: -1 } })
+      .exec();
     return { success: true, remainingFreezes: freezes - 1 };
   }
 
   /** Mark streak recovery (for Phoenix badge). */
   async markStreakRecovered(userId: string): Promise<void> {
-    await this.userModel.findByIdAndUpdate(userId, { hasRecoveredStreak: true }).exec();
+    await this.userModel
+      .findByIdAndUpdate(userId, { hasRecoveredStreak: true })
+      .exec();
   }
 
   /** Get badge catalog and XP constants for frontend. */
@@ -414,9 +556,13 @@ export class GamificationService {
 
   /** Gamification summary of logged-in user (includes progress to next rank and leaderboard rank). */
   async getMySummary(userId: string) {
-    const user = await this.userModel.findById(userId).select(
-      'username xp rankTier currentStreak longestStreak totalActiveDays streakFreezes totalChallengesSolved problemsByDifficulty languageStats badgeIds lastUnlockedBadge lastDailyLoginDate lastFirstSolveOfDayDate',
-    ).lean().exec();
+    const user = await this.userModel
+      .findById(userId)
+      .select(
+        'username xp rankTier currentStreak longestStreak totalActiveDays streakFreezes totalChallengesSolved problemsByDifficulty languageStats badgeIds lastUnlockedBadge lastDailyLoginDate lastFirstSolveOfDayDate',
+      )
+      .lean()
+      .exec();
     if (!user) throw new NotFoundException('User not found');
     const u = user as any;
     const today = this.todayUtc();
@@ -437,7 +583,12 @@ export class GamificationService {
       totalActiveDays: u.totalActiveDays ?? 0,
       streakFreezes: u.streakFreezes ?? 0,
       totalChallengesSolved: u.totalChallengesSolved ?? 0,
-      problemsByDifficulty: u.problemsByDifficulty ?? { easy: 0, medium: 0, hard: 0, expert: 0 },
+      problemsByDifficulty: u.problemsByDifficulty ?? {
+        easy: 0,
+        medium: 0,
+        hard: 0,
+        expert: 0,
+      },
       languageStats: u.languageStats ?? {},
       badgeIds: u.badgeIds ?? [],
       lastUnlockedBadge: u.lastUnlockedBadge ?? null,
@@ -450,23 +601,49 @@ export class GamificationService {
   }
 
   /** Progress to next rank for UI (progress bar). */
-  private getRankProgress(xp: number, currentTier: string): { currentTier: string; nextTier: string | null; xpInTier: number; xpNeededForNext: number; progressFraction: number } {
+  private getRankProgress(
+    xp: number,
+    currentTier: string,
+  ): {
+    currentTier: string;
+    nextTier: string | null;
+    xpInTier: number;
+    xpNeededForNext: number;
+    progressFraction: number;
+  } {
     const idx = RANK_ORDER.indexOf(currentTier as any);
     const currentThreshold = RANK_XP[currentTier] ?? 0;
     const xpInTier = Math.max(0, xp - currentThreshold);
     if (idx < 0 || idx >= RANK_ORDER.length - 1) {
-      return { currentTier, nextTier: null, xpInTier, xpNeededForNext: 0, progressFraction: 1 };
+      return {
+        currentTier,
+        nextTier: null,
+        xpInTier,
+        xpNeededForNext: 0,
+        progressFraction: 1,
+      };
     }
     const nextTier = RANK_ORDER[idx + 1];
     const nextThreshold = RANK_XP[nextTier] ?? currentThreshold;
     const xpNeededForNext = nextThreshold - xp;
     const tierSpan = nextThreshold - currentThreshold;
-    const progressFraction = tierSpan > 0 ? Math.min(1, (xp - currentThreshold) / tierSpan) : 1;
-    return { currentTier, nextTier, xpInTier, xpNeededForNext: Math.max(0, xpNeededForNext), progressFraction };
+    const progressFraction =
+      tierSpan > 0 ? Math.min(1, (xp - currentThreshold) / tierSpan) : 1;
+    return {
+      currentTier,
+      nextTier,
+      xpInTier,
+      xpNeededForNext: Math.max(0, xpNeededForNext),
+      progressFraction,
+    };
   }
 
   /** Classement global par XP */
-  async getLeaderboard(params: { page?: number; limit?: number; country?: string }) {
+  async getLeaderboard(params: {
+    page?: number;
+    limit?: number;
+    country?: string;
+  }) {
     const page = Math.max(1, params.page ?? 1);
     const limit = Math.min(50, Math.max(1, params.limit ?? 20));
     const skip = (page - 1) * limit;
@@ -474,7 +651,9 @@ export class GamificationService {
     if (params.country) filter.country = params.country;
     const items = await this.userModel
       .find(filter)
-      .select('username displayName avatarUrl xp rankTier totalChallengesSolved currentStreak badgeIds')
+      .select(
+        'username displayName avatarUrl xp rankTier totalChallengesSolved currentStreak badgeIds',
+      )
       .sort({ xp: -1 })
       .skip(skip)
       .limit(limit)

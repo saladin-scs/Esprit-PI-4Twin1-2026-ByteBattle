@@ -6,4 +6,3 @@ export class Enable2FADto {
   @IsString()
   code: string;
 }
-

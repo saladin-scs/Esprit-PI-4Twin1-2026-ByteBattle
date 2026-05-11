@@ -4,6 +4,7 @@ type ChallengeIndexItem = {
   title: string;
   tags?: string[];
   difficulty?: string;
+  isNew?: boolean;
 };
 
 type RawRec = {
@@ -179,7 +180,7 @@ export function buildLocalRecommendations(
     top.push({
       challengeId: challenge._id,
       challengeName: challenge.title,
-      score: null,
+      score: 0,
       difficulty: challenge.difficulty,
       reason: 'Fallback: challenge index',
     });

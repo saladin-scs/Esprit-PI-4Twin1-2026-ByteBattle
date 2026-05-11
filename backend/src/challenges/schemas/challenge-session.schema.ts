@@ -21,5 +21,6 @@ export class ChallengeSession {
   revealedHintIndices: number[];
 }
 
-export const ChallengeSessionSchema = SchemaFactory.createForClass(ChallengeSession);
+export const ChallengeSessionSchema =
+  SchemaFactory.createForClass(ChallengeSession);
 ChallengeSessionSchema.index({ userId: 1, challengeId: 1 }, { unique: true });

@@ -1,5 +1,10 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LeaderboardService } from './leaderboard.service';
 import { GetLeaderboardQueryDto } from './dto/get-leaderboard-query.dto';
@@ -18,10 +23,24 @@ export class LeaderboardController {
    * @param difficulty Filter by difficulty
    */
   @Get()
-  @ApiOperation({ summary: 'Get global leaderboard with filtering and pagination' })
-  @ApiQuery({ name: 'period', enum: ['all-time', 'monthly', 'weekly'], required: false })
-  @ApiQuery({ name: 'type', enum: ['global', 'speed', 'code_golf', 'algorithmic'], required: false })
-  @ApiQuery({ name: 'difficulty', enum: ['easy', 'medium', 'hard', 'expert'], required: false })
+  @ApiOperation({
+    summary: 'Get global leaderboard with filtering and pagination',
+  })
+  @ApiQuery({
+    name: 'period',
+    enum: ['all-time', 'monthly', 'weekly'],
+    required: false,
+  })
+  @ApiQuery({
+    name: 'type',
+    enum: ['global', 'speed', 'code_golf', 'algorithmic'],
+    required: false,
+  })
+  @ApiQuery({
+    name: 'difficulty',
+    enum: ['easy', 'medium', 'hard', 'expert'],
+    required: false,
+  })
   @ApiQuery({ name: 'limit', type: Number, required: false })
   @ApiQuery({ name: 'page', type: Number, required: false })
   async getGlobal(@Query() query: GetLeaderboardQueryDto) {
@@ -38,7 +57,9 @@ export class LeaderboardController {
    * Get seasonal leaderboards for all periods
    */
   @Get('seasonal')
-  @ApiOperation({ summary: 'Get leaderboards for all seasons (weekly, monthly, all-time)' })
+  @ApiOperation({
+    summary: 'Get leaderboards for all seasons (weekly, monthly, all-time)',
+  })
   async getSeasonal() {
     return this.leaderboardService.getSeasonalLeaderboards();
   }
@@ -50,7 +71,11 @@ export class LeaderboardController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get your rank and nearby competitors' })
-  @ApiQuery({ name: 'period', enum: ['all-time', 'monthly', 'weekly'], required: false })
+  @ApiQuery({
+    name: 'period',
+    enum: ['all-time', 'monthly', 'weekly'],
+    required: false,
+  })
   async getUserRank(
     @Param('userId') userId: string,
     @Query('period') period: 'all-time' | 'monthly' | 'weekly' = 'all-time',
@@ -65,7 +90,11 @@ export class LeaderboardController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get detailed user statistics' })
-  @ApiQuery({ name: 'period', enum: ['all-time', 'monthly', 'weekly'], required: false })
+  @ApiQuery({
+    name: 'period',
+    enum: ['all-time', 'monthly', 'weekly'],
+    required: false,
+  })
   async getUserStats(
     @Param('userId') userId: string,
     @Query('period') period: 'all-time' | 'monthly' | 'weekly' = 'all-time',
@@ -96,7 +125,11 @@ export class LeaderboardController {
     @Query('limit') limit: number = 50,
     @Query('page') page: number = 1,
   ) {
-    return this.leaderboardService.getCompetitionLeaderboard(competitionId, language, limit, page);
+    return this.leaderboardService.getCompetitionLeaderboard(
+      competitionId,
+      language,
+      limit,
+      page,
+    );
   }
 }
-

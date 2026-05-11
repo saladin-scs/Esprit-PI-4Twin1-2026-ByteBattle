@@ -1,15 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Challenge, ChallengeDocument } from '../challenges/schemas/challenge.schema';
-import { Competition, CompetitionDocument } from '../competitions/schemas/competition.schema';
+import {
+  Challenge,
+  ChallengeDocument,
+} from '../challenges/schemas/challenge.schema';
+import {
+  Competition,
+  CompetitionDocument,
+} from '../competitions/schemas/competition.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 
 @Injectable()
 export class ExploreService {
   constructor(
-    @InjectModel(Challenge.name) private readonly challengeModel: Model<ChallengeDocument>,
-    @InjectModel(Competition.name) private readonly competitionModel: Model<CompetitionDocument>,
+    @InjectModel(Challenge.name)
+    private readonly challengeModel: Model<ChallengeDocument>,
+    @InjectModel(Competition.name)
+    private readonly competitionModel: Model<CompetitionDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
@@ -46,7 +54,12 @@ export class ExploreService {
         .exec(),
       this.competitionModel
         .find({
-          $or: [{ name: regex }, { description: regex }, { type: regex }, { status: regex }],
+          $or: [
+            { name: regex },
+            { description: regex },
+            { type: regex },
+            { status: regex },
+          ],
         })
         .select('_id name status type startTime endTime')
         .sort({ startTime: -1 })
@@ -56,7 +69,12 @@ export class ExploreService {
       this.userModel
         .find({
           isActive: true,
-          $or: [{ username: regex }, { displayName: regex }, { firstName: regex }, { lastName: regex }],
+          $or: [
+            { username: regex },
+            { displayName: regex },
+            { firstName: regex },
+            { lastName: regex },
+          ],
         })
         .select('_id username displayName avatarUrl')
         .sort({ updatedAt: -1 })

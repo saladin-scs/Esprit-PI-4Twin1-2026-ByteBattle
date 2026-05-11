@@ -8,9 +8,17 @@ import { ChallengeService } from '../challenges/challenges.service';
 export class MLService {
   private readonly logger = new Logger(MLService.name);
 
-  constructor(private mlClient: MLHttpClientService, private challengeService: ChallengeService) {}
+  constructor(
+    private mlClient: MLHttpClientService,
+    private challengeService: ChallengeService,
+  ) {}
 
-  async predictUserPerformance(userId: string, challengeId: string, userFeatures: any, challengeFeatures: any) {
+  async predictUserPerformance(
+    userId: string,
+    challengeId: string,
+    userFeatures: any,
+    challengeFeatures: any,
+  ) {
     try {
       const prediction = await this.mlClient.predictPerformance({
         user_id: userId,
@@ -33,7 +41,11 @@ export class MLService {
     }
   }
 
-  async getPersonalizedRecommendations(userId: string, count: number = 5, difficulty?: string) {
+  async getPersonalizedRecommendations(
+    userId: string,
+    count: number = 5,
+    difficulty?: string,
+  ) {
     try {
       const recommendations = await this.mlClient.getRecommendations({
         user_id: userId,
@@ -46,12 +58,17 @@ export class MLService {
       for (const rec of recommendations.recommendations || []) {
         let resolved: any = null;
         // Try match by id or title
-        const candidate = rec.challenge_id || rec.challenge_name || rec.title || '';
+        const candidate =
+          rec.challenge_id || rec.challenge_name || rec.title || '';
         if (candidate) {
           try {
-            resolved = await this.challengeService.findByIdOrTitle(String(candidate));
+            resolved = await this.challengeService.findByIdOrTitle(
+              String(candidate),
+            );
           } catch (e) {
-            this.logger.warn(`Challenge lookup failed for '${candidate}': ${e.message || e}`);
+            this.logger.warn(
+              `Challenge lookup failed for '${candidate}': ${e.message || e}`,
+            );
           }
         }
 
@@ -66,7 +83,8 @@ export class MLService {
         } else {
           // try a best-effort fuzzy match using challenge text/tags
           try {
-            const fuzzy = await this.challengeService.findBestMatchForText(candidate);
+            const fuzzy =
+              await this.challengeService.findBestMatchForText(candidate);
             if (fuzzy) {
               mapped.push({
                 challengeId: String(fuzzy._id),
@@ -78,7 +96,9 @@ export class MLService {
               continue;
             }
           } catch (e) {
-            this.logger.warn(`Fuzzy lookup failed for '${candidate}': ${e.message || e}`);
+            this.logger.warn(
+              `Fuzzy lookup failed for '${candidate}': ${e.message || e}`,
+            );
           }
           // if no match found, skip adding raw AI-only suggestion and let
           // DB fallbacks fill the remaining slots below
@@ -91,7 +111,11 @@ export class MLService {
         const ids = new Set(mapped.map((m) => m.challengeId));
         const need = Math.max(0, Number(count || 0) - mapped.length);
         if (need > 0) {
-          const fallbacks = await this.challengeService.getFallbackRecommendations(need, difficulty);
+          const fallbacks =
+            await this.challengeService.getFallbackRecommendations(
+              need,
+              difficulty,
+            );
           for (const f of fallbacks) {
             if (ids.has(String(f._id))) continue;
             mapped.push({
@@ -106,7 +130,9 @@ export class MLService {
           }
         }
       } catch (e) {
-        this.logger.warn(`Appending fallback recommendations failed: ${e.message || e}`);
+        this.logger.warn(
+          `Appending fallback recommendations failed: ${e.message || e}`,
+        );
       }
 
       return { userId, recommendations: mapped };
@@ -117,7 +143,11 @@ export class MLService {
   }
 
   /** Return raw AI recommendations from the upstream AI service without DB mapping. */
-  async getRawRecommendations(userId: string, count: number = 5, difficulty?: string) {
+  async getRawRecommendations(
+    userId: string,
+    count: number = 5,
+    difficulty?: string,
+  ) {
     try {
       const recommendations = await this.mlClient.getRecommendations({
         user_id: userId,
@@ -140,7 +170,12 @@ export class MLService {
     }
   }
 
-  async findMatchupOpponents(userId: string, userFeatures: any, availableUsers: string[], count: number = 3) {
+  async findMatchupOpponents(
+    userId: string,
+    userFeatures: any,
+    availableUsers: string[],
+    count: number = 3,
+  ) {
     try {
       const matchup = await this.mlClient.getMatchupSuggestions({
         user_id: userId,

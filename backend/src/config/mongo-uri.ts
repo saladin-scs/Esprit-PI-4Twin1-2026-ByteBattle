@@ -1,4 +1,7 @@
-export function normalizeMongoUri(uri: string | undefined | null, databaseName = 'bytebattle'): string {
+export function normalizeMongoUri(
+  uri: string | undefined | null,
+  databaseName = 'bytebattle',
+): string {
   if (!uri) {
     return '';
   }

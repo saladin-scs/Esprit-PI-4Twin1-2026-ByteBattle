@@ -4,7 +4,10 @@ import { ChatGateway } from './chat.gateway';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
 import { ChatMessage, ChatMessageSchema } from './schemas/chat-message.schema';
-import { ChatMessageReport, ChatMessageReportSchema } from './schemas/chat-message-report.schema';
+import {
+  ChatMessageReport,
+  ChatMessageReportSchema,
+} from './schemas/chat-message-report.schema';
 
 @Module({
   imports: [
@@ -18,4 +21,3 @@ import { ChatMessageReport, ChatMessageReportSchema } from './schemas/chat-messa
   exports: [ChatGateway, ChatService],
 })
 export class ChatModule {}
-

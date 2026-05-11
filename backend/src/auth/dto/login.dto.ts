@@ -18,4 +18,3 @@ export class LoginDto {
   @IsOptional()
   rememberMe?: boolean;
 }
-

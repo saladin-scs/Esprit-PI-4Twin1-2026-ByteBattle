@@ -8,7 +8,9 @@ import { SensitiveRateLimitService } from '../common/sensitive-rate-limit.servic
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Reclamation.name, schema: ReclamationSchema }]),
+    MongooseModule.forFeature([
+      { name: Reclamation.name, schema: ReclamationSchema },
+    ]),
     UsersModule,
   ],
   controllers: [ReclamationsController],

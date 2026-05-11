@@ -39,7 +39,9 @@ export const usePerformancePrediction = () => {
  * Hook for challenge recommendations
  */
 export const useRecommendations = () => {
-  const [recommendations, setRecommendations] = useState([]);
+  const [recommendations, setRecommendations] = useState<
+    Array<{ challengeId: string; challengeName: string; score: number; difficulty?: string; reason?: string }>
+  >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

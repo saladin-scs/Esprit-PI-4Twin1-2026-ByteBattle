@@ -1,6 +1,14 @@
 /* DTOs for AI/ML endpoints */
 
-import { IsArray, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsArray,
+  IsIn,
+  IsInt,
+  IsObject,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class PredictPerformanceDto {
   @IsString()

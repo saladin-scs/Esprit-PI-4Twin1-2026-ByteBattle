@@ -1,8 +1,18 @@
-import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { ChatMessage, ChatMessageDocument } from './schemas/chat-message.schema';
-import { ChatMessageReport, ChatMessageReportDocument } from './schemas/chat-message-report.schema';
+import {
+  ChatMessage,
+  ChatMessageDocument,
+} from './schemas/chat-message.schema';
+import {
+  ChatMessageReport,
+  ChatMessageReportDocument,
+} from './schemas/chat-message-report.schema';
 import { isValidChatRoom, parseObjectIdSuffix } from './chat-room.util';
 
 export interface ChatMessageView {
@@ -56,7 +66,11 @@ export class ChatService {
     return this.toView(doc);
   }
 
-  async getHistory(room: string, limit = 50, before?: string): Promise<ChatMessageView[]> {
+  async getHistory(
+    room: string,
+    limit = 50,
+    before?: string,
+  ): Promise<ChatMessageView[]> {
     this.assertRoom(room);
     const cap = Math.min(Math.max(1, limit), ChatService.MAX_HISTORY);
     const filter: Record<string, unknown> = { room };
@@ -133,7 +147,13 @@ export class ChatService {
     if (status) filter.status = status;
     const [total, rows] = await Promise.all([
       this.reportModel.countDocuments(filter),
-      this.reportModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(cap).lean().exec(),
+      this.reportModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(cap)
+        .lean()
+        .exec(),
     ]);
     return {
       total,

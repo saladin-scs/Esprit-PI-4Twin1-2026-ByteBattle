@@ -32,18 +32,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   private readonly logger = new Logger(ChatGateway.name);
-  private readonly messageWindowMs = Number(process.env.CHAT_RATE_WINDOW_MS || 10_000);
-  private readonly maxMessagesPerWindow = Number(process.env.CHAT_RATE_MAX_PER_WINDOW || 25);
-  private readonly maxMessageChars = Number(process.env.CHAT_MESSAGE_MAX_CHARS || 2000);
+  private readonly messageWindowMs = Number(
+    process.env.CHAT_RATE_WINDOW_MS || 10_000,
+  );
+  private readonly maxMessagesPerWindow = Number(
+    process.env.CHAT_RATE_MAX_PER_WINDOW || 25,
+  );
+  private readonly maxMessageChars = Number(
+    process.env.CHAT_MESSAGE_MAX_CHARS || 2000,
+  );
   private readonly typingWindowMs = 4_000;
-  private readonly messageCounters = new Map<string, { windowStart: number; count: number }>();
+  private readonly messageCounters = new Map<
+    string,
+    { windowStart: number; count: number }
+  >();
   private readonly typingLastEmit = new Map<string, number>();
 
   constructor(private readonly chatService: ChatService) {}
 
   private getBearerToken(client: Socket): string | null {
     const authToken = (client.handshake as any)?.auth?.token;
-    if (typeof authToken === 'string' && authToken.trim()) return authToken.trim();
+    if (typeof authToken === 'string' && authToken.trim())
+      return authToken.trim();
 
     const header = client.handshake.headers?.authorization;
     if (typeof header === 'string' && header.startsWith('Bearer ')) {
@@ -55,7 +65,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private attachUserOrDisconnect(client: Socket): void {
     const token = this.getBearerToken(client);
     if (!token) {
-      client.emit('error', { code: 'AUTH_REQUIRED', message: 'Token manquant' });
+      client.emit('error', {
+        code: 'AUTH_REQUIRED',
+        message: 'Token manquant',
+      });
       client.disconnect(true);
       return;
     }
@@ -75,7 +88,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         username: payload.username || 'user',
       };
     } catch {
-      client.emit('error', { code: 'AUTH_INVALID', message: 'Invalid or expired token' });
+      client.emit('error', {
+        code: 'AUTH_INVALID',
+        message: 'Invalid or expired token',
+      });
       client.disconnect(true);
     }
   }
@@ -103,7 +119,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleConnection(client: Socket) {
     this.attachUserOrDisconnect(client);
     if (!client.connected) return;
-    this.logger.debug(`chat connect socket=${client.id} user=${client.data.user?.userId}`);
+    this.logger.debug(
+      `chat connect socket=${client.id} user=${client.data.user?.userId}`,
+    );
   }
 
   handleDisconnect(client: Socket) {
@@ -187,7 +205,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
     } catch (e: any) {
       this.logger.warn(`saveMessage failed: ${e?.message ?? e}`);
-      client.emit('error', { code: 'PERSIST', message: 'Unable to save message' });
+      client.emit('error', {
+        code: 'PERSIST',
+        message: 'Unable to save message',
+      });
       return;
     }
 

@@ -3,12 +3,7 @@ FROM node:20-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
-<<<<<<< HEAD
-
-RUN npm install --no-fund --no-audit
-=======
 RUN npm ci
->>>>>>> origin/saladin
 
 COPY . .
 

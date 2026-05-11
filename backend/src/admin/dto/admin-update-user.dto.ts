@@ -13,4 +13,3 @@ export class AdminUpdateUserDto {
   @IsBoolean()
   isActive?: boolean;
 }
-

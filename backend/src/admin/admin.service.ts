@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument } from '../users/schemas/user.schema';
@@ -50,7 +54,9 @@ export class AdminService {
     const [items, total] = await Promise.all([
       this.userModel
         .find(filter)
-        .select('email username displayName roles isAdmin isActive emailVerifiedAt createdAt')
+        .select(
+          'email username displayName roles isAdmin isActive emailVerifiedAt createdAt',
+        )
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -86,7 +92,9 @@ export class AdminService {
 
     const user = await this.userModel
       .findByIdAndUpdate(userId, { $set: set }, { new: true })
-      .select('email username displayName roles isAdmin isActive emailVerifiedAt createdAt')
+      .select(
+        'email username displayName roles isAdmin isActive emailVerifiedAt createdAt',
+      )
       .exec();
     if (!user) throw new NotFoundException('User not found');
     return user;
@@ -111,7 +119,9 @@ export class AdminService {
         { $set: { roles, isAdmin: role === 'admin' } },
         { new: true },
       )
-      .select('email username displayName roles isAdmin isActive emailVerifiedAt createdAt')
+      .select(
+        'email username displayName roles isAdmin isActive emailVerifiedAt createdAt',
+      )
       .exec();
     if (!user) throw new NotFoundException('User not found');
     return user;
@@ -119,17 +129,33 @@ export class AdminService {
 
   /** Gamification stats for admin interface */
   async getGamificationStats() {
-    const [totalUsers, usersWithBadges, xpAgg, badgeCounts] = await Promise.all([
-      this.userModel.countDocuments().exec(),
-      this.userModel.countDocuments({ badgeIds: { $exists: true, $ne: [] } }).exec(),
-      this.userModel.aggregate([{ $group: { _id: null, avgXp: { $avg: '$xp' }, maxXp: { $max: '$xp' } } }]).exec(),
-      this.userModel.aggregate([
-        { $unwind: '$badgeIds' },
-        { $group: { _id: '$badgeIds', count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 20 },
-      ]).exec(),
-    ]);
+    const [totalUsers, usersWithBadges, xpAgg, badgeCounts] = await Promise.all(
+      [
+        this.userModel.countDocuments().exec(),
+        this.userModel
+          .countDocuments({ badgeIds: { $exists: true, $ne: [] } })
+          .exec(),
+        this.userModel
+          .aggregate([
+            {
+              $group: {
+                _id: null,
+                avgXp: { $avg: '$xp' },
+                maxXp: { $max: '$xp' },
+              },
+            },
+          ])
+          .exec(),
+        this.userModel
+          .aggregate([
+            { $unwind: '$badgeIds' },
+            { $group: { _id: '$badgeIds', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 20 },
+          ])
+          .exec(),
+      ],
+    );
     const avgXp = xpAgg[0]?.avgXp ?? 0;
     const maxXp = xpAgg[0]?.maxXp ?? 0;
     return {
@@ -137,7 +163,10 @@ export class AdminService {
       usersWithBadges,
       averageXp: Math.round(avgXp),
       maxXp,
-      topBadges: badgeCounts.map((b: any) => ({ badgeId: b._id, count: b.count })),
+      topBadges: badgeCounts.map((b: any) => ({
+        badgeId: b._id,
+        count: b.count,
+      })),
     };
   }
 
@@ -146,7 +175,9 @@ export class AdminService {
       this.userModel.countDocuments().exec(),
       this.userModel.countDocuments({ isActive: true }).exec(),
       this.userModel.countDocuments({ emailVerifiedAt: { $ne: null } }).exec(),
-      this.userModel.countDocuments({ $or: [{ isAdmin: true }, { roles: 'admin' }] }).exec(),
+      this.userModel
+        .countDocuments({ $or: [{ isAdmin: true }, { roles: 'admin' }] })
+        .exec(),
     ]);
 
     return {
@@ -163,14 +194,17 @@ export class AdminService {
     const [totalUsers, activeUsers, avgXpAgg] = await Promise.all([
       this.userModel.countDocuments().exec(),
       this.userModel.countDocuments({ isActive: true }).exec(),
-      this.userModel.aggregate([{ $group: { _id: null, avgXp: { $avg: '$xp' } } }]).exec(),
+      this.userModel
+        .aggregate([{ $group: { _id: null, avgXp: { $avg: '$xp' } } }])
+        .exec(),
     ]);
 
     const activeRate = totalUsers > 0 ? activeUsers / totalUsers : 0;
     const avgXp = Number(avgXpAgg[0]?.avgXp ?? 0);
 
     return {
-      healthIndex: Math.round((activeRate * 70 + Math.min(avgXp / 50, 30)) * 100) / 100,
+      healthIndex:
+        Math.round((activeRate * 70 + Math.min(avgXp / 50, 30)) * 100) / 100,
       activeRate,
       avgXp,
       recommendations: [
@@ -180,4 +214,3 @@ export class AdminService {
     };
   }
 }
-

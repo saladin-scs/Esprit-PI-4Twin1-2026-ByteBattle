@@ -1,6 +1,14 @@
 /* AI Controller - REST endpoints for ML features */
 
-import { Controller, Post, Get, Body, Param, Query, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Query,
+  Logger,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { MLService } from './ml.service';
 import {
@@ -48,10 +56,16 @@ export class MLController {
   }
 
   @Post('recommendations/raw')
-  @ApiOperation({ summary: 'Get raw AI recommendations (no DB mapping) - passthrough' })
+  @ApiOperation({
+    summary: 'Get raw AI recommendations (no DB mapping) - passthrough',
+  })
   @ApiResponse({ status: 200, description: 'Raw AI recommendations payload' })
   async getRawRecommendations(@Body() dto: GetRecommendationsDto) {
-    return this.mlService.getRawRecommendations(dto.userId, dto.count || 5, dto.difficulty);
+    return this.mlService.getRawRecommendations(
+      dto.userId,
+      dto.count || 5,
+      dto.difficulty,
+    );
   }
 
   @Get('similar-users/:userId')

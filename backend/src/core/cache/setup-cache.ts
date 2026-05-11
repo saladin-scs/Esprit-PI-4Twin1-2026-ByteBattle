@@ -25,7 +25,11 @@ export class SetupCache {
     return entry.value;
   }
 
-  async set(key: string, value: string, ttlSeconds: number = 900): Promise<void> {
+  async set(
+    key: string,
+    value: string,
+    ttlSeconds: number = 900,
+  ): Promise<void> {
     const expiresAt = Date.now() + ttlSeconds * 1000;
     this.cache.set(key, { value, expiresAt });
   }

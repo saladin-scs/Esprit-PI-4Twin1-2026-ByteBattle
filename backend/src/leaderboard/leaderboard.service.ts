@@ -64,7 +64,7 @@ export class LeaderboardService {
     difficulty?: string,
   ): Promise<LeaderboardResponse> {
     const cacheKey = `${this.cacheKey}global:${period}:${type}:${difficulty || 'all'}:${page}:${limit}`;
-    
+
     // Try cache
     try {
       const cached = await this.cacheService.get(cacheKey);
@@ -187,10 +187,12 @@ export class LeaderboardService {
     const total = result.metadata[0]?.total || 0;
 
     // Add proper rank
-    const items: LeaderboardEntry[] = result.items.map((item: any, index: number) => ({
-      ...item,
-      rank: skip + index + 1,
-    }));
+    const items: LeaderboardEntry[] = result.items.map(
+      (item: any, index: number) => ({
+        ...item,
+        rank: skip + index + 1,
+      }),
+    );
 
     const response: LeaderboardResponse = {
       period,
@@ -204,7 +206,11 @@ export class LeaderboardService {
 
     // Keep cache short so profile avatar updates appear quickly.
     try {
-      await this.cacheService.set(cacheKey, JSON.stringify(response), LEADERBOARD_CACHE_TTL_SECONDS);
+      await this.cacheService.set(
+        cacheKey,
+        JSON.stringify(response),
+        LEADERBOARD_CACHE_TTL_SECONDS,
+      );
     } catch (err) {
       // Continue without cache
     }
@@ -224,7 +230,10 @@ export class LeaderboardService {
 
     const pipeline: any[] = [
       {
-        $match: { isActive: true, ...(dateFilter && { createdAt: dateFilter }) },
+        $match: {
+          isActive: true,
+          ...(dateFilter && { createdAt: dateFilter }),
+        },
       },
       {
         $sort: { xp: -1, totalChallengesSolved: -1 },
@@ -232,7 +241,13 @@ export class LeaderboardService {
       {
         $group: {
           _id: null,
-          users: { $push: { _id: '$_id', xp: '$xp', totalChallengesSolved: '$totalChallengesSolved' } },
+          users: {
+            $push: {
+              _id: '$_id',
+              xp: '$xp',
+              totalChallengesSolved: '$totalChallengesSolved',
+            },
+          },
         },
       },
       {
@@ -251,7 +266,10 @@ export class LeaderboardService {
     }
 
     const startIdx = Math.max(0, result.userIndex - contextSize);
-    const endIdx = Math.min(result.users.length, result.userIndex + contextSize + 1);
+    const endIdx = Math.min(
+      result.users.length,
+      result.userIndex + contextSize + 1,
+    );
     const contextUsers = result.users.slice(startIdx, endIdx);
 
     return {
@@ -279,7 +297,7 @@ export class LeaderboardService {
     const pipeline: any[] = [
       {
         $match: { competitionId },
-        ...( language && { $match: { language } }),
+        ...(language && { $match: { language } }),
       },
       {
         $sort: { rank: 1, submittedAt: 1 },
@@ -336,7 +354,10 @@ export class LeaderboardService {
   /**
    * Get user detailed stats
    */
-  async getUserDetailedStats(userId: string, _period: LeaderboardPeriod = 'all-time') {
+  async getUserDetailedStats(
+    userId: string,
+    _period: LeaderboardPeriod = 'all-time',
+  ) {
     const user = await this.userModel.findById(userId);
     if (!user) return null;
 
@@ -393,7 +414,12 @@ export class LeaderboardService {
     const results: Record<LeaderboardPeriod, any> = {} as any;
 
     for (const period of periods) {
-      results[period] = await this.getGlobalLeaderboard(period, 'global', 10, 1);
+      results[period] = await this.getGlobalLeaderboard(
+        period,
+        'global',
+        10,
+        1,
+      );
     }
 
     return results;
@@ -418,4 +444,3 @@ export class LeaderboardService {
     }
   }
 }
-

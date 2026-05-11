@@ -34,4 +34,6 @@ export class PerformancePrediction extends Document {
   verifiedAt?: Date;
 }
 
-export const PerformancePredictionSchema = SchemaFactory.createForClass(PerformancePrediction);
+export const PerformancePredictionSchema = SchemaFactory.createForClass(
+  PerformancePrediction,
+);

@@ -28,8 +28,10 @@ Input: \`ByteBattle\` → Output: \`elttaBetyB\``,
       { input: '12345', expectedOutput: '54321' },
     ],
     starterCode: {
-      javascript: 'const s = readline().trim();\n// TODO: reverse s and output the result\nlet result = "";\nconsole.log(result);',
-      python: 's = input().strip()\n# TODO: reverse s and output the result\nresult = ""\nprint(result)',
+      javascript:
+        'const s = readline().trim();\n// TODO: reverse s and output the result\nlet result = "";\nconsole.log(result);',
+      python:
+        's = input().strip()\n# TODO: reverse s and output the result\nresult = ""\nprint(result)',
       java: `import java.io.*;
 import java.util.*;
 
@@ -45,7 +47,8 @@ public class Solution {
       cpp: '#include <iostream>\n#include <string>\nusing namespace std;\nint main() { string s; getline(cin, s); string result = ""; /* TODO: reverse s into result */ cout << result << endl; return 0; }',
     },
     officialSolution: {
-      javascript: 'const s = readline().trim();\nconst result = s.split(\'\').reverse().join(\'\');\nconsole.log(result);',
+      javascript:
+        "const s = readline().trim();\nconst result = s.split('').reverse().join('');\nconsole.log(result);",
       python: 's = input().strip()\nresult = s[::-1]\nprint(result)',
       java: `import java.io.*;
 
@@ -84,8 +87,10 @@ Input: \`3\\n10 -2 7\` → Output: \`15\``,
       { input: '4\n0 0 0 0', expectedOutput: '0' },
     ],
     starterCode: {
-      javascript: 'const n = parseInt(readline(), 10);\nconst arr = readline().split(/\\s+/).map(Number);\n// TODO: compute sum of arr and output it\nlet sum = 0;\nconsole.log(sum);',
-      python: 'n = int(input())\narr = list(map(int, input().split()))\n# TODO: compute sum of arr and output it\nsum_val = 0\nprint(sum_val)',
+      javascript:
+        'const n = parseInt(readline(), 10);\nconst arr = readline().split(/\\s+/).map(Number);\n// TODO: compute sum of arr and output it\nlet sum = 0;\nconsole.log(sum);',
+      python:
+        'n = int(input())\narr = list(map(int, input().split()))\n# TODO: compute sum of arr and output it\nsum_val = 0\nprint(sum_val)',
       java: `import java.io.*;
 import java.util.*;
 
@@ -102,8 +107,10 @@ public class Solution {
       cpp: '#include <iostream>\nusing namespace std;\nint main() { int n; cin >> n; long long sum = 0; int x; for (int i = 0; i < n && cin >> x; i++) { /* TODO: add x to sum */ } cout << sum << endl; return 0; }',
     },
     officialSolution: {
-      javascript: 'const n = parseInt(readline(), 10);\nconst arr = readline().split(/\\s+/).map(Number);\nlet sum = 0;\nfor (let i = 0; i < arr.length; i++) { sum += arr[i]; }\nconsole.log(sum);',
-      python: 'n = int(input())\narr = list(map(int, input().split()))\nprint(sum(arr))',
+      javascript:
+        'const n = parseInt(readline(), 10);\nconst arr = readline().split(/\\s+/).map(Number);\nlet sum = 0;\nfor (let i = 0; i < arr.length; i++) { sum += arr[i]; }\nconsole.log(sum);',
+      python:
+        'n = int(input())\narr = list(map(int, input().split()))\nprint(sum(arr))',
       java: `import java.io.*;
 import java.util.*;
 
@@ -158,8 +165,10 @@ Output: \`1 2 3 5 8\``,
       { input: '2 3\n4', expectedOutput: '5 8 13 21' },
     ],
     starterCode: {
-      javascript: 'const line1 = readline().split(/\\s+/).map(Number);\nconst n = parseInt(readline(), 10);\nlet a = line1[0], b = line1[1];\n// TODO: output the next n Fibonacci numbers (space-separated)\nconst out = [];\nconsole.log(out.join(" "));',
-      python: 'a, b = map(int, input().split())\nn = int(input())\n# TODO: output the next n Fibonacci numbers (space-separated)\nout = []\nprint(" ".join(map(str, out)))',
+      javascript:
+        'const line1 = readline().split(/\\s+/).map(Number);\nconst n = parseInt(readline(), 10);\nlet a = line1[0], b = line1[1];\n// TODO: output the next n Fibonacci numbers (space-separated)\nconst out = [];\nconsole.log(out.join(" "));',
+      python:
+        'a, b = map(int, input().split())\nn = int(input())\n# TODO: output the next n Fibonacci numbers (space-separated)\nout = []\nprint(" ".join(map(str, out)))',
       java: `import java.io.*;
 import java.util.*;
 
@@ -177,8 +186,10 @@ public class Solution {
       cpp: '#include <iostream>\nusing namespace std;\nint main() { int a, b, n; cin >> a >> b >> n; /* TODO: output the next n Fibonacci numbers, space-separated */ cout << endl; return 0; }',
     },
     officialSolution: {
-      javascript: 'const line1 = readline().split(/\\s+/).map(Number);\nconst n = parseInt(readline(), 10);\nlet a = line1[0], b = line1[1];\nconst out = [];\nfor (let i = 0; i < n; i++) { const next = a + b; out.push(next); a = b; b = next; }\nconsole.log(out.join(" "));',
-      python: 'a, b = map(int, input().split())\nn = int(input())\nout = []\nfor _ in range(n):\n  c = a + b\n  out.append(c)\n  a, b = b, c\nprint(" ".join(map(str, out)))',
+      javascript:
+        'const line1 = readline().split(/\\s+/).map(Number);\nconst n = parseInt(readline(), 10);\nlet a = line1[0], b = line1[1];\nconst out = [];\nfor (let i = 0; i < n; i++) { const next = a + b; out.push(next); a = b; b = next; }\nconsole.log(out.join(" "));',
+      python:
+        'a, b = map(int, input().split())\nn = int(input())\nout = []\nfor _ in range(n):\n  c = a + b\n  out.append(c)\n  a, b = b, c\nprint(" ".join(map(str, out)))',
       java: `import java.io.*;
 import java.util.*;
 
@@ -225,8 +236,10 @@ Output: \`1 4 2 5 3 6\``,
       { input: '7 8\n9', expectedOutput: '7 9 8' },
     ],
     starterCode: {
-      javascript: 'const a = readline().split(/\\s+/).filter(Boolean);\nconst b = readline().split(/\\s+/).filter(Boolean);\n// TODO: zipper-merge a and b (alternate one from each), output space-separated\nconst out = [];\nconsole.log(out.join(" "));',
-      python: 'a = input().split()\nb = input().split()\n# TODO: zipper-merge a and b (alternate one from each), output space-separated\nout = []\nprint(" ".join(out))',
+      javascript:
+        'const a = readline().split(/\\s+/).filter(Boolean);\nconst b = readline().split(/\\s+/).filter(Boolean);\n// TODO: zipper-merge a and b (alternate one from each), output space-separated\nconst out = [];\nconsole.log(out.join(" "));',
+      python:
+        'a = input().split()\nb = input().split()\n# TODO: zipper-merge a and b (alternate one from each), output space-separated\nout = []\nprint(" ".join(out))',
       java: `import java.io.*;
 import java.util.*;
 
@@ -271,8 +284,10 @@ Input: \`MCMXCIV\` → Output: \`1994\``,
       { input: 'IX', expectedOutput: '9' },
     ],
     starterCode: {
-      javascript: 'const s = readline().trim();\n// TODO: convert Roman numeral s to decimal (I=1, V=5, X=10, L=50, C=100, D=500, M=1000)\nlet result = 0;\nconsole.log(result);',
-      python: 's = input().strip()\n# TODO: convert Roman numeral s to decimal (I=1, V=5, X=10, L=50, C=100, D=500, M=1000)\nresult = 0\nprint(result)',
+      javascript:
+        'const s = readline().trim();\n// TODO: convert Roman numeral s to decimal (I=1, V=5, X=10, L=50, C=100, D=500, M=1000)\nlet result = 0;\nconsole.log(result);',
+      python:
+        's = input().strip()\n# TODO: convert Roman numeral s to decimal (I=1, V=5, X=10, L=50, C=100, D=500, M=1000)\nresult = 0\nprint(result)',
       java: `import java.io.*;
 import java.util.*;
 
@@ -315,8 +330,10 @@ Input: \`appleway isway reatgay\` → Output: \`apple is great\``,
       { input: 'igpay atinlay', expectedOutput: 'pig latin' },
     ],
     starterCode: {
-      javascript: 'const line = readline().trim();\nconst words = line.split(/\\s+/);\n// TODO: translate each Pig Latin word to English ("...ay" and "...way" rules)\nconst out = [];\nconsole.log(out.join(" "));',
-      python: 'line = input().strip()\nwords = line.split()\n# TODO: translate each Pig Latin word to English ("...ay" and "...way" rules)\nout = []\nprint(" ".join(out))',
+      javascript:
+        'const line = readline().trim();\nconst words = line.split(/\\s+/);\n// TODO: translate each Pig Latin word to English ("...ay" and "...way" rules)\nconst out = [];\nconsole.log(out.join(" "));',
+      python:
+        'line = input().strip()\nwords = line.split()\n# TODO: translate each Pig Latin word to English ("...ay" and "...way" rules)\nout = []\nprint(" ".join(out))',
       java: `import java.io.*;
 import java.util.*;
 
@@ -360,7 +377,8 @@ Input: \`-2 -8 -1\` → Output: \`-1\``,
     starterCode: {
       javascript:
         'const [a, b, c] = readline().split(/\\s+/).map(Number);\n// TODO: print max of a, b, c\nconsole.log(0);',
-      python: 'a, b, c = map(int, input().split())\n# TODO: print max of a, b, c\nprint(0)',
+      python:
+        'a, b, c = map(int, input().split())\n# TODO: print max of a, b, c\nprint(0)',
       java: `import java.io.*;
 import java.util.*;
 
@@ -409,8 +427,9 @@ Input: \`rhythm\` → Output: \`0\``,
     ],
     starterCode: {
       javascript:
-        "const s = readline();\n// TODO: count vowels a,e,i,o,u (ignore case)\nconsole.log(0);",
-      python: 's = input()\n# TODO: count vowels a,e,i,o,u (ignore case)\nprint(0)',
+        'const s = readline();\n// TODO: count vowels a,e,i,o,u (ignore case)\nconsole.log(0);',
+      python:
+        's = input()\n# TODO: count vowels a,e,i,o,u (ignore case)\nprint(0)',
       java: `import java.io.*;
 
 public class Solution {
@@ -452,7 +471,8 @@ Input: \`hello\\nworld\` → Output: \`NO\``,
     starterCode: {
       javascript:
         'const a = readline().trim();\nconst b = readline().trim();\n// TODO: print YES if anagrams else NO\nconsole.log("NO");',
-      python: 'a = input().strip()\nb = input().strip()\n# TODO: print YES if anagrams else NO\nprint("NO")',
+      python:
+        'a = input().strip()\nb = input().strip()\n# TODO: print YES if anagrams else NO\nprint("NO")',
       java: `import java.io.*;
 
 public class Solution {
@@ -501,7 +521,8 @@ Input: \`abcde\\nabced\` → Output: \`NO\``,
     starterCode: {
       javascript:
         'const A = readline().trim();\nconst B = readline().trim();\n// TODO: YES if B is a rotation of A\nconsole.log("NO");',
-      python: 'A = input().strip()\nB = input().strip()\n# TODO: YES if B is a rotation of A\nprint("NO")',
+      python:
+        'A = input().strip()\nB = input().strip()\n# TODO: YES if B is a rotation of A\nprint("NO")',
       java: `import java.io.*;
 
 public class Solution {
@@ -554,7 +575,8 @@ Input: \`1\` → Output: \`YES\``,
     starterCode: {
       javascript:
         'const n = parseInt(readline().trim(), 10);\n// TODO: YES if n is a power of two\nconsole.log("NO");',
-      python: 'n = int(input().strip())\n# TODO: YES if n is a power of two\nprint("NO")',
+      python:
+        'n = int(input().strip())\n# TODO: YES if n is a power of two\nprint("NO")',
       java: `import java.io.*;
 
 public class Solution {

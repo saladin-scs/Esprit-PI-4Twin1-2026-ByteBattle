@@ -4,4 +4,3 @@ export class BattleIdParamDto {
   @IsMongoId()
   id: string;
 }
-

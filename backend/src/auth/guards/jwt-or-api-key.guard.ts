@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service';
@@ -20,7 +25,9 @@ export class JwtOrApiKeyAuthGuard implements CanActivate {
       (req.headers['x-api-key'.toLowerCase()] as string | undefined);
 
     if (apiKey) {
-      const authUser = await this.apiKeysService.authenticateKey(String(apiKey));
+      const authUser = await this.apiKeysService.authenticateKey(
+        String(apiKey),
+      );
       if (!authUser) throw new UnauthorizedException('Invalid API key');
       req.user = authUser;
       return true;
@@ -41,7 +48,12 @@ export class JwtOrApiKeyAuthGuard implements CanActivate {
         userId: String(user._id),
         email: u.email ?? payload?.email,
         username: u.username ?? payload?.username,
-        roles: Array.isArray(u.roles) && u.roles.length ? u.roles : u.isAdmin ? ['admin'] : ['user'],
+        roles:
+          Array.isArray(u.roles) && u.roles.length
+            ? u.roles
+            : u.isAdmin
+              ? ['admin']
+              : ['user'],
         type: payload?.type,
       };
       return true;

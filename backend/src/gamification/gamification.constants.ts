@@ -34,7 +34,15 @@ export const DAILY_LIMITS = {
 export type BadgeRarity = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY' | 'MYTHIC';
 
 /** Rank tier thresholds (same as UsersService) for gamification updates */
-export const RANK_XP: Record<string, number> = { F: 0, E: 100, D: 300, C: 600, B: 1000, A: 2000, S: 4000 };
+export const RANK_XP: Record<string, number> = {
+  F: 0,
+  E: 100,
+  D: 300,
+  C: 600,
+  B: 1000,
+  A: 2000,
+  S: 4000,
+};
 export const RANK_ORDER = ['F', 'E', 'D', 'C', 'B', 'A', 'S'] as const;
 
 export interface BadgeDefinition {
