@@ -12,20 +12,48 @@ import { Battle, BattleDocument } from './schemas/battle.schema';
 import { ChallengeService } from '../challenges/challenges.service';
 import { CodeExecutionService } from '../code-execution/code-execution.service';
 import { BattleRealtimeService } from './battle-realtime.service';
-import { computeBattleWinner } from './battle-winner.util';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  inferTeamIndexFromPosition,
+  resolveBattleOutcome,
+  type BattleFormat,
+} from './battle-winner.util';
 
 const MAX_SUBMITS_PER_PLAYER = Math.max(1, Number(process.env.BATTLE_MAX_SUBMITS_PER_PLAYER || 3));
+
+export type BattleQueueMode = BattleFormat;
 
 type QueuedCombatant = {
   userId: string;
   username: string;
   socketId: string | null;
+  mode: BattleQueueMode;
 };
+
+const PLAYERS_NEEDED: Record<BattleQueueMode, number> = {
+  '1v1': 2,
+  '2v2': 4,
+  '3v3': 6,
+  '4v4': 8,
+  '5v5': 10,
+};
+
+/** HTTP + WebSocket: normalize client mode string */
+export function normalizeBattleQueueMode(raw: unknown): BattleQueueMode {
+  if (raw === '2v2' || raw === '3v3' || raw === '4v4' || raw === '5v5') return raw;
+  return '1v1';
+}
 
 @Injectable()
 export class BattleService {
   private readonly logger = new Logger(BattleService.name);
-  private readonly queue: QueuedCombatant[] = [];
+  private readonly queues: Record<BattleQueueMode, QueuedCombatant[]> = {
+    '1v1': [],
+    '2v2': [],
+    '3v3': [],
+    '4v4': [],
+    '5v5': [],
+  };
   private readonly queueUserIds = new Set<string>();
   private readonly schedulers = new Map<
     string,
@@ -37,6 +65,7 @@ export class BattleService {
     private readonly challengeService: ChallengeService,
     private readonly codeExecution: CodeExecutionService,
     private readonly realtime: BattleRealtimeService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private defaultDurationSeconds(): number {
@@ -46,97 +75,121 @@ export class BattleService {
 
   dequeueUser(userId: string): void {
     if (!this.queueUserIds.has(userId)) return;
-    this.queueUserIds.delete(userId);
-    const idx = this.queue.findIndex((q) => q.userId === userId);
-    if (idx >= 0) this.queue.splice(idx, 1);
+    for (const mode of Object.keys(this.queues) as BattleQueueMode[]) {
+      const q = this.queues[mode];
+      const idx = q.findIndex((x) => x.userId === userId);
+      if (idx >= 0) {
+        q.splice(idx, 1);
+        this.queueUserIds.delete(userId);
+        return;
+      }
+    }
   }
 
   dequeueBySocket(socketId: string): void {
-    const idx = this.queue.findIndex((q) => q.socketId === socketId);
-    if (idx < 0) return;
-    const [removed] = this.queue.splice(idx, 1);
-    this.queueUserIds.delete(removed.userId);
+    for (const mode of Object.keys(this.queues) as BattleQueueMode[]) {
+      const q = this.queues[mode];
+      const idx = q.findIndex((x) => x.socketId === socketId);
+      if (idx >= 0) {
+        const [removed] = q.splice(idx, 1);
+        this.queueUserIds.delete(removed.userId);
+        return;
+      }
+    }
   }
 
-  private async persistMatchedBattle(a: QueuedCombatant, b: QueuedCombatant): Promise<BattleDocument> {
+  private teamRosterFromBattle(battle: BattleDocument) {
+    const teams: Array<{ teamIndex: number; members: Array<{ userId: string; username: string }> }> = [
+      { teamIndex: 0, members: [] },
+      { teamIndex: 1, members: [] },
+    ];
+    battle.players.forEach((p, i) => {
+      const ti =
+        typeof (p as any).teamIndex === 'number'
+          ? (p as any).teamIndex
+          : inferTeamIndexFromPosition(i, battle.players.length);
+      teams[ti]?.members.push({ userId: String(p.userId), username: p.username });
+    });
+    return teams;
+  }
+
+  private async persistMatchedBattle(lobby: QueuedCombatant[], format: BattleFormat): Promise<BattleDocument> {
     const pick = await this.challengeService.pickRandomPublishedChallengeForBattle();
     if (!pick) throw new ServiceUnavailableException('No published challenges available for battles');
     const durationSeconds = this.defaultDurationSeconds();
+    const half = lobby.length / 2;
+    const players = lobby.map((q, i) => ({
+      userId: new Types.ObjectId(q.userId),
+      username: q.username,
+      teamIndex: i < half ? 0 : 1,
+      isReady: false,
+      submitted: false,
+      submissionTime: null,
+      submitAttempts: 0,
+    }));
     const battle = await this.battleModel.create({
-      mode: '1v1',
+      mode: format,
       challengeId: pick._id,
       status: 'waiting',
       durationSeconds,
       startedAt: null,
       endsAt: null,
-      players: [
-        {
-          userId: new Types.ObjectId(a.userId),
-          username: a.username,
-          isReady: false,
-          submitted: false,
-          submissionTime: null,
-          submitAttempts: 0,
-        },
-        {
-          userId: new Types.ObjectId(b.userId),
-          username: b.username,
-          isReady: false,
-          submitted: false,
-          submissionTime: null,
-          submitAttempts: 0,
-        },
-      ],
+      players,
       submissions: [],
       winnerId: null,
+      winnerTeamIndex: null,
       draw: false,
     });
     return battle;
   }
 
-  /** Used by gateway: enqueue then await create if two players matched. */
+  /** Used by gateway: enqueue then await create if enough players matched. */
   async notifyBattleMatched(battle: BattleDocument): Promise<void> {
-    const oppMap = new Map<string, { userId: string; username: string }>();
-    for (const p of battle.players) {
-      const opp = battle.players.find((o) => !o.userId.equals(p.userId));
-      if (opp) {
-        oppMap.set(String(p.userId), { userId: String(opp.userId), username: opp.username });
-      }
-    }
     const ch = await this.challengeService.findOne(String(battle.challengeId));
-    this.emitBattleFound(battle, oppMap, ch.title);
+    this.emitBattleFound(battle, ch.title);
   }
 
   async enqueueAndMaybeMatch(player: QueuedCombatant): Promise<{ battle: BattleDocument | null }> {
+    const mode = player.mode;
+    const q = this.queues[mode];
+    const needed = PLAYERS_NEEDED[mode];
+
     if (this.queueUserIds.has(player.userId)) {
-      const idx = this.queue.findIndex((q) => q.userId === player.userId);
+      const idx = q.findIndex((x) => x.userId === player.userId);
       if (idx >= 0) {
-        this.queue[idx].socketId = player.socketId ?? this.queue[idx].socketId;
-        this.queue[idx].username = player.username;
+        q[idx].socketId = player.socketId ?? q[idx].socketId;
+        q[idx].username = player.username;
       }
       return { battle: null };
     }
-    this.queue.push({ ...player });
+    q.push({ ...player });
     this.queueUserIds.add(player.userId);
-    if (this.queue.length < 2) return { battle: null };
+    if (q.length < needed) return { battle: null };
 
-    const x = this.queue.shift()!;
-    const y = this.queue.shift()!;
-    this.queueUserIds.delete(x.userId);
-    this.queueUserIds.delete(y.userId);
-    const battle = await this.persistMatchedBattle(x, y);
+    const batch = q.splice(0, needed);
+    for (const b of batch) this.queueUserIds.delete(b.userId);
+    const battle = await this.persistMatchedBattle(batch, mode);
     return { battle };
   }
 
-  emitBattleFound(
-    battle: BattleDocument,
-    opponentByUserId: Map<string, { username: string; userId: string }>,
-    challengeTitle: string,
-  ): void {
+  emitBattleFound(battle: BattleDocument, challengeTitle: string): void {
     const id = String(battle._id);
+    const teams = this.teamRosterFromBattle(battle);
     for (const p of battle.players) {
       const uid = String(p.userId);
-      const opp = opponentByUserId.get(uid);
+      const myTi =
+        typeof (p as any).teamIndex === 'number'
+          ? (p as any).teamIndex
+          : inferTeamIndexFromPosition(
+              battle.players.findIndex((x) => String(x.userId) === uid),
+              battle.players.length,
+            );
+      const enemyTeam = teams.find((t) => t.teamIndex !== myTi);
+      const allyTeam = teams.find((t) => t.teamIndex === myTi);
+      const opponent =
+        battle.mode === '1v1' && enemyTeam?.members?.length === 1
+          ? { userId: enemyTeam.members[0].userId, username: enemyTeam.members[0].username }
+          : null;
       this.realtime.emitToUser(uid, 'battle_found', {
         battleId: id,
         challengeId: String(battle.challengeId),
@@ -144,8 +197,47 @@ export class BattleService {
         mode: battle.mode,
         durationSeconds: battle.durationSeconds,
         serverTime: new Date().toISOString(),
-        opponent: opp ? { userId: opp.userId, username: opp.username } : null,
+        teams,
+        yourTeamIndex: myTi,
+        opponent,
       });
+
+      void this.notificationsService
+        .create({
+          userId: uid,
+          type: 'battle_found',
+          title: 'Battle matched',
+          body: `Your ${battle.mode} battle is ready on "${challengeTitle}".`,
+          meta: { href: `/battle/room/${id}`, battleId: id, challengeId: String(battle.challengeId) },
+        })
+        .catch(() => undefined);
+    }
+  }
+
+  private notifyBattleResult(battle: BattleDocument): void {
+    const winnerId = battle.winnerId ? String(battle.winnerId) : null;
+    const draw = Boolean((battle as any).draw);
+    const battleId = String(battle._id);
+
+    for (const p of battle.players) {
+      const userId = String(p.userId);
+      const isWinner = winnerId === userId;
+      const title = draw ? 'Battle finished (draw)' : isWinner ? 'Battle won' : 'Battle lost';
+      const body = draw
+        ? `Your ${battle.mode} battle ended in a draw.`
+        : isWinner
+          ? `Great job. You won your ${battle.mode} battle.`
+          : `Your ${battle.mode} battle ended. Keep pushing for the next one.`;
+
+      void this.notificationsService
+        .create({
+          userId,
+          type: draw ? 'battle_draw' : isWinner ? 'battle_won' : 'battle_lost',
+          title,
+          body,
+          meta: { href: `/battle/result/${battleId}`, battleId, result: draw ? 'draw' : isWinner ? 'win' : 'loss' },
+        })
+        .catch(() => undefined);
     }
   }
 
@@ -196,6 +288,8 @@ export class BattleService {
     const challenge = await this.challengeService.findOne(String(battle.challengeId));
     return {
       battleId: id,
+      mode: battle.mode,
+      teams: this.teamRosterFromBattle(battle),
       startedAt: battle.startedAt?.toISOString(),
       endsAt: battle.endsAt?.toISOString(),
       durationSeconds: battle.durationSeconds,
@@ -408,11 +502,15 @@ export class BattleService {
       lastByUser.set(String(s.userId), s);
     }
 
-    const outcomes = fresh.players.map((p) => {
+    const n = fresh.players.length;
+    const outcomes = fresh.players.map((p, i) => {
       const sub = lastByUser.get(String(p.userId));
       const overall = (sub?.result as { overall?: { passed: number; total: number } })?.overall;
+      const teamIndex =
+        typeof (p as any).teamIndex === 'number' ? (p as any).teamIndex : inferTeamIndexFromPosition(i, n);
       return {
         userId: p.userId,
+        teamIndex,
         submitted: p.submitted,
         passed: p.passed,
         submissionTime: p.submissionTime,
@@ -422,7 +520,8 @@ export class BattleService {
       };
     });
 
-    const { winnerId, draw, scoredPlayers } = computeBattleWinner(outcomes);
+    const format = (fresh.mode || '1v1') as BattleFormat;
+    const { winnerUserId, winnerTeamIndex, draw, scoredPlayers } = resolveBattleOutcome(outcomes, format);
     const scoreByUser = new Map(scoredPlayers.map((s) => [s.userId, s]));
 
     const updated = await this.battleModel
@@ -432,7 +531,8 @@ export class BattleService {
           $set: {
             status: 'finished',
             finishReason: reason,
-            winnerId: winnerId ? new Types.ObjectId(winnerId) : null,
+            winnerId: winnerUserId ? new Types.ObjectId(winnerUserId) : null,
+            winnerTeamIndex: winnerTeamIndex !== null && winnerTeamIndex !== undefined ? winnerTeamIndex : null,
             draw,
           },
         },
@@ -462,6 +562,8 @@ export class BattleService {
     }
     await updated.save();
 
+    this.notifyBattleResult(updated);
+
     this.realtime.emitToBattleRoom(battleId, 'battle_result', this.toResultPayload(updated));
   }
 
@@ -469,11 +571,22 @@ export class BattleService {
     const uid = new Types.ObjectId(userId);
     const battle = await this.battleModel.findById(battleId).exec();
     if (!battle || battle.status === 'finished') return;
-    const isPlayer = battle.players.some((p) => p.userId.equals(uid));
-    if (!isPlayer) throw new ForbiddenException('Not a player in this battle');
+    const me = battle.players.find((p) => p.userId.equals(uid));
+    if (!me) throw new ForbiddenException('Not a player in this battle');
 
-    const opponent = battle.players.find((p) => !p.userId.equals(uid));
-    if (!opponent) return;
+    const myIdx = battle.players.findIndex((p) => p.userId.equals(uid));
+    const myTeam =
+      typeof (me as any).teamIndex === 'number'
+        ? (me as any).teamIndex
+        : inferTeamIndexFromPosition(myIdx, battle.players.length);
+    const winners = battle.players.filter((p, i) => {
+      const ti =
+        typeof (p as any).teamIndex === 'number'
+          ? (p as any).teamIndex
+          : inferTeamIndexFromPosition(i, battle.players.length);
+      return ti !== myTeam;
+    });
+    if (!winners.length) return;
 
     this.clearBattleSchedulers(battleId);
 
@@ -484,7 +597,8 @@ export class BattleService {
           $set: {
             status: 'finished',
             finishReason: 'forfeit',
-            winnerId: opponent.userId,
+            winnerId: winners[0].userId,
+            winnerTeamIndex: myTeam === 0 ? 1 : 0,
             draw: false,
           },
         },
@@ -493,6 +607,7 @@ export class BattleService {
       .exec();
 
     if (res) {
+      this.notifyBattleResult(res);
       this.realtime.emitToBattleRoom(battleId, 'battle_result', this.toResultPayload(res));
     }
   }
@@ -510,19 +625,28 @@ export class BattleService {
 
   toResultPayload(battle: BattleDocument) {
     const usernameByUserId = new Map(battle.players.map((p) => [String(p.userId), p.username]));
+    const n = battle.players.length;
     return {
       battleId: String(battle._id),
+      mode: battle.mode,
       status: battle.status,
       winnerId: battle.winnerId ? String(battle.winnerId) : null,
+      winnerTeamIndex:
+        typeof (battle as any).winnerTeamIndex === 'number' ? (battle as any).winnerTeamIndex : null,
       draw: battle.draw,
       finishReason: battle.finishReason,
       challengeId: String(battle.challengeId),
       startedAt: battle.startedAt?.toISOString() ?? null,
       endsAt: battle.endsAt?.toISOString() ?? null,
       finishedAt: (battle as any).updatedAt ? new Date((battle as any).updatedAt).toISOString() : null,
-      players: battle.players.map((p) => ({
+      teams: this.teamRosterFromBattle(battle),
+      players: battle.players.map((p, i) => ({
         userId: String(p.userId),
         username: p.username,
+        teamIndex:
+          typeof (p as any).teamIndex === 'number'
+            ? (p as any).teamIndex
+            : inferTeamIndexFromPosition(i, n),
         submitted: p.submitted,
         passed: p.passed,
         submissionTime: p.submissionTime?.toISOString() ?? null,

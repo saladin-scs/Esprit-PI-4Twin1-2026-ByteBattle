@@ -5,8 +5,9 @@ import { RootState } from '../../store/store';
 const navLinks = [
   { to: '/explore', label: 'Explore', authOnly: false },
   { to: '/challenges', label: 'Challenges', authOnly: true },
-  { to: '/battle/matchmaking', label: '1v1 Battle', authOnly: true },
+  { to: '/battle/matchmaking', label: 'PVP', authOnly: true },
   { to: '/competitions', label: 'Competitions', authOnly: true },
+  { to: '/history', label: 'History', authOnly: true },
   { to: '/leaderboard', label: 'Leaderboard', authOnly: true },
   { to: '/reclamation', label: 'Reports', authOnly: true },
 ] as const;

@@ -28,16 +28,45 @@ export const challengesApi = {
   getRecommended: (params?: { limit?: number }) =>
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>('/challenges/recommended', { params }),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
+  getOneAdmin: (id: string) => apiClient.get(`/challenges/admin/${id}`),
+  getChallengeAnalytics: (id: string) =>
+    apiClient.get(`/challenges/admin/${id}/analytics`),
+  getChallengeStats: (id: string) =>
+    apiClient.get(`/challenges/${id}/stats`),
   getMyCompletion: (id: string) => apiClient.get<{ completedLanguages: string[] }>(`/challenges/${id}/my-completion`),
+  getChallengeProgress: (id: string) =>
+    apiClient.get<{
+      solved: boolean;
+      startedAt: string | null;
+      revealedHintIndices: number[];
+    }>(`/challenges/${id}/progress`),
+  revealChallengeHint: (id: string, hintIndex: number) =>
+    apiClient.post<{ startedAt: string; revealedHintIndices: number[] }>(`/challenges/${id}/progress/reveal-hint`, {
+      hintIndex,
+    }),
   run: (id: string, data: { code: string; language: string }) =>
     apiClient.post(`/challenges/${id}/run`, data),
   submit: (id: string, data: { code: string; language: string }) =>
     apiClient.post(`/challenges/${id}/submit`, data),
+  getMySubmissions: (challengeId?: string) =>
+    apiClient.get('/challenges/me/submissions', { params: { challengeId } }),
+  getMyHistory: (id: string) =>
+    apiClient.get(`/challenges/${id}/my-history`),
+  getOfficialSolution: (id: string, params?: { language?: string }) =>
+    apiClient.get(`/challenges/${id}/official-solution`, { params }),
   getSolutions: (challengeId: string, params?: { page?: number; limit?: number; sortBy?: string }) =>
     apiClient.get(`/challenges/${challengeId}/solutions`, { params }),
   upvoteSolution: (solutionId: string) =>
     apiClient.post(`/challenges/solutions/${solutionId}/upvote`, {}),
   create: (challenge: any) => apiClient.post('/challenges', challenge),
+  generateWithAi: (payload: {
+    prompt: string;
+    difficulty?: 'easy' | 'medium' | 'hard' | 'expert';
+    languages?: Array<'javascript' | 'python' | 'java' | 'cpp'>;
+    tags?: string[];
+    create?: boolean;
+    isPublished?: boolean;
+  }) => apiClient.post<{ draft: any; created?: any }>('/challenges/ai-generate', payload),
   update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
   delete: (id: string) => apiClient.delete(`/challenges/${id}`),
 };
@@ -60,7 +89,8 @@ export const battleApi = {
         endsAt: string | null;
       };
     }>('/battle/pending'),
-  joinQueueHttp: () => apiClient.post<{ queued: boolean; battleId?: string; challengeId?: string }>('/battle/queue', {}),
+  joinQueueHttp: (body?: { mode?: '1v1' | '2v2' | '3v3' | '4v4' | '5v5' }) =>
+    apiClient.post<{ queued: boolean; battleId?: string; challengeId?: string }>('/battle/queue', body ?? {}),
   getSummary: (id: string) => apiClient.get(`/battle/${id}/summary`),
 };
 
@@ -125,6 +155,8 @@ export const feedbackApi = {
     code: string;
     language?: string;
     tests_passed?: boolean;
+    tests_passed_count?: number;
+    tests_total?: number;
     execution_error?: string;
     runtime_ms?: number;
     memory_kb?: number;
@@ -141,9 +173,16 @@ export const competitionsApi = {
   getLeaderboard: (id: string, params?: { language?: string; limit?: number }) =>
     apiClient.get(`/competitions/${id}/leaderboard`, { params }),
   create: (competition: any) => apiClient.post('/competitions', competition),
+  run: (id: string, data: { code: string; language: string; challengeId?: string }) =>
+    apiClient.post(`/competitions/${id}/run`, data),
   join: (id: string) => apiClient.post(`/competitions/${id}/join`),
   submit: (id: string, data: { code: string; language: string; challengeId?: string }) =>
     apiClient.post(`/competitions/${id}/submit`, data),
+  backfillChallenges: () =>
+    apiClient.post<{
+      updated: Array<{ id: string; name: string; challengeIds: string[] }>;
+      skipped: Array<{ id: string; name: string }>;
+    }>('/competitions/admin/backfill-challenges'),
   updateStatus: (id: string, status: 'scheduled' | 'active' | 'closed' | 'archived') =>
     apiClient.put(`/competitions/${id}/status`, { status }),
 };
@@ -158,7 +197,11 @@ export const leaderboardApi = {
 /** Gamification (XP, streaks, badges, leaderboard) */
 export const gamificationApi = {
   getCatalog: () => apiClient.get('/gamification/catalog'),
-  getMe: () => apiClient.get('/gamification/me'),
+  getMe: () =>
+    apiClient.get('/gamification/me', {
+      params: { _ts: Date.now() },
+      headers: { 'Cache-Control': 'no-store, no-cache', Pragma: 'no-cache' },
+    }),
   dailyLogin: () => apiClient.post('/gamification/daily-login'),
   streakFreeze: () => apiClient.post('/gamification/streak-freeze'),
   getLeaderboard: (params?: { page?: number; limit?: number; country?: string }) =>
@@ -213,7 +256,10 @@ export const notificationsApi = {
       unreadCount: number;
       page: number;
       totalPages: number;
-    }>('/notifications', { params }),
+    }>('/notifications', {
+      params: { ...params, _ts: Date.now() },
+      headers: { 'Cache-Control': 'no-store, no-cache', Pragma: 'no-cache' },
+    }),
   markRead: (id: string) => apiClient.patch<{ ok: true }>(`/notifications/${id}/read`, {}),
   markAllRead: () => apiClient.patch<{ ok: true }>('/notifications/read-all', {}),
 };

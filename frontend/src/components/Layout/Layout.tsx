@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Header } from '../Header';
 import Footer from './Footer';
 import { AppDispatch, RootState } from '../../store/store';
-import { fetchMe } from '../../store/slices/authSlice';
+import { fetchMe, logout } from '../../store/slices/authSlice';
 
 interface LayoutProps {
   children: ReactNode;
@@ -15,7 +15,9 @@ function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     if (token && !user) {
-      dispatch(fetchMe());
+      dispatch(fetchMe()).unwrap().catch(() => {
+        dispatch(logout());
+      });
     }
   }, [token, user, dispatch]);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
@@ -8,7 +8,21 @@ import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { initVimMode } from 'monaco-vim';
-import { Play, Send, Keyboard, AlignLeft, Lightbulb, ArrowLeft, Target, MessageCircle, Sparkles } from 'lucide-react';
+import {
+  Play,
+  Send,
+  Keyboard,
+  AlignLeft,
+  Lightbulb,
+  ArrowLeft,
+  Target,
+  MessageCircle,
+  Sparkles,
+  Timer,
+  Code2,
+  Clock,
+  BarChart3,
+} from 'lucide-react';
 import { useTheme, type Theme } from '../../contexts/ThemeContext';
 import { challengesApi } from '../../services/api';
 import { DifficultyBadge, LanguagePicker } from '../../components/Challenges';
@@ -16,9 +30,11 @@ import { SubmissionSuccessModal } from '../../components/Gamification/Submission
 import { useChallengeDetailStore } from '../../stores/challengeDetailStore';
 import { useGamificationStore, type RankProgress } from '../../stores/gamificationStore';
 import CommunitySolutions from './CommunitySolutions';
+import { SiteRatingWidget } from '../Home/SiteRatingWidget';
 import { RootState } from '../../store/store';
 import { CollaborationChat } from '../../shared/components/CollaborationChat';
 import { AiCodeFeedbackPanel } from '../../shared/components/AiCodeFeedbackPanel';
+import { Modal } from '../../shared/components';
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -32,6 +48,15 @@ const HINT_TIER_LABEL: Record<string, string> = {
   detailed: 'Detailed hint',
   premium: 'Advanced hint',
 };
+
+function formatAttemptClock(elapsedMs: number): string {
+  const s = Math.max(0, Math.floor(elapsedMs / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${String(sec).padStart(2, '0')}s`;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
 
 interface Challenge {
   _id: string;
@@ -68,6 +93,11 @@ interface SubmissionResult {
   xpEarned: number;
   executionTimeMs: number;
   badgesUnlocked?: string[];
+  xpModifiers?: {
+    timeMultiplier: number;
+    hintFlatPenalty: number;
+    elapsedMs: number;
+  };
   testResults: Array<{
     testNumber: number;
     passed: boolean;
@@ -79,6 +109,23 @@ interface SubmissionResult {
     actualOutput?: string;
     error?: string;
   }>;
+}
+
+interface SubmissionHistoryItem {
+  _id: string;
+  status: string;
+  passedTests: number;
+  totalTests: number;
+  executionTimeMs: number;
+  language: string;
+  createdAt: string;
+}
+
+interface ChallengeAnalyticsView {
+  totalSolved: number;
+  totalParticipated: number;
+  avgAttempts: number;
+  solveRate: number;
 }
 
 const ChallengeDetail = () => {
@@ -112,11 +159,16 @@ const ChallengeDetail = () => {
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'description' | 'hints' | 'result' | 'solutions' | 'chat' | 'coach'
+    'description' | 'hints' | 'result' | 'solutions' | 'official-solution' | 'attempts' | 'analytics' | 'chat' | 'coach'
   >('description');
+  const [challengeAnalytics, setChallengeAnalytics] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const isAuthed = useSelector((s: RootState) => s.auth.isAuthenticated);
   const [isVimMode, setIsVimMode] = useState(false);
   const [revealedHints, setRevealedHints] = useState<number[]>([]);
+  const [attemptStartedAt, setAttemptStartedAt] = useState<string | null>(null);
+  const [progressSolved, setProgressSolved] = useState(false);
+  const [attemptTick, setAttemptTick] = useState(0);
   const [selectedTestCase, setSelectedTestCase] = useState(0);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successModalPayload, setSuccessModalPayload] = useState<{
@@ -127,6 +179,12 @@ const ChallengeDetail = () => {
     rankTier: string;
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [submissionHistory, setSubmissionHistory] = useState<SubmissionHistoryItem[]>([]);
+  const [showHistoryAfterAttempts, setShowHistoryAfterAttempts] = useState(false);
+  const [officialSolutionCode, setOfficialSolutionCode] = useState<string | null>(null);
+  const [officialSolutionLoading, setOfficialSolutionLoading] = useState(false);
+  const [analyticsView, setAnalyticsView] = useState<ChallengeAnalyticsView | null>(null);
 
   const fetchGamificationSummary = useGamificationStore((s) => s.fetchSummary);
 
@@ -224,6 +282,40 @@ const ChallengeDetail = () => {
       .finally(() => setLoadingCompletion(false));
   }, [id, setCompletedLanguages, setLoadingCompletion]);
 
+  useEffect(() => {
+    if (!id || !isAuthed) {
+      setAttemptStartedAt(null);
+      setProgressSolved(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await challengesApi.getChallengeProgress(id);
+        if (cancelled) return;
+        if (data.solved) {
+          setProgressSolved(true);
+          setAttemptStartedAt(null);
+        } else {
+          setProgressSolved(false);
+          setAttemptStartedAt(data.startedAt);
+          setRevealedHints(data.revealedHintIndices ?? []);
+        }
+      } catch {
+        if (!cancelled) setAttemptStartedAt(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isAuthed]);
+
+  useEffect(() => {
+    if (!attemptStartedAt || progressSolved) return;
+    const t = window.setInterval(() => setAttemptTick((x) => x + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [attemptStartedAt, progressSolved]);
+
   // Sync URL lang → store (and code) when challenge is loaded so code always matches selected language
   useEffect(() => {
     if (!challenge || !langFromUrl || !challenge.languages?.includes(langFromUrl)) return;
@@ -243,6 +335,121 @@ const ChallengeDetail = () => {
     setSelectedLang(lang);
     setCode(challenge?.starterCode?.[lang] || '');
   };
+
+  const attemptElapsedMs = useMemo(() => {
+    if (!attemptStartedAt || progressSolved) return 0;
+    void attemptTick;
+    return Date.now() - new Date(attemptStartedAt).getTime();
+  }, [attemptStartedAt, progressSolved, attemptTick]);
+
+  const attemptsUsed = Math.min(submissionHistory.length, 5);
+  const runsLeft = Math.max(0, 5 - attemptsUsed);
+  const unlockAdvancedTabs = progressSolved || showHistoryAfterAttempts;
+
+  const handleRevealHint = async (hintIndex: number) => {
+    if (!id) return;
+    if (!isAuthed) {
+      setRevealedHints((prev) => [...new Set([...prev, hintIndex])].sort((a, b) => a - b));
+      return;
+    }
+    try {
+      const { data } = await challengesApi.revealChallengeHint(id, hintIndex);
+      setAttemptStartedAt(data.startedAt);
+      setRevealedHints(data.revealedHintIndices);
+    } catch {
+      setRevealedHints((prev) => [...new Set([...prev, hintIndex])].sort((a, b) => a - b));
+    }
+  };
+
+  const loadOfficialSolution = async (lang: string) => {
+    if (!id || !lang) return;
+    setOfficialSolutionLoading(true);
+    try {
+      const res = await challengesApi.getOfficialSolution(id, { language: lang });
+      const data = res.data as any;
+      const code = typeof data?.code === 'string' ? data.code : null;
+      setOfficialSolutionCode(code);
+    } catch {
+      setOfficialSolutionCode(null);
+    } finally {
+      setOfficialSolutionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!id || !isAuthed) {
+      setSubmissionHistory([]);
+      setShowHistoryAfterAttempts(false);
+      return;
+    }
+    let cancelled = false;
+    challengesApi
+      .getMyHistory(id)
+      .then((res) => {
+        if (cancelled) return;
+        const history = (Array.isArray(res.data) ? res.data : []) as SubmissionHistoryItem[];
+        setSubmissionHistory(history);
+        setShowHistoryAfterAttempts(history.length >= 5);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSubmissionHistory([]);
+          setShowHistoryAfterAttempts(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isAuthed, result?.status]);
+
+  useEffect(() => {
+    if (!selectedLang) return;
+    const shouldLoad = progressSolved || showHistoryAfterAttempts;
+    if (!shouldLoad) {
+      setOfficialSolutionCode(null);
+      return;
+    }
+    void loadOfficialSolution(selectedLang);
+  }, [selectedLang, progressSolved, showHistoryAfterAttempts]);
+
+  const loadAnalytics = async () => {
+    if (!id) return;
+    setAnalyticsLoading(true);
+    try {
+      const res = await challengesApi.getChallengeAnalytics(id);
+      const data = (res.data as any) || {};
+      const stats = data.statistics || data;
+      const totalSolved = Number(stats.totalSolved ?? 0);
+      const totalParticipated = Number(stats.totalParticipated ?? 0);
+      const avgAttempts = Number(stats.avgAttempts ?? 0);
+      const solveRate = totalParticipated > 0 ? totalSolved / totalParticipated : 0;
+      setChallengeAnalytics(data);
+      setAnalyticsView({ totalSolved, totalParticipated, avgAttempts, solveRate });
+    } catch {
+      try {
+        // Fallback for non-admin users: public stats endpoint.
+        const statsRes = await challengesApi.getChallengeStats(id);
+        const stats = (statsRes.data as any) || {};
+        const totalSolved = Number(stats.totalAccepted ?? 0);
+        const totalParticipated = Number(stats.totalSubmissions ?? 0);
+        const avgAttempts = 0;
+        const solveRate = Number(stats.acceptanceRate ?? 0) / 100;
+        setChallengeAnalytics(stats);
+        setAnalyticsView({ totalSolved, totalParticipated, avgAttempts, solveRate });
+      } catch {
+        setChallengeAnalytics(null);
+        setAnalyticsView(null);
+      }
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'analytics' && !challengeAnalytics && !analyticsLoading && id) {
+      void loadAnalytics();
+    }
+  }, [activeTab, id]);
 
   const handleRun = async () => {
     if (!id) return;
@@ -278,7 +485,10 @@ const ChallengeDetail = () => {
       const data = res.data as SubmissionResult;
       setResult(data);
       setActiveTab('result');
+      setShowRatingModal(true);
       if (data.status === 'accepted') {
+        setProgressSolved(true);
+        setAttemptStartedAt(null);
         try {
           const [comp, summary] = await Promise.all([
             challengesApi.getMyCompletion(id),
@@ -298,6 +508,15 @@ const ChallengeDetail = () => {
         } catch {
           // Modal/summary fetch failed; result is still shown
         }
+      }
+
+      try {
+        const historyRes = await challengesApi.getMyHistory(id);
+        const history = (Array.isArray(historyRes.data) ? historyRes.data : []) as SubmissionHistoryItem[];
+        setSubmissionHistory(history);
+        setShowHistoryAfterAttempts(history.length >= 5);
+      } catch {
+        // Ignore history refresh failures after submit
       }
     } catch (err: any) {
       const raw = err?.response?.data?.message;
@@ -432,11 +651,59 @@ aria-selected={activeTab === 'solutions'}
                   Solutions
                 </button>
               )}
+              {unlockAdvancedTabs && (
+                <button
+                  role="tab"
+                  aria-selected={activeTab === 'official-solution'}
+                  type="button"
+                  onClick={() => setActiveTab('official-solution')}
+                  className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'official-solution'
+                      ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+                      : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                  }`}
+                >
+                  <Code2 className="h-4 w-4" aria-hidden />
+                  Solution
+                </button>
+              )}
+              {unlockAdvancedTabs && (
+                <button
+                  role="tab"
+                  aria-selected={activeTab === 'attempts'}
+                  type="button"
+                  onClick={() => setActiveTab('attempts')}
+                  className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'attempts'
+                      ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+                      : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                  }`}
+                >
+                  <Clock className="h-4 w-4" aria-hidden />
+                  Attempts
+                </button>
+              )}
+{unlockAdvancedTabs && (
+                            <button
+                role="tab"
+                aria-selected={activeTab === 'analytics'}
+                type="button"
+                onClick={() => setActiveTab('analytics')}
+                className={`inline-flex items-center gap-1.5 border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
+                  activeTab === 'analytics'
+                    ? 'border-primary-500 text-primary-600 dark:border-[#1f6feb] dark:text-[#58a6ff]'
+                    : 'border-transparent text-slate-700 hover:text-slate-950 dark:text-[#8b949e] dark:hover:text-[#c9d1d9]'
+                }`}
+              >
+                <BarChart3 className="h-4 w-4" aria-hidden />
+                Analytics
+              </button>
+              )}
+
               {(displayResult || submitError) && (
                 <button
-                role="tab"
-aria-selected={activeTab === 'result'}
-                
+                  role="tab"
+                  aria-selected={activeTab === 'result'}
                   type="button"
                   onClick={() => setActiveTab('result')}
                   className={`border-b-2 px-5 py-3 text-sm font-medium transition-colors ${
@@ -601,7 +868,8 @@ aria-selected={activeTab === 'coach'}
                       <div>
                         <h2 className="text-lg font-bold text-amber-950 dark:text-amber-50">Indices</h2>
                         <p className="mt-1 text-sm text-amber-900/85 dark:text-amber-100/75">
-                          Reveal hints one by one. They guide you without giving away the full solution.
+                          Reveal hints one by one. Each hint costs XP (see cost). A longer attempt also reduces XP on
+                          your first solve — tracked from when you open the challenge.
                         </p>
                       </div>
                     </div>
@@ -654,7 +922,7 @@ aria-selected={activeTab === 'coach'}
                             </div>
                             <button
                               type="button"
-                              onClick={() => setRevealedHints([...revealedHints, i])}
+                              onClick={() => void handleRevealHint(i)}
                               className="shrink-0 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-amber-950 shadow-sm hover:bg-amber-400 dark:bg-amber-600 dark:text-white dark:hover:bg-amber-500"
                             >
                               Show hint
@@ -699,6 +967,13 @@ aria-selected={activeTab === 'coach'}
                               </span>
                             ))}
                           </div>
+                        )}
+                        {displayResult.status === 'accepted' && displayResult.xpModifiers && (
+                          <p className="mt-2 text-xs text-slate-600 dark:text-[#8b949e]">
+                            XP (first solve): time factor ×{displayResult.xpModifiers.timeMultiplier.toFixed(2)} · hint
+                            penalty −{displayResult.xpModifiers.hintFlatPenalty} XP · time on challenge{' '}
+                            {formatAttemptClock(displayResult.xpModifiers.elapsedMs)}
+                          </p>
                         )}
                       </div>
                       {displayResult.testResults.map((t) => (
@@ -773,6 +1048,8 @@ aria-selected={activeTab === 'coach'}
                   language={selectedLang}
                   taskDescription={`${challenge.title}\n\n${(challenge.description || '').slice(0, 12_000)}`}
                   testsPassed={displayResult?.status === 'accepted'}
+                  testsPassedCount={displayResult?.passedTests}
+                  testsTotal={displayResult?.totalTests}
                   executionError={
                     submitError ??
                     (() => {
@@ -783,6 +1060,142 @@ aria-selected={activeTab === 'coach'}
                   }
                   runtimeMs={displayResult?.executionTimeMs ?? runResult?.executionTimeMs}
                 />
+              )}
+
+              {activeTab === 'official-solution' && (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                      <Code2 className="h-4 w-4" />
+                      Official solution ({selectedLang})
+                    </div>
+                    {officialSolutionLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-500 border-t-transparent" />
+                        Loading official solution...
+                      </div>
+                    ) : officialSolutionCode ? (
+                      <pre className="whitespace-pre-wrap rounded-lg border border-emerald-500/20 bg-white p-3 font-mono text-xs text-slate-900 dark:border-emerald-500/20 dark:bg-[#0d1117] dark:text-[#c9d1d9]">
+                        {officialSolutionCode}
+                      </pre>
+                    ) : (
+                      <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                        Official solution not available yet for this language.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'attempts' && unlockAdvancedTabs && (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-primary-500/25 bg-primary-500/10 p-4 dark:border-[#1f6feb]/40 dark:bg-[#1f6feb]/10">
+                    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary-900 dark:text-primary-100">
+                      <Clock className="h-4 w-4" />
+                      Submission attempts ({submissionHistory.length})
+                    </div>
+                    {submissionHistory.length > 0 ? (
+                      <>
+                        <div className="mb-3 grid grid-cols-3 gap-2 text-xs text-slate-700 dark:text-[#8b949e]">
+                          <div>
+                            <div className="font-semibold text-primary-900 dark:text-primary-200">
+                              {submissionHistory.filter((s) => s.status === 'accepted').length}
+                            </div>
+                            <div>Accepted</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-900 dark:text-[#c9d1d9]">
+                              {submissionHistory.filter((s) => s.status !== 'accepted').length}
+                            </div>
+                            <div>Failed</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-900 dark:text-[#c9d1d9]">
+                              {(submissionHistory.reduce((acc, s) => acc + s.executionTimeMs, 0) / submissionHistory.length).toFixed(0)}ms
+                            </div>
+                            <div>Avg time</div>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {submissionHistory.map((s) => (
+                            <div
+                              key={s._id}
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs dark:border-[#30363d] dark:bg-[#161b22]"
+                            >
+                              <div className="font-medium text-slate-900 dark:text-[#c9d1d9]">
+                                <span className={`inline-block rounded px-2 py-0.5 text-white mr-2 ${s.status === 'accepted' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                                  {s.status === 'accepted' ? '✓ Accepted' : '✗ Failed'}
+                                </span>
+                                {s.passedTests}/{s.totalTests} tests
+                              </div>
+                              <span className="text-slate-600 dark:text-[#8b949e]">
+                                {s.language} · {s.executionTimeMs}ms · {new Date(s.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-slate-700 dark:text-[#8b949e]">No attempts yet for this challenge.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'analytics' && (
+                <div className="space-y-4">
+                  {analyticsLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-8 text-slate-600 dark:text-[#8b949e]">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary-500 border-t-transparent" />
+                      Loading analytics...
+                    </div>
+                  ) : analyticsView ? (
+                    <>
+                      <div className="rounded-xl border border-slate-200 dark:border-[#30363d] p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-[#161b22] dark:to-[#0d1117]">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e]">TOTAL SOLVED</p>
+                            <p className="text-2xl font-bold text-primary-600 dark:text-[#58a6ff]">
+                              {analyticsView.totalSolved}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e]">TOTAL ATTEMPTED</p>
+                            <p className="text-2xl font-bold text-amber-600 dark:text-[#d29922]">
+                              {analyticsView.totalParticipated}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e]">AVG ATTEMPTS</p>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-[#c9d1d9]">
+                              {analyticsView.avgAttempts.toFixed(1)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {analyticsView.solveRate !== undefined && (
+                        <div className="rounded-xl border border-slate-200 dark:border-[#30363d] p-4">
+                          <p className="text-xs font-semibold text-slate-600 dark:text-[#8b949e] mb-2">SOLVE RATE</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 rounded-full bg-slate-200 dark:bg-[#30363d] overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-primary-500 to-primary-600 dark:from-[#58a6ff] dark:to-[#1f6feb]"
+                                style={{ width: `${Math.min(100, analyticsView.solveRate * 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-semibold text-slate-900 dark:text-[#c9d1d9]">
+                              {(analyticsView.solveRate * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="rounded-lg border border-slate-200 dark:border-[#30363d] p-4 text-slate-600 dark:text-[#8b949e]">
+                      <p>No analytics available yet.</p>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -796,6 +1209,15 @@ aria-selected={activeTab === 'coach'}
               <div className="flex h-full flex-col bg-white dark:bg-[#0d1117]">
                 <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-100 px-4 py-2 dark:border-[#30363d] dark:bg-[#161b22]">
                   <div className="flex flex-wrap items-center gap-2">
+                    {attemptStartedAt && !progressSolved && langFromUrl && (
+                      <div
+                        className="mr-2 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-mono text-slate-800 dark:border-[#30363d] dark:bg-[#21262d] dark:text-[#c9d1d9]"
+                        title="Time since you started this attempt (first open while unsolved). XP decreases over time on first solve."
+                      >
+                        <Timer className="h-3.5 w-3.5 shrink-0 text-primary-600 dark:text-primary-400" aria-hidden />
+                        <span aria-live="polite">{formatAttemptClock(attemptElapsedMs)}</span>
+                      </div>
+                    )}
                     {challenge.languages.map((lang) => (
                       <button
                         key={lang}
@@ -837,7 +1259,10 @@ aria-selected={activeTab === 'coach'}
                       <AlignLeft className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                      Run ({runsLeft} left)
+                    </div>
                     <button
                       type="button"
                       onClick={handleRun}
@@ -950,6 +1375,15 @@ aria-selected={activeTab === 'coach'}
         rankTier={successModalPayload.rankTier}
       />
     )}
+    <Modal
+      isOpen={showRatingModal}
+      onClose={() => setShowRatingModal(false)}
+      title="Rate your challenge experience"
+      description="Give a quick star rating after your submission."
+      className="max-w-lg"
+    >
+      <SiteRatingWidget compact className="max-w-none" />
+    </Modal>
     </>
   );
 };

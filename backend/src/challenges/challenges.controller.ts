@@ -2,7 +2,14 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChallengeService } from './challenges.service';
-import { CreateChallengeDto, GetChallengesDto, SubmitChallengeDto, UpdateChallengeDto } from './dto/create-challenge.dto';
+import {
+  CreateChallengeDto,
+  GetChallengesDto,
+  SubmitChallengeDto,
+  UpdateChallengeDto,
+  RevealHintDto,
+  GenerateChallengeAiDto,
+} from './dto/create-challenge.dto';
 import { CreateSolutionDto } from './dto/solution.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtOrApiKeyAuthGuard } from '../auth/guards/jwt-or-api-key.guard';
@@ -45,9 +52,29 @@ export class ChallengeController {
   @Get('me/submissions')
   @UseGuards(JwtOrApiKeyAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'My submissions' })
-  async mySubmissions(@Req() req: any, @Query('challengeId') challengeId?: string) {
-    return this.challengeService.getUserSubmissions(req.user.userId, challengeId);
+  @ApiOperation({ summary: 'My submissions (add ?details=true for full test results)' })
+  async mySubmissions(@Req() req: any, @Query('challengeId') challengeId?: string, @Query('details') details?: string) {
+    return this.challengeService.getUserSubmissions(req.user.userId, challengeId, details === 'true');
+  }
+
+  @Get(':id/my-history')
+  @UseGuards(JwtOrApiKeyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'My detailed submission history for this challenge (code + full test results)' })
+  async myHistory(@Param('id') challengeId: string, @Req() req: any) {
+    return this.challengeService.getMyHistoryDetailed(challengeId, req.user.userId);
+  }
+
+  @Get(':id/official-solution')
+  @UseGuards(JwtOrApiKeyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Official solution (revealed after solve or 5 attempts). Optional ?language=javascript' })
+  async officialSolution(
+    @Param('id') challengeId: string,
+    @Req() req: any,
+    @Query('language') language?: string,
+  ) {
+    return this.challengeService.getOfficialSolutionIfSolved(challengeId, req.user.userId, language);
   }
 
   @Get(':id/stats')
@@ -62,6 +89,41 @@ export class ChallengeController {
   @ApiOperation({ summary: 'Languages in which user solved this challenge' })
   async getMyCompletion(@Param('id') id: string, @Req() req: any) {
     return this.challengeService.getMyCompletion(id, req.user.userId);
+  }
+
+  @Get('admin/:id/analytics')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Challenge analytics: users who solved and participated' })
+  async getChallengeAnalytics(@Param('id') id: string) {
+    return this.challengeService.getChallengeAnalytics(id);
+  }
+
+  @Get('admin/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Challenge details for admin' })
+  async findOneAdmin(@Param('id') id: string) {
+    return this.challengeService.findOneAdmin(id);
+  }
+
+  @Get(':id/progress')
+  @UseGuards(JwtOrApiKeyAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Attempt timer start + revealed hints (persisted until first solve)' })
+  async getChallengeProgress(@Param('id') id: string, @Req() req: any) {
+    return this.challengeService.getChallengeProgress(req.user.userId, id);
+  }
+
+  @Post(':id/progress/reveal-hint')
+  @UseGuards(JwtOrApiKeyAuthGuard, ActionRateLimitGuard)
+  @RateLimitAction('challenge_hint')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reveal a hint (persisted; reduces XP on first solve)' })
+  async revealChallengeHint(@Param('id') id: string, @Body() dto: RevealHintDto, @Req() req: any) {
+    return this.challengeService.revealChallengeHint(req.user.userId, id, dto.hintIndex);
   }
 
   @Get(':id')
@@ -140,6 +202,15 @@ export class ChallengeController {
   @ApiOperation({ summary: 'Create a challenge (admin)' })
   async create(@Body() dto: CreateChallengeDto) {
     return this.challengeService.create(dto);
+  }
+
+  @Post('ai-generate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate challenge draft with AI-assist (admin)' })
+  async generateWithAi(@Body() dto: GenerateChallengeAiDto) {
+    return this.challengeService.generateChallengeWithAi(dto);
   }
 
   @Patch(':id')

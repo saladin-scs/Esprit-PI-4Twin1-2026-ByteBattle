@@ -1,6 +1,4 @@
 /* eslint-disable prettier/prettier */
-
-/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable prettier/prettier */
 import { Injectable, Logger } from '@nestjs/common';
@@ -19,30 +17,23 @@ export class MailService {
     const user = this.configService.get<string>('MAIL_USER');
     const pass = this.configService.get<string>('MAIL_PASS');
 
-    this.mailEnabled = Boolean(host && user && pass);
-
-    if (!this.mailEnabled) {
-      this.logger.warn('SMTP is disabled (missing MAIL_HOST/MAIL_USER/MAIL_PASS). Emails will be skipped.');
-      return;
-    }
-
     this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465, // true for 465, false for 587
+      host: this.configService.get<string>('SMTP_HOST'),
+      port: this.configService.get<number>('SMTP_PORT'),
+      secure: false,
       auth: {
-        user,
-        pass,
+        user: this.configService.get<string>('SMTP_USER'),
+        pass: this.configService.get<string>('SMTP_PASS'),
       },
       tls: {
-        rejectUnauthorized: false, // ⚠️ dev only, ignore SSL errors
+        rejectUnauthorized: false, // ⚠️ Bypass SSL verification (dev only)
       },
     });
 
     // Optional: test the transporter immediately
     this.transporter.verify((err, success) => {
       if (err) {
-        this.logger.warn(`SMTP verification failed: ${err?.message ?? 'unknown error'}`);
+        this.logger.error('SMTP Transporter failed', err);
       } else {
         this.logger.log('SMTP Transporter is ready');
       }
@@ -62,7 +53,7 @@ export class MailService {
     const url = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
 
     const mailOptions = {
-      from: `"ByteBattle" <${this.configService.get<string>('MAIL_USER')}>`,
+      from: `"ByteBattle" <${this.configService.get<string>('SMTP_USER')}>`,
       to: email,
       subject: 'Verify Your Email',
       html: `<p>Click <a href="${url}">here</a> to verify your email.</p>`,
@@ -89,7 +80,7 @@ export class MailService {
     const url = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
     const mailOptions = {
-      from: `"ByteBattle" <${this.configService.get<string>('MAIL_USER')}>`,
+      from: `"ByteBattle" <${this.configService.get<string>('SMTP_USER')}>`,
       to: email,
       subject: 'Password Reset Request',
       html: `<p>Click <a href="${url}">here</a> to reset your password.</p>`,

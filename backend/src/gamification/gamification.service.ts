@@ -124,6 +124,10 @@ export class GamificationService {
       isFirstTry: boolean;
       isFirstSolver: boolean;
       challengeId: string;
+      /** 0–1, applied to the full XP bundle (base + bonuses) before flat penalty */
+      xpTimeMultiplier?: number;
+      /** Subtracted after scaling (e.g. sum of hint costs) */
+      xpFlatPenalty?: number;
     },
   ): Promise<{ xpEarned: number; badgesUnlocked: string[] }> {
     const user = await this.userModel.findById(userId).select(
@@ -139,10 +143,14 @@ export class GamificationService {
           : opts.difficulty === 'hard' ? XP_BY_ACTION.solveHard
             : XP_BY_ACTION.solveExpert;
 
-    let xpEarned = baseXp;
+    let xpEarned: number = baseXp;
     if (opts.isFirstTry) xpEarned += XP_BY_ACTION.perfectSolveBonus;
     const firstSolveOfDay = u.lastFirstSolveOfDayDate !== today;
     if (firstSolveOfDay) xpEarned += XP_BY_ACTION.firstSolveOfDay;
+
+    const timeMult = Math.min(1, Math.max(0, opts.xpTimeMultiplier ?? 1));
+    const flatPenalty = Math.max(0, Math.floor(opts.xpFlatPenalty ?? 0));
+    xpEarned = Math.max(0, Math.floor(xpEarned * timeMult) - flatPenalty);
 
     const problemsByDifficulty = { ...(u.problemsByDifficulty || { easy: 0, medium: 0, hard: 0, expert: 0 }) };
     const lang = (opts.language || 'javascript').toLowerCase().replace('c++', 'cpp');

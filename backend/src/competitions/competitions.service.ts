@@ -28,6 +28,11 @@ function devCompetitionSeedAllowed(): boolean {
   );
 }
 
+function shouldEnforceCompetitionTimeWindow(): boolean {
+  if (process.env.ENFORCE_COMPETITION_TIME_WINDOW === 'true') return true;
+  return process.env.NODE_ENV === 'production';
+}
+
 @Injectable()
 export class CompetitionsService {
   constructor(
@@ -44,6 +49,104 @@ export class CompetitionsService {
 
   private mapLanguage(lang: string): string {
     return lang === 'cpp' ? 'c++' : lang;
+  }
+
+  private chooseChallengesForCompetition(
+    competition: {
+      type: CompetitionType;
+      difficulty?: string;
+      supportedLanguages?: string[];
+    },
+    allChallenges: Array<{
+      _id: Types.ObjectId;
+      difficulty?: string;
+      languages?: string[];
+    }>,
+  ): string[] {
+    const required = competition.type === 'algorithmic' ? Math.min(3, allChallenges.length) : 1;
+    if (required <= 0) return [];
+
+    const normalizedCompDiff = (competition.difficulty ?? '').toLowerCase();
+    const compLangs = new Set((competition.supportedLanguages ?? []).map((l) => l.toLowerCase()));
+
+    const ranked = [...allChallenges].sort((a, b) => {
+      const aDiff = (a.difficulty ?? '').toLowerCase() === normalizedCompDiff ? 2 : 0;
+      const bDiff = (b.difficulty ?? '').toLowerCase() === normalizedCompDiff ? 2 : 0;
+
+      const aOverlap = (a.languages ?? []).reduce(
+        (acc, l) => acc + (compLangs.has(String(l).toLowerCase()) ? 1 : 0),
+        0,
+      );
+      const bOverlap = (b.languages ?? []).reduce(
+        (acc, l) => acc + (compLangs.has(String(l).toLowerCase()) ? 1 : 0),
+        0,
+      );
+
+      const aScore = aDiff + aOverlap;
+      const bScore = bDiff + bOverlap;
+      if (aScore !== bScore) return bScore - aScore;
+      return a._id.toString().localeCompare(b._id.toString());
+    });
+
+    return ranked.slice(0, required).map((c) => c._id.toString());
+  }
+
+  async backfillChallengesForCompetitions(): Promise<{
+    updated: Array<{ id: string; name: string; challengeIds: string[] }>;
+    skipped: Array<{ id: string; name: string }>;
+  }> {
+    const result = await this.challengeService.findAll({ page: 1, limit: 300 } as any);
+    const allChallenges = (result as any).challenges as Array<{
+      _id: Types.ObjectId;
+      difficulty?: string;
+      languages?: string[];
+    }>;
+
+    if (!allChallenges?.length) {
+      throw new BadRequestException('No challenges found. Seed challenges first.');
+    }
+
+    const competitions = await this.competitionModel
+      .find({})
+      .select('_id name type difficulty supportedLanguages challengeIds')
+      .lean()
+      .exec();
+
+    const updated: Array<{ id: string; name: string; challengeIds: string[] }> = [];
+    const skipped: Array<{ id: string; name: string }> = [];
+
+    for (const c of competitions as any[]) {
+      const required = c.type === 'algorithmic' ? Math.min(3, allChallenges.length) : 1;
+      const existingIds = (c.challengeIds ?? []).map((x: any) => x?.toString?.() ?? String(x));
+      if (existingIds.length >= required) {
+        skipped.push({ id: c._id.toString(), name: c.name });
+        continue;
+      }
+
+      const selected = this.chooseChallengesForCompetition(
+        {
+          type: c.type,
+          difficulty: c.difficulty,
+          supportedLanguages: c.supportedLanguages,
+        },
+        allChallenges,
+      );
+
+      await this.competitionModel
+        .updateOne(
+          { _id: c._id },
+          { $set: { challengeIds: selected.map((id) => new Types.ObjectId(id)) } },
+        )
+        .exec();
+
+      updated.push({
+        id: c._id.toString(),
+        name: c.name,
+        challengeIds: selected,
+      });
+    }
+
+    return { updated, skipped };
   }
 
   async create(dto: CreateCompetitionDto): Promise<CompetitionDocument> {
@@ -206,10 +309,54 @@ export class CompetitionsService {
   }
 
   async findOne(id: string) {
-    const competition = await this.competitionModel.findById(id).lean().exec();
+    const competition = await this.competitionModel
+      .findById(id)
+      .populate({
+        path: 'challengeIds',
+        select: 'title description difficulty languages examples starterCode +testCases +officialSolution',
+      })
+      .lean()
+      .exec();
     if (!competition) throw new NotFoundException('Competition not found');
+
+    const populatedChallenges = Array.isArray((competition as any).challengeIds)
+      ? ((competition as any).challengeIds as any[])
+          .filter((c) => c && typeof c === 'object')
+          .map((c) => {
+            const officialSource = (c as any).officialSolution ?? {};
+            const hydrated = {
+              ...c,
+              starterCode: {
+                ...(officialSource || {}),
+                ...(c.starterCode || {}),
+                ...this.challengeService.buildAcceptedStarterCodeFromTests(c.testCases),
+              },
+            };
+            delete (hydrated as any).testCases;
+            return {
+              ...hydrated,
+              _id: c._id?.toString?.() ?? String(c._id),
+            };
+          })
+      : [];
+
+    const normalizedChallengeIds = Array.isArray((competition as any).challengeIds)
+      ? ((competition as any).challengeIds as any[])
+          .map((c) =>
+            typeof c === 'string'
+              ? c
+              : c?._id?.toString?.() ?? String(c?._id ?? ''),
+          )
+          .filter((v) => !!v)
+      : [];
+
     const totalSubmissions = await this.submissionModel.countDocuments({ competitionId: new Types.ObjectId(id) }).exec();
-    return { ...competition, totalSubmissions };
+    return {
+      ...competition,
+      challengeIds: normalizedChallengeIds,
+      challenges: populatedChallenges,
+      totalSubmissions,
+    };
   }
 
   async join(competitionId: string, userId: string) {
@@ -233,6 +380,83 @@ export class CompetitionsService {
         .catch(() => undefined);
     }
     return { success: true };
+  }
+
+  async run(competitionId: string, userId: string, dto: SubmitCompetitionDto) {
+    const competition = await this.competitionModel.findById(competitionId).exec();
+    if (!competition) throw new NotFoundException('Competition not found');
+    if (competition.status !== 'active') {
+      throw new ForbiddenException('Tests are only available while the competition is active');
+    }
+
+    const now = new Date();
+    if (now < new Date(competition.startTime) || now > new Date(competition.endTime)) {
+      throw new ForbiddenException('Competition is outside the active time window');
+    }
+
+    const challengeId =
+      dto.challengeId ||
+      (competition.challengeIds && competition.challengeIds[0]?.toString()) ||
+      null;
+    if (!challengeId) throw new BadRequestException('No challenge configured for this competition');
+    if (!competition.supportedLanguages?.includes(dto.language)) {
+      throw new BadRequestException(`Language ${dto.language} is not supported`);
+    }
+
+    const challenge = await this.challengeService.getChallengeWithTestCases(challengeId);
+    const rawTestCases = (challenge as any).testCases as Array<{
+      input?: string;
+      expectedOutput?: string;
+      isHidden?: boolean;
+    }> | undefined;
+    if (!rawTestCases?.length) {
+      throw new BadRequestException('Challenge has no test cases');
+    }
+
+    const testCases = rawTestCases.map((tc: any) => ({
+      input: String(tc?.input ?? '').trim(),
+      expectedOutput: String(tc?.expectedOutput ?? '').trim(),
+    }));
+    const language = this.mapLanguage(dto.language);
+    const out = await this.codeExecution.executeCode({
+      code: dto.code,
+      language,
+      testCases,
+    });
+    const totalTimeMs = out.results.reduce((sum: number, r: any) => sum + (r.executionTime || 0), 0);
+    const clientResults = out.results.map((result: any, index: number) => {
+      const hidden = rawTestCases?.[index]?.isHidden !== false;
+      if (result.passed) {
+        return {
+          testNumber: result.testCase ?? index + 1,
+          passed: true as const,
+        };
+      }
+      if (hidden) {
+        return {
+          testNumber: result.testCase ?? index + 1,
+          passed: false as const,
+          isHiddenCase: true as const,
+          message: result.error
+            ? 'Error on a hidden test case.'
+            : 'Wrong answer on a hidden test case.',
+        };
+      }
+      return {
+        testNumber: result.testCase ?? index + 1,
+        passed: false as const,
+        input: testCases[index]?.input,
+        expectedOutput: testCases[index]?.expectedOutput,
+        actualOutput: result.output ?? '',
+        error: result.error,
+      };
+    });
+
+    return {
+      results: clientResults,
+      overall: out.overall,
+      executionTimeMs: totalTimeMs,
+    };
   }
 
   /** Compute numeric score for ranking: code_golf/speed lower is better; algorithmic higher is better. */
@@ -281,13 +505,18 @@ export class CompetitionsService {
       throw new ForbiddenException('Submissions are only accepted while the competition is active');
     }
     const now = new Date();
-    if (now < new Date(competition.startTime) || now > new Date(competition.endTime)) {
+    const outsideWindow = now < new Date(competition.startTime) || now > new Date(competition.endTime);
+    if (outsideWindow && shouldEnforceCompetitionTimeWindow()) {
       throw new ForbiddenException('Competition is outside the active time window');
     }
-    const challengeId =
-      dto.challengeId ||
-      (competition.challengeIds && competition.challengeIds[0]?.toString()) ||
-      null;
+    const allowedChallengeIds = (competition.challengeIds ?? []).map((c) => c.toString());
+    const requestedChallengeId = dto.challengeId?.toString();
+
+    if (requestedChallengeId && !allowedChallengeIds.includes(requestedChallengeId)) {
+      throw new BadRequestException('Submitted challenge does not belong to this competition');
+    }
+
+    const challengeId = requestedChallengeId || allowedChallengeIds[0] || null;
     if (!challengeId) throw new BadRequestException('No challenge configured for this competition');
     if (!competition.supportedLanguages?.includes(dto.language)) {
       throw new BadRequestException(`Language ${dto.language} is not supported`);

@@ -2,12 +2,22 @@ import { useCallback, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { getSocketIoServerUrl } from '../config/publicEnv';
 
+export type BattleQueueMode = '1v1' | '2v2' | '3v3' | '4v4' | '5v5';
+
+export type BattleTeamRoster = {
+  teamIndex: number;
+  members: Array<{ userId: string; username: string }>;
+};
+
 export type BattleFoundPayload = {
   battleId: string;
   challengeId: string;
   challengeTitle: string;
   durationSeconds: number;
   serverTime: string;
+  mode?: BattleQueueMode;
+  teams?: BattleTeamRoster[];
+  yourTeamIndex?: number;
   opponent: { userId: string; username: string } | null;
 };
 
@@ -24,6 +34,8 @@ export type BattleStartChallenge = {
 
 export type BattleStartPayload = {
   battleId: string;
+  mode?: BattleQueueMode;
+  teams?: BattleTeamRoster[];
   startedAt?: string;
   endsAt?: string;
   durationSeconds: number;
@@ -32,7 +44,10 @@ export type BattleStartPayload = {
 
 export type BattleResultPayload = {
   battleId: string;
+  mode?: BattleQueueMode;
   winnerId: string | null;
+  winnerTeamIndex?: number | null;
+  teams?: BattleTeamRoster[];
   draw: boolean;
   finishReason?: string;
   startedAt?: string | null;
@@ -41,6 +56,7 @@ export type BattleResultPayload = {
   players: Array<{
     userId: string;
     username: string;
+    teamIndex?: number;
     submitted: boolean;
     passed?: boolean;
     submissionTime: string | null;
@@ -135,10 +151,10 @@ export function useBattleSocket(enabled: boolean) {
     };
   }, [enabled]);
 
-  const joinQueue = useCallback(() => {
+  const joinQueue = useCallback((mode: BattleQueueMode = '1v1') => {
     if (!socket?.connected) return Promise.resolve({ ok: false as const, error: 'Not connected' });
     return new Promise<{ ok: boolean; queued?: boolean; battleId?: string; error?: string }>((resolve) => {
-      socket.emit('join_queue', { mode: '1v1' }, (ack: { ok: boolean; queued?: boolean; battleId?: string; error?: string }) => {
+      socket.emit('join_queue', { mode }, (ack: { ok: boolean; queued?: boolean; battleId?: string; error?: string }) => {
         resolve(ack);
       });
     });

@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsNumber, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, MaxLength, IsInt, Min } from 'class-validator';
 
 const MAX_CODE_CHARS = 80_000;
 
@@ -29,6 +29,24 @@ export class AnalyzeCodeDto {
   @IsBoolean()
   @IsOptional()
   tests_passed?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Number of tests passed',
+    example: 3,
+  })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  tests_passed_count?: number;
+
+  @ApiPropertyOptional({
+    description: 'Total number of tests',
+    example: 5,
+  })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  tests_total?: number;
 
   @ApiPropertyOptional({
     description: 'Execution error message if any',

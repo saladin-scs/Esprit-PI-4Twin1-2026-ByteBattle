@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:6
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: test
+      MONGO_INITDB_ROOT_PASSWORD: test
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - test_network
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "8025:8025"
+      - "1026:1025"
+    networks:
+      - test_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      - mongodb
+      - mailhog
+    environment:
+      NODE_ENV: test
+      PORT: 3000
+      MONGODB_URI: mongodb://test:test@mongodb:27017/bytebattle_test?authSource=admin
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USER: dummy
+      SMTP_PASS: dummy
+      FRONTEND_URL: http://localhost:5173
+      JWT_SECRET: test-secret
+      JWT_EXPIRATION: 15m
+      JWT_REFRESH_EXPIRATION: 7d
+    ports:
+      - "3000:3000"
+    networks:
+      - test_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://backend:3000
+    ports:
+      - "5173:5173"
+    networks:
+      - test_network
+
+  test-runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: sleep infinity
+    depends_on:
+      - backend
+      - mongodb
+      - mailhog
+    environment:
+      NODE_ENV: test
+      BACKEND_URL: http://backend:3000
+      MAILHOG_API_URL: http://mailhog:8025
+      MONGODB_URI: mongodb://test:test@mongodb:27017/bytebattle_test?authSource=admin
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - test_network
+
+volumes:
+  mongodb_data:
+
+networks:
+  test_network:
+    driver: bridge

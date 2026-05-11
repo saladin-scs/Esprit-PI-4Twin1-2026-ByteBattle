@@ -22,6 +22,8 @@ export interface AiCodeFeedbackPanelProps {
   language: string;
   taskDescription?: string;
   testsPassed?: boolean;
+  testsPassedCount?: number;
+  testsTotal?: number;
   executionError?: string;
   runtimeMs?: number;
   className?: string;
@@ -73,6 +75,8 @@ export function AiCodeFeedbackPanel({
   language,
   taskDescription,
   testsPassed,
+  testsPassedCount,
+  testsTotal,
   executionError,
   runtimeMs,
   className,
@@ -90,10 +94,12 @@ export function AiCodeFeedbackPanel({
         language,
         taskDescription,
         testsPassed,
+        testsPassedCount,
+        testsTotal,
         executionError,
         runtimeMs,
       }),
-    [code, language, taskDescription, testsPassed, executionError, runtimeMs],
+    [code, language, taskDescription, testsPassed, testsPassedCount, testsTotal, executionError, runtimeMs],
   );
 
   const stale =
@@ -118,6 +124,8 @@ export function AiCodeFeedbackPanel({
         language,
         task_description: taskDescription,
         tests_passed: testsPassed,
+        tests_passed_count: testsPassedCount,
+        tests_total: testsTotal,
         execution_error: executionError,
         runtime_ms: runtimeMs,
       });
@@ -126,7 +134,11 @@ export function AiCodeFeedbackPanel({
       lastAnalyzedSig.current = contextSig;
     } catch (e: unknown) {
       const ax = e as { response?: { status?: number; data?: { message?: string } } };
-      if (ax.response?.status === 429) {
+      if (ax.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh_token');
+        setErr('Session expired. Please sign in again to use AI coach.');
+      } else if (ax.response?.status === 429) {
         setErr('Too many requests. Please try again shortly.');
       } else {
         setErr(ax.response?.data?.message ?? 'Analysis unavailable.');
@@ -211,7 +223,13 @@ export function AiCodeFeedbackPanel({
             icon={FlaskConical}
             label="Tests"
             value={
-              testsPassed === true ? 'OK' : testsPassed === false ? 'Failed / partial' : 'Not run'
+              testsPassedCount != null && testsTotal != null
+                ? `${testsPassedCount}/${testsTotal}`
+                : testsPassed === true
+                  ? 'OK'
+                  : testsPassed === false
+                    ? 'Failed / partial'
+                    : 'Not run'
             }
             variant={testVariant}
           />

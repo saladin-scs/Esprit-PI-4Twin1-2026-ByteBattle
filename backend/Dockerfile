@@ -1,13 +1,17 @@
-FROM node:20-bookworm-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
+# Copy package files and install dependencies
 COPY package*.json ./
-RUN npm install --no-audit --no-fund
+RUN npm install
 
+# Copy source code and build
 COPY . .
-RUN npm run build && test -f dist/main.js
+RUN npm run build
 
+# Expose the port
 EXPOSE 3000
 
-CMD ["node", "dist/main.js"]
+# Start the compiled app
+CMD ["node", "dist/main"]

@@ -5,6 +5,7 @@ import { Star } from 'lucide-react';
 import { SITE_RATING_MAX_STARS, siteRatingsApi } from '../../services/api';
 import { Button, Alert } from '../../shared/components';
 import type { RootState } from '../../store/store';
+import { cn } from '../../lib/utils';
 
 const LABELS: Record<number, string> = {
   1: 'very satisfied',
@@ -14,7 +15,13 @@ const LABELS: Record<number, string> = {
   5: 'very satisfied',
 };
 
-export function SiteRatingWidget() {
+export function SiteRatingWidget({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
   const [stats, setStats] = useState<{ average: number; count: number } | null>(null);
   const [savedStars, setSavedStars] = useState<number | null>(null);
@@ -97,7 +104,11 @@ export function SiteRatingWidget() {
 
   return (
     <div
-      className="mx-auto mt-10 max-w-md rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-6 py-5 dark:bg-amber-400/[0.08]"
+      className={cn(
+        'mx-auto max-w-md rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-6 py-5 dark:bg-amber-400/[0.08]',
+        compact ? 'mt-0' : 'mt-10',
+        className,
+      )}
       aria-label="Note sur l’application"
     >
       <p className="bb-section-title text-center text-sm font-semibold tracking-wide text-amber-950/90 dark:text-amber-100">

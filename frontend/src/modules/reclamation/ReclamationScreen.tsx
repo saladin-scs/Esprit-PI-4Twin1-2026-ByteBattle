@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { reclamationsApi, type ReclamationMineItem, type ReclamationStatus } from '../../services/api';
 import { Button, Card, PageContainer, Alert, Modal } from '../../shared/components';
-import { RECLAMATION_CATEGORY_LABELS } from './constants';
+// Removed RECLAMATION_CATEGORY_LABELS
+import { TAG_OPTIONS } from './constants'; // keep only TAG_OPTIONS if needed
 import { ReclamationForm } from './components/ReclamationForm';
 import { ReclamationStatusBadge } from './components/ReclamationStatusBadge';
 
@@ -21,6 +22,12 @@ function formatDateEn(iso: string) {
 
 function canUserCancel(status: ReclamationStatus) {
   return status === 'open' || status === 'read';
+}
+
+function getTagLabel(tag?: string): string {
+  if (!tag) return '—';
+  const found = TAG_OPTIONS.find(t => t.value === tag);
+  return found?.label ?? tag;
 }
 
 export function ReclamationScreen() {
@@ -162,7 +169,7 @@ export function ReclamationScreen() {
                       <ReclamationStatusBadge status={item.status} />
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-                      <span>{RECLAMATION_CATEGORY_LABELS[item.category]}</span>
+                      <span>{getTagLabel((item as any).tag)}</span>
                       <span aria-hidden>·</span>
                       <time dateTime={item.createdAt}>{formatDateEn(item.createdAt)}</time>
                     </div>
@@ -205,7 +212,7 @@ export function ReclamationScreen() {
                 <div className="flex flex-wrap items-center gap-2">
                   <ReclamationStatusBadge status={selected.status} />
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {RECLAMATION_CATEGORY_LABELS[selected.category]}
+                    {getTagLabel((selected as any).tag)}
                   </span>
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{selected.subject}</h2>

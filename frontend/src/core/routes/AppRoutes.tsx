@@ -8,6 +8,7 @@ import Layout from '../../components/Layout/Layout';
 import { AdminRoute } from '../../components/guards/AdminRoute';
 import { ProtectedRoute } from '../../shared/components';
 import { LazyRoutes, SuspensePageFallback } from './lazyRoutes';
+import MLRoutes from '../../modules/ml/MLRoutes';
 
 const {
   Home,
@@ -22,6 +23,8 @@ const {
   Reclamation,
   Competitions,
   CompetitionDetail,
+  History,
+  Notifications,
   ProfileSettings,
   SecuritySettings,
   DeveloperSettings,
@@ -63,7 +66,10 @@ export function AppRoutes() {
           <Route path="/reclamation" element={<ProtectedRoute><Reclamation /></ProtectedRoute>} />
           <Route path="/competitions" element={<ProtectedRoute><Competitions /></ProtectedRoute>} />
           <Route path="/competitions/:id" element={<ProtectedRoute><CompetitionDetail /></ProtectedRoute>} />
+          <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/battle/matchmaking" element={<ProtectedRoute><BattleMatchmaking /></ProtectedRoute>} />
+          <Route path="/ml/*" element={<ProtectedRoute><MLRoutes /></ProtectedRoute>} />
           <Route path="/battle/room/:battleId" element={<ProtectedRoute><BattleRoom /></ProtectedRoute>} />
           <Route path="/battle/result/:battleId" element={<ProtectedRoute><BattleResult /></ProtectedRoute>} />
           <Route path="/settings/profile" element={<ProfileSettings />} />

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Editor from '@monaco-editor/react';
@@ -8,10 +8,31 @@ import {
   type BattleStartPayload,
   type BattleResultPayload,
   type BattleTimerTickPayload,
+  type BattleTeamRoster,
 } from '../../hooks/useBattleSocket';
 import { RootState } from '../../store/store';
 import { useBattleStore } from '../../stores/battleStore';
 import { BattleTimer } from './BattleTimer';
+
+function isRivalSubmission(payload: BattleStartPayload | null, myId: string, otherUserId: string): boolean {
+  if (!myId || !otherUserId) return false;
+  if (!payload?.teams?.length) return otherUserId !== myId;
+  const flat = payload.teams.flatMap((t: BattleTeamRoster) =>
+    t.members.map((m) => ({ ...m, teamIndex: t.teamIndex })),
+  );
+  const me = flat.find((m) => m.userId === myId);
+  const them = flat.find((m) => m.userId === otherUserId);
+  if (!me || !them) return otherUserId !== myId;
+  return me.teamIndex !== them.teamIndex;
+}
+
+function didMyTeamWin(result: BattleResultPayload, myId: string): boolean {
+  const myTeam = result.players.find((p) => p.userId === myId)?.teamIndex;
+  if (result.winnerTeamIndex != null && result.winnerTeamIndex !== undefined && myTeam != null) {
+    return result.winnerTeamIndex === myTeam;
+  }
+  return result.winnerId === myId;
+}
 
 const MONACO_LANG: Record<string, string> = {
   javascript: 'javascript',
@@ -38,8 +59,11 @@ export default function BattlePage() {
   const [iSubmitted, setISubmitted] = useState(false);
   const [lastRunSummary, setLastRunSummary] = useState<string | null>(null);
   const [resultModal, setResultModal] = useState<BattleResultPayload | null>(null);
+  const startPayloadRef = useRef<BattleStartPayload | null>(null);
+  startPayloadRef.current = startPayload;
 
   const languages = useMemo(() => startPayload?.challenge.languages ?? ['python'], [startPayload]);
+  const isTeamMode = !!startPayload?.mode && startPayload.mode !== '1v1';
 
   useEffect(() => {
     if (languages.length && !languages.includes(lang)) {
@@ -83,8 +107,8 @@ export default function BattlePage() {
       const langs = p.challenge.languages?.length ? p.challenge.languages : ['python'];
       const primary = langs[0];
       setLang(primary);
-      const sc = p.challenge.starterCode?.[primary] ?? '';
-      setCode(sc);
+      // Battle mode starts with an empty editor (no prefilled starter template).
+      setCode('');
       setTimerTick({
         remainingSeconds: p.durationSeconds,
         totalDurationSeconds: p.durationSeconds,
@@ -114,7 +138,9 @@ export default function BattlePage() {
       }
     };
     const onOpp = (p: { battleId: string; userId: string }) => {
-      if (p.battleId === battleId && p.userId !== myId) setOpponentSubmitted(true);
+      if (p.battleId === battleId && isRivalSubmission(startPayloadRef.current, myId, p.userId)) {
+        setOpponentSubmitted(true);
+      }
     };
     const onResult = (p: BattleResultPayload) => {
       if (p.battleId !== battleId) return;
@@ -195,7 +221,8 @@ export default function BattlePage() {
             {startPayload?.challenge.title ?? 'Battle'}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {phase === 'waiting' && 'Waiting for both players to be ready…'}
+            {phase === 'waiting' &&
+              (isTeamMode ? 'Waiting for all players to be ready…' : 'Waiting for both players to be ready…')}
             {phase === 'loading' && 'Connecting…'}
             {phase === 'active' && 'Timer is server-authoritative.'}
             {phase === 'done' && 'Redirecting to results…'}
@@ -216,6 +243,8 @@ export default function BattlePage() {
             totalDurationSeconds={totalDurationSeconds}
             paused={paused}
             opponentSubmitted={opponentSubmitted}
+            pendingLabel={isTeamMode ? 'Enemy team pending' : undefined}
+            submittedLabel={isTeamMode ? 'Enemy team submitted' : undefined}
           />
         </div>
       )}
@@ -241,8 +270,7 @@ export default function BattlePage() {
                   type="button"
                   onClick={() => {
                     setLang(l);
-                    const sc = startPayload?.challenge.starterCode?.[l];
-                    if (sc) setCode(sc);
+                    if (!iSubmitted) setCode('');
                   }}
                   disabled={iSubmitted}
                   className={`rounded-lg px-3 py-1 text-sm font-medium ${
@@ -292,7 +320,7 @@ export default function BattlePage() {
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6 text-center shadow-xl">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              {resultModal.draw ? 'Draw' : resultModal.winnerId === myId ? 'You won' : 'You lost'}
+              {resultModal.draw ? 'Draw' : didMyTeamWin(resultModal, myId) ? 'You won' : 'You lost'}
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               {resultModal.finishReason ? `Reason: ${resultModal.finishReason}` : 'Battle finished'}

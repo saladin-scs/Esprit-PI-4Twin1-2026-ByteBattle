@@ -9,7 +9,15 @@ function App() {
       <PopupProvider>
         <AppRoutes />
       </PopupProvider>
-      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+      <Toaster
+        position="top-center"
+        containerStyle={{
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
+        toastOptions={{ duration: 4000 }}
+      />
     </ErrorBoundary>
   );
 }

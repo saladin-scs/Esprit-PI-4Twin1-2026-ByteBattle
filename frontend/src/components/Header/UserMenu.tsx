@@ -30,6 +30,14 @@ export function UserMenu() {
     setOpen(false);
   }, [location.pathname]);
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowLogoutModal(false);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
   const displayName = user?.displayName || user?.username || 'User';
   const avatarUrl = user?.avatarUrl ?? null;
 

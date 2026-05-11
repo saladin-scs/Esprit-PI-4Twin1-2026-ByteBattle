@@ -94,8 +94,8 @@ const GENERIC_BY_LANG: Record<string, string> = {
   cpp: "#include <iostream>\nint main(){ std::cout << \"ready\"; return 0; }\n",
 };
 
-const TEST_PREFILL_ENABLED = import.meta.env.VITE_PREFILL_TEST_SOLUTIONS !== 'false';
-const PREFILL_FROM_SOLUTIONS = import.meta.env.VITE_PREFILL_FROM_ACCEPTED_SOLUTIONS !== 'false';
+const TEST_PREFILL_ENABLED = import.meta.env.VITE_PREFILL_TEST_SOLUTIONS === 'true';
+const PREFILL_FROM_SOLUTIONS = import.meta.env.VITE_PREFILL_FROM_ACCEPTED_SOLUTIONS === 'true';
 const prefillCache = new Map<string, string>();
 
 function normalizeLanguage(lang: string): string {
@@ -113,10 +113,10 @@ function twoSumPrefillByLang(lang: string): string {
 }
 
 export function getEditorPrefillCode(title: string | undefined, language: string, starterCode: string): string {
-  if (!TEST_PREFILL_ENABLED) return starterCode || '';
+  if (starterCode && starterCode.trim()) return starterCode;
+  if (!TEST_PREFILL_ENABLED) return '';
   const t = String(title || '').toLowerCase();
   if (t.includes('two sum')) return twoSumPrefillByLang(language);
-  if (starterCode && starterCode.trim()) return starterCode;
   return GENERIC_BY_LANG[language] ?? '';
 }
 

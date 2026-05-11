@@ -3,6 +3,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { validateConfig } from './config/validation';
@@ -14,12 +15,21 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { SiteRatingsModule } from './site-ratings/site-ratings.module';
 import { ChatModule } from './chat/chat.module';
 import { BattleModule } from './battle/battle.module';
+import { FeedbackModule } from './feedback/feedback.module';
+import { AIModule } from './ai/ai.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: [
+        join(process.cwd(), '.env.local'),
+        join(process.cwd(), '.env'),
+        join(process.cwd(), 'backend', '.env.local'),
+        join(process.cwd(), 'backend', '.env'),
+        join(process.cwd(), '..', '.env.local'),
+        join(process.cwd(), '..', '.env'),
+      ],
       validate: validateConfig,
     }),
     MongooseModule.forRootAsync({
@@ -39,6 +49,8 @@ import { BattleModule } from './battle/battle.module';
     SiteRatingsModule,
     ChatModule,
     BattleModule,
+    FeedbackModule,
+    AIModule,
   ],
 })
 export class AppModule {}

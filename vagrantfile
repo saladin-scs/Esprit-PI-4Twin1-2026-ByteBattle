@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  # ✅ FIX: augmenter le timeout de boot
+  config.vm.boot_timeout = 600
+
+  # ─── VM Jenkins ────────────────────────────────────────────────
+  config.vm.define "jenkins" do |jenkins|
+    jenkins.vm.box = "ubuntu/jammy64"
+    jenkins.vm.hostname = "jenkins"
+    jenkins.vm.network "private_network", ip: "192.168.56.10"
+    jenkins.vm.network "forwarded_port", guest: 8080, host: 8081
+    jenkins.vm.network "forwarded_port", guest: 50000, host: 50000
+
+    jenkins.vm.provider "virtualbox" do |vb|
+      vb.name   = "ByteBattle-Jenkins"
+      vb.memory = "2048"
+      vb.cpus   = 2
+      # ✅ FIX: options VirtualBox pour stabiliser le boot
+      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+      vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+      vb.customize ["modifyvm", :id, "--ioapic", "on"]
+    end
+
+    jenkins.vm.provision "shell", path: "scripts/install_jenkins.sh"
+  end
+
+  # ─── VM SonarQube ──────────────────────────────────────────────
+  config.vm.define "sonarqube" do |sonar|
+    sonar.vm.box = "ubuntu/jammy64"
+    sonar.vm.hostname = "sonarqube"
+    sonar.vm.network "private_network", ip: "192.168.56.20"
+    sonar.vm.network "forwarded_port", guest: 9000, host: 9000
+
+    sonar.vm.provider "virtualbox" do |vb|
+      vb.name   = "ByteBattle-SonarQube"
+      vb.memory = "3072"
+      vb.cpus   = 2
+      vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+      vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+      vb.customize ["modifyvm", :id, "--ioapic", "on"]
+    end
+
+    sonar.vm.provision "shell", path: "scripts/install_sonarqube.sh"
+  end
+
+end

@@ -1,8 +1,8 @@
 /* eslint-disable prettier/prettier */
-import { Controller, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { BattleService } from './battle.service';
+import { BattleService, normalizeBattleQueueMode } from './battle.service';
 
 @ApiTags('battle')
 @ApiBearerAuth()
@@ -12,12 +12,17 @@ export class BattleController {
 
   @Post('queue')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Join 1v1 matchmaking queue (also use WebSocket join_queue for real-time)' })
-  async joinQueue(@Req() req: { user: { userId: string; username: string } }) {
+  @ApiOperation({ summary: 'Join matchmaking queue: body.mode = 1v1 | 2v2 | 3v3 | 4v4 | 5v5 (WebSocket join_queue preferred)' })
+  async joinQueue(
+    @Req() req: { user: { userId: string; username: string } },
+    @Body() body: { mode?: string },
+  ) {
+    const mode = normalizeBattleQueueMode(body?.mode);
     const { battle } = await this.battleService.enqueueAndMaybeMatch({
       userId: req.user.userId,
       username: req.user.username,
       socketId: null,
+      mode,
     });
     if (battle) {
       await this.battleService.notifyBattleMatched(battle);

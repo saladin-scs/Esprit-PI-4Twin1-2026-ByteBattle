@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { authApi, usersApi } from '../../services/api';
 
-interface User {
+// Expanded User interface to match backend schema
+export interface User {
   id: string;
   email: string;
   username: string;
@@ -10,6 +11,23 @@ interface User {
   firstName?: string;
   lastName?: string;
   avatarUrl?: string;
+  coverImage?: string;
+  links?: string[];
+  socialLinks?: {
+    github?: string;
+    linkedin?: string;
+    twitter?: string;
+    portfolio?: string;
+  };
+  profilePublic?: boolean;
+  preferences?: {
+    preferredLanguage?: string;
+    theme?: 'light' | 'dark';
+    notifications?: {
+      email?: boolean;
+      product?: boolean;
+    };
+  };
   emailVerifiedAt?: string | null;
   twoFactorEnabled?: boolean;
 }

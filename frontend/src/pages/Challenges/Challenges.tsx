@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
 import { ChatAvailabilityCallout } from '../../shared/components';
 import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
+import { useRecommendations } from '../../hooks/useML';
 import { RootState } from '../../store/store';
 
 const PAGE_SIZE = 15;
@@ -27,6 +28,8 @@ const Challenges = () => {
   const isAdmin = useSelector((s: RootState) => Boolean(s.auth.user?.roles?.includes('admin')));
   const [reco, setReco] = useState<RecommendedChallengeItem[]>([]);
   const [recoLoading, setRecoLoading] = useState(false);
+  const { recommendations: mlRecommendations, loading: mlLoading, error: mlError, getRecommendations } =
+    useRecommendations();
 
   const {
     challenges,
@@ -68,6 +71,18 @@ const Challenges = () => {
     };
   }, [isAuthenticated]);
 
+  const currentUserId = useSelector((s: RootState) => s.auth.user?.id || s.auth.user?._id || '');
+
+  const handleGetMlRecommendations = async () => {
+    if (!currentUserId) return;
+    try {
+      await getRecommendations(currentUserId, 8);
+    } catch (err) {
+      // error handled by hook
+      console.error('ML recommendations error', err);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -96,7 +111,7 @@ const Challenges = () => {
         </p>
         {isAdmin && (
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => navigate('/admin/challenges')}>+ Create Challenge</Button>
+            <Button onClick={() => navigate('/admin/challenges')}>Challenge Management</Button>
           </div>
         )}
       </header>
@@ -106,40 +121,78 @@ const Challenges = () => {
       </div>
 
       {isAuthenticated && (
-        <section  className="relative mb-8 bb-card p-4 sm:p-5" aria-label="Recommended challenges">
-          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
-            <Sparkles className="h-5 w-5 text-amber-500" aria-hidden />
-            Recommended for you
-          </h2>
-          <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
-            Basic suggestions based on your most recently solved challenges (tags and difficulty).
-          </p>
-          {recoLoading ? (
+        <section className="relative mb-8 bb-card p-4 sm:p-5" aria-label="Recommended challenges">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-white">
+                <Sparkles className="h-5 w-5 text-amber-500" aria-hidden />
+                Recommended for you
+              </h2>
+              <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+                Basic suggestions based on your most recently solved challenges (tags and difficulty).
+              </p>
+            </div>
+            <div className="ml-4 flex-shrink-0">
+              <Button onClick={handleGetMlRecommendations} disabled={mlLoading}>
+                {mlLoading ? 'Loading…' : 'Recommend for me'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Priority: show ML recommendations when available, otherwise fall back to lightweight server recommendations */}
+          {mlLoading ? (
             <div className="flex justify-center py-6">
               <Spinner />
             </div>
-          ) : reco.length === 0 ? (
-            <p className="text-sm text-slate-500">Solve a challenge to improve recommendations.</p>
-          ) : (
+          ) : mlRecommendations && mlRecommendations.length > 0 ? (
             <div className="flex gap-3 overflow-x-auto pb-1">
-              {reco.map((c) => (
+              {mlRecommendations.map((rec: any) => (
                 <button
-                  key={c.id}
+                  key={rec.challengeId}
                   type="button"
-                  onClick={() => navigate(`/challenges/${c.id}`)}
-                  className="min-w-[200px] max-w-[240px] shrink-0 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-primary-400 dark:border-slate-600 dark:bg-slate-900/40 dark:hover:border-primary-500"
+                  onClick={() => navigate(`/challenges/${rec.challengeId}`)}
+                  className="min-w-[200px] max-w-[260px] shrink-0 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-primary-400 dark:border-slate-600 dark:bg-slate-900/40 dark:hover:border-primary-500"
                 >
-                  <div className="line-clamp-2 font-medium text-slate-900 dark:text-white">{c.title}</div>
+                  <div className="line-clamp-2 font-medium text-slate-900 dark:text-white">{rec.challengeName || rec.title}</div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <DifficultyBadge difficulty={c.difficulty} size="sm" />
-                    {c.xpReward != null && (
-                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">+{c.xpReward} XP</span>
+                    <DifficultyBadge difficulty={rec.difficulty || 'Medium'} size="sm" />
+                    {rec.xpReward != null && (
+                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">+{rec.xpReward} XP</span>
                     )}
                   </div>
                 </button>
               ))}
             </div>
+          ) : (
+            // fallback to original lightweight recommendations
+            (recoLoading ? (
+              <div className="flex justify-center py-6">
+                <Spinner />
+              </div>
+            ) : reco.length === 0 ? (
+              <p className="text-sm text-slate-500">Solve a challenge to improve recommendations.</p>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {reco.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => navigate(`/challenges/${c.id}`)}
+                    className="min-w-[200px] max-w-[240px] shrink-0 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-primary-400 dark:border-slate-600 dark:bg-slate-900/40 dark:hover:border-primary-500"
+                  >
+                    <div className="line-clamp-2 font-medium text-slate-900 dark:text-white">{c.title}</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <DifficultyBadge difficulty={c.difficulty} size="sm" />
+                      {c.xpReward != null && (
+                        <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">+{c.xpReward} XP</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ))
           )}
+          {mlError && <div className="mt-3 text-sm text-red-600">{mlError}</div>}
         </section>
       )}
 
