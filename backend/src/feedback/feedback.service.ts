@@ -2,6 +2,10 @@
 // src/feedback/feedback.service.ts
 
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { lastValueFrom, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 interface FeedbackPoint {
@@ -33,11 +37,33 @@ interface CodeAnalysisRequest {
 @Injectable()
 export class FeedbackService {
   private readonly logger = new Logger(FeedbackService.name);
-  /** Abuse limit: 40 requests per hour per user. */
   private readonly userLimiter = new RateLimiterMemory({
     points: 40,
     duration: 3600,
   });
+
+  private readonly aiServiceUrl?: string;
+  private readonly aiServiceTimeoutMs: number;
+  private readonly aiServiceApiKey?: string;
+  private readonly isEnabled: boolean;
+
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    this.aiServiceUrl = this.configService.get<string>('AI_SERVICE_URL');
+    this.isEnabled = !!this.aiServiceUrl;
+
+    if (!this.isEnabled) {
+      this.logger.warn('AI_SERVICE_URL not found. AI Coach will run in local-heuristic fallback mode.');
+    }
+
+    this.aiServiceTimeoutMs = Math.min(
+      60000,
+      Math.max(1000, Number(this.configService.get<number>('AI_SERVICE_TIMEOUT_MS') || 12000)),
+    );
+    this.aiServiceApiKey = (this.configService.get<string>('AI_SERVICE_API_KEY') || '').trim();
+  }
 
   private clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));
@@ -60,7 +86,7 @@ export class FeedbackService {
     points.push({ title, description, category, severity });
   }
 
-  private runLocalAnalysis(request: CodeAnalysisRequest): FeedbackResponse {
+  private runLocalAnalysis(request: CodeAnalysisRequest, reason: string): FeedbackResponse {
     const code = String(request.code || '');
     const language = this.sanitizeLanguage(request.language);
     const codeTrim = code.trim();
@@ -274,11 +300,12 @@ export class FeedbackService {
     return {
       overall_score: this.clamp(score, 0, 100),
       summary:
-        `Local AI Coach analysis completed. ${summaryParts.join(' | ')}. ` +
+        `Local AI Coach analysis completed (${reason}). ${summaryParts.join(' | ')}. ` +
         'Use the points below as a short action plan to improve correctness and robustness.',
       points,
       extra: {
         analyzer: 'local-heuristic-v2',
+        reason,
         metrics: {
           language,
           lines: nonEmptyLines,
@@ -293,8 +320,54 @@ export class FeedbackService {
     };
   }
 
+  private normalizeFeedback(payload: unknown): FeedbackResponse {
+    const raw = payload as Partial<FeedbackResponse> | null | undefined;
+    const score = Number(raw?.overall_score ?? 0);
+    const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
+    const summary =
+      typeof raw?.summary === 'string' && raw.summary.trim()
+        ? raw.summary
+        : 'Analysis completed with limited details.';
+    const pointsRaw = Array.isArray(raw?.points) ? raw.points : [];
+    const points = pointsRaw
+      .map((p) => {
+        const point = p as Partial<FeedbackPoint>;
+        const title = typeof point.title === 'string' ? point.title.trim() : '';
+        const description = typeof point.description === 'string' ? point.description.trim() : '';
+        if (!title || !description) return null;
+        return {
+          title,
+          description,
+          category: typeof point.category === 'string' && point.category.trim() ? point.category : 'improvement',
+          severity:
+            point.severity === 'high' || point.severity === 'medium' || point.severity === 'low' || point.severity === 'info'
+              ? point.severity
+              : 'low',
+        } as FeedbackPoint;
+      })
+      .filter((x): x is FeedbackPoint => x !== null);
+
+    return {
+      overall_score: safeScore,
+      summary,
+      points:
+        points.length > 0
+          ? points
+          : [
+              {
+                title: 'General recommendation',
+                description: 'No detailed points were returned. Re-run analysis after adding tests and context.',
+                category: 'improvement',
+                severity: 'low',
+              },
+            ],
+      extra: (raw?.extra as Record<string, unknown>) || undefined,
+    };
+  }
+
   /**
-   * Local code feedback with deterministic heuristics.
+   * Analyze code using the internal Python AI service.
+   * Returns deterministic fallback payload if upstream is unavailable.
    */
   async getFeedback(request: CodeAnalysisRequest, userId: string): Promise<FeedbackResponse> {
     try {
@@ -305,8 +378,43 @@ export class FeedbackService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    this.logger.debug('Feedback requested (local heuristic analyzer)');
-    return this.runLocalAnalysis(request);
+
+    if (!this.isEnabled || !this.aiServiceUrl) {
+      return this.runLocalAnalysis(request, 'ai_service_disabled');
+    }
+
+    const endpoint = `${this.aiServiceUrl.replace(/\/+$/, '')}/ai/analyze-code`;
+    
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (this.aiServiceApiKey) {
+        headers['x-api-key'] = this.aiServiceApiKey;
+      }
+
+      const response = await lastValueFrom(
+        this.httpService.post(endpoint, request, {
+          timeout: this.aiServiceTimeoutMs,
+          headers,
+        }).pipe(
+          map(res => res.data),
+          catchError(err => {
+            this.logger.warn(`AI analysis request failed: ${err.message}`);
+            return of(null);
+          })
+        )
+      );
+
+      if (response) {
+        return this.normalizeFeedback(response);
+      }
+
+      return this.runLocalAnalysis(request, 'upstream_error');
+    } catch (e: unknown) {
+      this.logger.warn(`AI analysis failed (catch): ${e instanceof Error ? e.message : String(e)}`);
+      return this.runLocalAnalysis(request, 'service_unavailable');
+    }
   }
 
   /**
@@ -321,5 +429,17 @@ export class FeedbackService {
     userId = 'anonymous',
   ): Promise<FeedbackResponse> {
     return this.getFeedback({ code, language }, userId);
+  }
+
+  async checkHealth() {
+    if (!this.isEnabled || !this.aiServiceUrl) return { status: 'disabled' };
+    try {
+      await lastValueFrom(
+        this.httpService.get(`${this.aiServiceUrl.replace(/\/+$/, '')}/health`, { timeout: 2000 })
+      );
+      return { status: 'up', url: this.aiServiceUrl };
+    } catch (e: any) {
+      return { status: 'down', url: this.aiServiceUrl, error: e.message };
+    }
   }
 }

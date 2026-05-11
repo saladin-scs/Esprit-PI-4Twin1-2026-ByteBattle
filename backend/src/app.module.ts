@@ -17,6 +17,7 @@ import { SiteRatingsModule } from './site-ratings/site-ratings.module';
 import { ChatModule } from './chat/chat.module';
 import { BattleModule } from './battle/battle.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { RecommendationModule } from './recommendation/recommendation.module';
 import { ExploreModule } from './explore/explore.module';
 import { HealthModule } from './health/health.module';
 
@@ -49,9 +50,10 @@ import { HealthModule } from './health/health.module';
     CompetitionsModule,
     LeaderboardModule,
     SiteRatingsModule,
+    FeedbackModule,
     ChatModule,
     BattleModule,
-    FeedbackModule,
+    RecommendationModule,
     ExploreModule,
     HealthModule,
   ],

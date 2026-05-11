@@ -1,25 +1,30 @@
 from __future__ import annotations
 
-from typing import Optional
-
-from pydantic import BaseModel
-
+from typing import Optional, Any, Union
+from pydantic import BaseModel, Field
 
 class CodeAnalysisRequest(BaseModel):
     """
-    Request body for the /ai/analyze-code endpoint.
-
-    This mirrors the fields used by FeedbackRequest in the feedback engine
-    so we can pass it through cleanly.
+    Request body for the /ai/code/analyze endpoint.
+    Accepts frontend camelCase fields.
     """
-
     code: str
     language: str = "python"
-
-    tests_passed: Optional[bool] = None
-    execution_error: Optional[str] = None
-    runtime_ms: Optional[float] = None
-    memory_kb: Optional[int] = None
-    task_description: Optional[str] = None
-
-
+    
+    # Frontend sends these exact fields
+    testsPassed: Optional[Union[bool, int]] = None
+    testsPassedCount: Optional[int] = None
+    testsTotal: Optional[int] = None
+    executionError: Optional[str] = None
+    runtimeMs: Optional[float] = None
+    taskDescription: Optional[str] = None
+    
+    # Also support backend snake_case (for internal use)
+    tests_passed: Optional[int] = Field(default=None, alias="testsPassed")
+    execution_error: Optional[str] = Field(default=None, alias="executionError")
+    runtime_ms: Optional[float] = Field(default=None, alias="runtimeMs")
+    task_description: Optional[str] = Field(default=None, alias="taskDescription")
+    
+    class Config:
+        populate_by_name = True
+        extra = "allow"

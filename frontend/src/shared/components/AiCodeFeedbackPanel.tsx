@@ -13,7 +13,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { feedbackApi } from '../../services/api';
+import { challengesApi } from '../../services/api';
 import type { FeedbackResponse } from '../../types/feedback';
 import { cn } from '../../lib/utils';
 
@@ -84,6 +84,7 @@ export function AiCodeFeedbackPanel({
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const lastAnalyzedSig = useRef<string>('');
 
@@ -118,22 +119,23 @@ export function AiCodeFeedbackPanel({
     }
     setLoading(true);
     setErr(null);
+    setStatusMessage('Analyzing your code with AI...');
+
     try {
-      const res = await feedbackApi.analyze({
+      const response = await challengesApi.analyzeCode({
         code,
         language,
-        task_description: taskDescription,
-        tests_passed: testsPassed,
-        tests_passed_count: testsPassedCount,
-        tests_total: testsTotal,
-        execution_error: executionError,
-        runtime_ms: runtimeMs,
+        taskDescription,
+        testsPassed,
+        testsPassedCount,
+        testsTotal,
+        executionError,
+        runtimeMs,
       });
-      const data = res.data as FeedbackResponse;
-      setFeedback(data);
+      setFeedback(response.data);
       lastAnalyzedSig.current = contextSig;
-    } catch (e: unknown) {
-      const ax = e as { response?: { status?: number; data?: { message?: string } } };
+      setStatusMessage(null);
+    } catch (ax: any) {
       if (ax.response?.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('refresh_token');
@@ -141,11 +143,16 @@ export function AiCodeFeedbackPanel({
       } else if (ax.response?.status === 429) {
         setErr('Too many requests. Please try again shortly.');
       } else {
-        setErr(ax.response?.data?.message ?? 'Analysis unavailable.');
+        setErr(ax.response?.data?.message || 'Failed to get AI feedback. Please try again.');
       }
+      setStatusMessage(null);
     } finally {
       setLoading(false);
     }
+  };
+
+  const retryLast = () => {
+    analyze();
   };
 
   const copyReport = async () => {
@@ -181,6 +188,9 @@ export function AiCodeFeedbackPanel({
       role="region"
       aria-label="AI coach - code analysis"
     >
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {statusMessage}
+      </div>
       <div className="border-b border-violet-200/60 px-4 py-3 dark:border-violet-900/30">
         <div className="flex flex-wrap items-start gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -204,6 +214,16 @@ export function AiCodeFeedbackPanel({
               {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
               {loading ? 'Analyzing...' : 'Analyze my code'}
             </button>
+            {err && (
+              <button
+                type="button"
+                onClick={() => void retryLast()}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-50 dark:border-violet-800 dark:bg-slate-800 dark:text-violet-200 dark:hover:bg-slate-700"
+              >
+                Retry
+              </button>
+            )}
             {feedback && (
               <button
                 type="button"
@@ -265,7 +285,7 @@ export function AiCodeFeedbackPanel({
         {loading && (
           <div className="flex flex-col items-center justify-center gap-3 py-10" aria-busy="true">
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600 dark:border-violet-900 dark:border-t-violet-400" />
-            <p className="text-sm text-slate-700 dark:text-slate-400">Sending to analysis model...</p>
+            <p className="text-sm text-slate-700 dark:text-slate-400">{statusMessage || 'Sending to analysis model...'}</p>
           </div>
         )}
 

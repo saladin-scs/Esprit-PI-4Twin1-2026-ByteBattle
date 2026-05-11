@@ -3,6 +3,8 @@ import { Body, Controller, Get, NotFoundException, Param, Post, Req, UseGuards }
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BattleService, normalizeBattleQueueMode } from './battle.service';
+import { BattleQueueDto } from './dto/battle-queue.dto';
+import { BattleIdParamDto } from './dto/battle-params.dto';
 
 @ApiTags('battle')
 @ApiBearerAuth()
@@ -15,7 +17,7 @@ export class BattleController {
   @ApiOperation({ summary: 'Join matchmaking queue: body.mode = 1v1 | 2v2 | 3v3 | 4v4 | 5v5 (WebSocket join_queue preferred)' })
   async joinQueue(
     @Req() req: { user: { userId: string; username: string } },
-    @Body() body: { mode?: string },
+    @Body() body: BattleQueueDto,
   ) {
     const mode = normalizeBattleQueueMode(body?.mode);
     const { battle } = await this.battleService.enqueueAndMaybeMatch({
@@ -35,6 +37,26 @@ export class BattleController {
     return { queued: true };
   }
 
+  @Post('queue/cancel')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Leave matchmaking queue (HTTP fallback)' })
+  async cancelQueue(@Req() req: { user: { userId: string } }) {
+    this.battleService.dequeueUser(req.user.userId);
+    return { ok: true };
+  }
+
+  @Post(':id/join')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Mark participant as ready (HTTP fallback for battle room)' })
+  async joinBattleHttp(
+    @Req() req: { user: { userId: string } },
+    @Param() params: BattleIdParamDto,
+  ) {
+    const b = await this.battleService.markPlayerReady(params.id, req.user.userId);
+    if (!b) throw new NotFoundException('Battle not found');
+    return this.battleService.toPendingSnapshot(b);
+  }
+
   @Get('pending')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Poll for an in-progress battle (e.g. if match came from HTTP queue)' })
@@ -47,8 +69,8 @@ export class BattleController {
   @Get(':id/summary')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Battle snapshot for a participant (result or live metadata)' })
-  async summary(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
-    const s = await this.battleService.getSummaryForPlayer(id, req.user.userId);
+  async summary(@Req() req: { user: { userId: string } }, @Param() params: BattleIdParamDto) {
+    const s = await this.battleService.getSummaryForPlayer(params.id, req.user.userId);
     if (!s) throw new NotFoundException('Battle not found or access denied');
     return s;
   }

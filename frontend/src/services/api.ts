@@ -4,6 +4,7 @@
  */
 import { apiClient } from '../core/api';
 import type { ExecuteTestCase } from '../types/challenge';
+import type { FeedbackResponse } from '../types/feedback';
 
 export {
   apiClient,
@@ -27,6 +28,17 @@ export const challengesApi = {
     apiClient.get('/challenges', { params }),
   getRecommended: (params?: { limit?: number }) =>
     apiClient.get<{ challenges: RecommendedChallengeItem[] }>('/challenges/recommended', { params }),
+  getRecommendations: (userId: string, params?: { limit?: number }) =>
+    apiClient.get<{ challenges: RecommendedChallengeItem[] }>(`/recommendations/${userId}`, { params }),
+  getSimilar: (itemId: string, params?: { limit?: number }) =>
+    apiClient.get<{ challenges: RecommendedChallengeItem[] }>(`/recommendations/item/${itemId}`, { params }),
+  trackEngagement: (data: {
+    userId: string;
+    itemId: string;
+    eventType: 'click' | 'dwell' | 'scroll' | 'impression';
+    value?: number;
+    context?: any;
+  }) => apiClient.post('/recommendations/track', data),
   getOne: (id: string) => apiClient.get(`/challenges/${id}`),
   getOneAdmin: (id: string) => apiClient.get(`/challenges/admin/${id}`),
   getChallengeAnalytics: (id: string) =>
@@ -67,7 +79,17 @@ export const challengesApi = {
     create?: boolean;
     isPublished?: boolean;
   }) => apiClient.post<{ draft: any; created?: any }>('/challenges/ai-generate', payload),
-  update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
+analyzeCode: (data: {
+  code: string;
+  language: string;
+  taskDescription?: string;
+  testsPassed?: boolean;
+  testsPassedCount?: number;
+  testsTotal?: number;
+  executionError?: string;
+  runtimeMs?: number;
+}) => apiClient.post<FeedbackResponse>('/ai/analyze-code', data),
+ update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
   delete: (id: string) => apiClient.delete(`/challenges/${id}`),
 };
 
@@ -91,6 +113,16 @@ export const battleApi = {
     }>('/battle/pending'),
   joinQueueHttp: (body?: { mode?: '1v1' | '2v2' | '3v3' | '4v4' | '5v5' }) =>
     apiClient.post<{ queued: boolean; battleId?: string; challengeId?: string }>('/battle/queue', body ?? {}),
+  cancelQueueHttp: () => apiClient.post<{ ok: true }>('/battle/queue/cancel', {}),
+  joinBattleHttp: (id: string) =>
+    apiClient.post<{
+      battleId: string;
+      status: string;
+      challengeId: string;
+      durationSeconds: number;
+      startedAt: string | null;
+      endsAt: string | null;
+    }>(`/battle/${id}/join`),
   getSummary: (id: string) => apiClient.get(`/battle/${id}/summary`),
 };
 

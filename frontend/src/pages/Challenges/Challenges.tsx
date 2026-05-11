@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { DifficultyBadge, ChallengeFilters } from '../../components/Challenges';
 import { useChallengesStore, type ChallengeListItem } from '../../stores/challengesStore';
+import { useRecommendations } from '../../hooks/useRecommendations';
 import { ChevronLeft, ChevronRight, Code2, Sparkles } from 'lucide-react';
 import { PageContainer, Spinner, Button } from '../../shared/components';
-import { challengesApi, type RecommendedChallengeItem } from '../../services/api';
+
 import { RootState } from '../../store/store';
 
 const PAGE_SIZE = 15;
@@ -24,8 +25,8 @@ const Challenges = () => {
   const navigate = useNavigate();
   const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated);
   const isAdmin = useSelector((s: RootState) => Boolean(s.auth.user?.roles?.includes('admin')));
-  const [reco, setReco] = useState<RecommendedChallengeItem[]>([]);
-  const [recoLoading, setRecoLoading] = useState(false);
+  const userId = useSelector((s: RootState) => s.auth.user?.id ?? null);
+  const { recommendations: reco, loading: recoLoading } = useRecommendations(userId, 8);
 
   const {
     challenges,
@@ -40,32 +41,11 @@ const Challenges = () => {
     fetchChallenges,
   } = useChallengesStore();
 
+  const safeChallenges = Array.isArray(challenges) ? challenges : [];
+
   useEffect(() => {
     fetchChallenges();
   }, [filters.difficulty, filters.language, filters.search, page, fetchChallenges]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setReco([]);
-      return;
-    }
-    let cancelled = false;
-    setRecoLoading(true);
-    challengesApi
-      .getRecommended({ limit: 8 })
-      .then((res) => {
-        if (!cancelled) setReco(res.data.challenges || []);
-      })
-      .catch(() => {
-        if (!cancelled) setReco([]);
-      })
-      .finally(() => {
-        if (!cancelled) setRecoLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,23 +175,25 @@ const Challenges = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {challenges.length === 0 ? (
+                {safeChallenges.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="bb-body-text px-4 py-14 text-center text-sm">
                       No challenges found
                     </td>
                   </tr>
                 ) : (
-                  challenges.map((c, i) => (
-                   <tr
-  key={c._id}
-  onClick={() => navigate(`/challenges/${c._id}`)}
-  tabIndex={0}
-  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/challenges/${c._id}`); }}
-  onFocus={(e) => (e.currentTarget.style.outline = '2px solid #6366f1')}
-  onBlur={(e) => (e.currentTarget.style.outline = '')}
-  className="cursor-pointer transition-colors hover:bg-primary-500/5 dark:hover:bg-primary-500/10"
->
+                  safeChallenges.map((c, i) => (
+                    <tr
+                      key={c._id}
+                      onClick={() => navigate(`/challenges/${c._id}`)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') navigate(`/challenges/${c._id}`);
+                      }}
+                      onFocus={(e) => (e.currentTarget.style.outline = '2px solid #6366f1')}
+                      onBlur={(e) => (e.currentTarget.style.outline = '')}
+                      className="cursor-pointer transition-colors hover:bg-primary-500/5 dark:hover:bg-primary-500/10"
+                    >
                       <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                         {(page - 1) * PAGE_SIZE + i + 1}
                       </td>

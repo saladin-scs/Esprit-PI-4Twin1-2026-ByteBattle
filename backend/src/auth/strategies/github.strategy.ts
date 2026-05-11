@@ -33,12 +33,13 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       );
     }
 
+    const baseUrl = configService.get('BASE_URL') || 'http://localhost:3000';
+    const finalCallbackURL = callbackURL || `${baseUrl.replace(/\/+$/, '')}/auth/github/callback`;
+
     super({
       clientID: clientID || 'dummy-client-id',
       clientSecret: clientSecret || 'dummy-client-secret',
-      // Default path matches AuthController route: /auth/github/callback
-      callbackURL:
-        callbackURL || 'http://localhost:3000/auth/github/callback',
+      callbackURL: finalCallbackURL,
       scope: ['user:email'],
     });
   }

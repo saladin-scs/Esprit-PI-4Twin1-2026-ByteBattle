@@ -1,6 +1,6 @@
 /* eslint-disable prettier/prettier */
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsNumber, MaxLength, IsInt, Min } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, MaxLength, IsInt, Min, Max } from 'class-validator';
 
 const MAX_CODE_CHARS = 80_000;
 
@@ -62,6 +62,8 @@ export class AnalyzeCodeDto {
   })
   @IsNumber()
   @IsOptional()
+  @Min(0)
+  @Max(300000)
   runtime_ms?: number;
 
   @ApiPropertyOptional({
@@ -70,6 +72,8 @@ export class AnalyzeCodeDto {
   })
   @IsNumber()
   @IsOptional()
+  @Min(0)
+  @Max(10_000_000)
   memory_kb?: number;
 
   @ApiPropertyOptional({
@@ -81,4 +85,3 @@ export class AnalyzeCodeDto {
   @MaxLength(20_000)
   task_description?: string;
 }
-

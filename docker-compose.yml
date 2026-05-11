@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mongodb:
@@ -8,19 +8,56 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-password}
-      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-bytebattle}
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: bytebattle
     volumes:
       - mongodb_data:/data/db
     networks:
-      - bytebattle-network
+      - bytebattle
 
+  piston:
+    image: ghcr.io/engineer-man/piston:latest
+    container_name: bytebattle-piston
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "2000:2000"
+    volumes:
+      - piston_data:/piston
+    networks:
+      - bytebattle
+
+  ai-service:
+    build:
+      context: ./bytebattle-ai-service
+    container_name: bytebattle-ai-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - bytebattle
+
+  ml-service:
+    build:
+      context: ./ml-service
+    container_name: bytebattle-ml-service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      ML_SERVICE_PORT: 8001
+      ML_MODEL_PATH: /app/models/recommender_artifacts.pkl
+      ALLOWED_ORIGINS: http://localhost:5173
+    volumes:
+      - ./ml-service/models:/app/models
+    networks:
+      - bytebattle
 
 volumes:
   mongodb_data:
+  piston_data:
 
 networks:
-  bytebattle-network:
+  bytebattle:
     driver: bridge
-

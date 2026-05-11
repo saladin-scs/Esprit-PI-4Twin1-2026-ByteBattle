@@ -2,6 +2,19 @@
 
 export const SEED_COMPETITIONS = [
   {
+    name: '🌟 Supernova Coding Battle #2026',
+    description: 'A galaxy-scale competition for the brightest minds. Solve cosmic challenges and win legendary prizes.',
+    type: 'algorithmic',
+    status: 'active',
+    supportedLanguages: ['javascript', 'python', 'java', 'cpp'],
+    difficulty: 'hard',
+    startTime: new Date(Date.now() - 10 * 60000), // Started 10 minutes ago
+    endTime: new Date(Date.now() + 110 * 60000), // Ends in 1h 50m
+    rules: 'No cosmic radiation allowed. Pure brain power only.',
+    prizes: ['$10,000', 'Space Shuttle', 'Star System'],
+    participants: [],
+  },
+  {
     name: '⚡ Lightning Speed Challenge #1',
     description: 'Complete 5 algorithmic problems in 30 minutes. Test your problem-solving speed and accuracy under time pressure.',
     type: 'speed',
