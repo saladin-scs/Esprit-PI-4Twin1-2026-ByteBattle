@@ -79,17 +79,16 @@ export const challengesApi = {
     create?: boolean;
     isPublished?: boolean;
   }) => apiClient.post<{ draft: any; created?: any }>('/challenges/ai-generate', payload),
-  analyzeCode: (data: {
-    code: string;
-    language: string;
-    taskDescription?: string;
-    testsPassed?: boolean;
-    testsPassedCount?: number;
-    testsTotal?: number;
-    executionError?: string;
-    runtimeMs?: number;
-  }) => apiClient.post<FeedbackResponse>('/ai/code/analyze', data),
-  update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
+analyzeCode: (data: {
+  code: string;
+  language: string;
+  taskDescription?: string;
+  testsPassed?: boolean;
+  testsPassedCount?: number;
+  testsTotal?: number;
+  executionError?: string;
+  runtimeMs?: number;
+}) => apiClient.post<FeedbackResponse>('https://bytebattle-ai-service.onrender.com/ai/code/analyze', data),  update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
   delete: (id: string) => apiClient.delete(`/challenges/${id}`),
 };
 
