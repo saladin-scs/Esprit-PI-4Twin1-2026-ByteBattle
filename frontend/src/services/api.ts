@@ -201,7 +201,7 @@ export const feedbackApi = {
     runtime_ms?: number;
     memory_kb?: number;
     task_description?: string;
-  }) => apiClient.post('/feedback/analyze', data),
+  }) => apiClient.post('/ai/analyze-code', data),
 };
 
 export const competitionsApi = {

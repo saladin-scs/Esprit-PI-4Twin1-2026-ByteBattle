@@ -1,7 +1,7 @@
 // pages/Register.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -354,6 +354,7 @@ type RegisterMode = 'standard' | 'face';
 function Register() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
@@ -377,6 +378,8 @@ function Register() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const redirectTarget =
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/dashboard';
   
   // Hooks
   const { modelsLoaded, isLoading: faceModelsLoading, error: faceError, detectFace } = useFaceRecognition();
@@ -486,6 +489,7 @@ function Register() {
   // Social login
   const redirectToSocial = (provider: 'google' | 'github') => {
     stopCamera();
+    sessionStorage.setItem('social_auth_redirect', redirectTarget);
     window.location.href = `${API_URL}/auth/${provider}`;
   };
 

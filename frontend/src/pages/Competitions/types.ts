@@ -40,6 +40,7 @@ export interface LeaderboardEntry {
   rank: number;
   userId: string;
   username?: string;
+  avatarUrl?: string;
   score: number;
   executionTimeMs: number;
   language: string;
