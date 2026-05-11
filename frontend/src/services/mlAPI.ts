@@ -37,6 +37,14 @@ export const recommendationAPI = {
       difficulty,
     }),
 
+  // Raw AI recommendations (passthrough) - returns upstream AI payload without DB mapping
+  getRawChallengeRecommendations: (userId: string, count: number = 5, difficulty?: string) =>
+    api.post('/api/ml/recommendations/raw', {
+      userId,
+      count,
+      difficulty,
+    }),
+
   getSimilarUsers: (userId: string, count: number = 5) =>
     api.get(`/api/ml/similar-users/${userId}`, {
       params: { count },
@@ -44,6 +52,9 @@ export const recommendationAPI = {
 
   rebuildMatrix: (challengeData: any) =>
     api.post('/api/ml/recommendations/rebuild-matrix', challengeData),
+  // Fetch lightweight challenge index for client-side mapping
+  getChallengesIndex: (limit: number = 1000) =>
+    api.get('/challenges', { params: { page: 1, limit } }),
 };
 
 // Matchmaking API

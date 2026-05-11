@@ -47,6 +47,13 @@ export class MLController {
     );
   }
 
+  @Post('recommendations/raw')
+  @ApiOperation({ summary: 'Get raw AI recommendations (no DB mapping) - passthrough' })
+  @ApiResponse({ status: 200, description: 'Raw AI recommendations payload' })
+  async getRawRecommendations(@Body() dto: GetRecommendationsDto) {
+    return this.mlService.getRawRecommendations(dto.userId, dto.count || 5, dto.difficulty);
+  }
+
   @Get('similar-users/:userId')
   @ApiOperation({ summary: 'Get similar users' })
   @ApiResponse({

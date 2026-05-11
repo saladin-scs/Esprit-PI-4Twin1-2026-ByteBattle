@@ -116,6 +116,21 @@ export class MLService {
     }
   }
 
+  /** Return raw AI recommendations from the upstream AI service without DB mapping. */
+  async getRawRecommendations(userId: string, count: number = 5, difficulty?: string) {
+    try {
+      const recommendations = await this.mlClient.getRecommendations({
+        user_id: userId,
+        n_recommendations: count,
+        preferred_difficulty: difficulty,
+      });
+      return recommendations;
+    } catch (error) {
+      this.logger.error(`Raw recommendations failed: ${error.message}`);
+      throw error;
+    }
+  }
+
   async getSimilarUsers(userId: string, count: number = 5) {
     try {
       return await this.mlClient.getSimilarUsers(userId, count);

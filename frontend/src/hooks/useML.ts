@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import mlAPI from '../services/mlAPI';
+import recommendationAdapter from '../services/recommendationAdapter';
+import { challengesApi } from '../services/api';
 
 /**
  * Hook for performance predictions
@@ -46,13 +48,17 @@ export const useRecommendations = () => {
       setLoading(true);
       setError(null);
       try {
-        const result = await mlAPI.recommendation.getChallengeRecommendations(
-          userId,
-          count,
-          difficulty,
-        );
-        setRecommendations(result.data.recommendations || []);
-        return result.data;
+        // Vercel-first path: build recommendations entirely in the frontend from public data.
+        const [challengesRes, submissionsRes] = await Promise.all([
+          challengesApi.getAll({ page: 1, limit: 1000, difficulty: difficulty && difficulty !== 'All' ? difficulty : undefined }),
+          challengesApi.getMySubmissions(),
+        ]);
+
+        const challenges = (challengesRes.data?.challenges || []) as any[];
+        const submissions = Array.isArray(submissionsRes.data) ? submissionsRes.data : [];
+        const local = recommendationAdapter.buildLocalRecommendations(challenges, submissions, count);
+        setRecommendations(local || []);
+        return { userId, recommendations: local };
       } catch (err: any) {
         const errorMsg = err.response?.data?.message || 'Failed to get recommendations';
         setError(errorMsg);
