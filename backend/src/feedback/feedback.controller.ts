@@ -7,11 +7,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AnalyzeCodeDto } from './dto/analyze-code.dto';
 
 @ApiTags('Feedback')
-@Controller('feedback')
+@Controller('ai')
 export class FeedbackController {
   constructor(private readonly feedbackService: FeedbackService) {}
 
-  @Post('analyze')
+  @Post('analyze-code')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({

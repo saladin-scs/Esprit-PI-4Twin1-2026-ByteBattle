@@ -69,7 +69,7 @@ async function mockBaseRoutes(page: Page) {
 test('AI feedback success renders score and points', async ({ page }) => {
   await mockBaseRoutes(page);
   let called = false;
-  await page.route('**/bb-api/feedback/analyze', async (route) => {
+  await page.route('**/bb-api/ai/analyze-code', async (route) => {
     called = true;
     await route.fulfill({
       status: 200,
@@ -94,7 +94,7 @@ test('AI feedback success renders score and points', async ({ page }) => {
 test('AI feedback retry works after transient failure', async ({ page }) => {
   await mockBaseRoutes(page);
   let callCount = 0;
-  await page.route('**/bb-api/feedback/analyze', async (route) => {
+  await page.route('**/bb-api/ai/analyze-code', async (route) => {
     callCount += 1;
     if (callCount === 1) {
       await route.fulfill({
@@ -126,7 +126,7 @@ test('AI feedback retry works after transient failure', async ({ page }) => {
 
 test('AI feedback 429 shows rate-limit message', async ({ page }) => {
   await mockBaseRoutes(page);
-  await page.route('**/bb-api/feedback/analyze', async (route) => {
+  await page.route('**/bb-api/ai/analyze-code', async (route) => {
     await route.fulfill({
       status: 429,
       contentType: 'application/json',
