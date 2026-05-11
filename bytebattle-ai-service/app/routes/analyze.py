@@ -16,21 +16,27 @@ def analyze_code(request: CodeAnalysisRequest):
     """AI Code Analysis endpoint - supports both URLs"""
     started = time.perf_counter()
     
-    # Convert frontend data if needed
-    tests_passed_value = request.tests_passed
-    if isinstance(tests_passed_value, bool):
-        tests_passed_value = 1 if tests_passed_value else 0
-    elif tests_passed_value is None:
-        tests_passed_value = 0
+    # Convert frontend boolean to integer for feedback engine
+    tests_passed_value = 0
+    if request.testsPassed is not None:
+        tests_passed_value = 1 if request.testsPassed else 0
+    elif request.tests_passed is not None:
+        tests_passed_value = request.tests_passed
+    
+    # Get execution error from whichever field is provided
+    execution_error = request.executionError or request.execution_error
+    
+    # Get runtime from whichever field is provided
+    runtime_ms = request.runtimeMs or request.runtime_ms or 0
     
     feedback_request = FeedbackRequest(
         code=request.code,
         language=request.language,
         tests_passed=tests_passed_value,
-        execution_error=request.execution_error,
-        runtime_ms=request.runtime_ms,
-        memory_kb=request.memory_kb,
-        task_description=request.task_description
+        execution_error=execution_error,
+        runtime_ms=runtime_ms,
+        memory_kb=None,
+        task_description=request.taskDescription or request.task_description
     )
     
     feedback_result = engine.generate_feedback(feedback_request)
@@ -42,7 +48,7 @@ def analyze_code(request: CodeAnalysisRequest):
         extra={
             "language": request.language,
             "tests_passed": tests_passed_value,
-            "has_error": bool(request.execution_error),
+            "has_error": bool(execution_error),
             "score": feedback_result.overall_score,
             "duration_ms": round(duration_ms, 2),
         },

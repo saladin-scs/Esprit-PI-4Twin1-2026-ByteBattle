@@ -1,37 +1,30 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Any
+from typing import Optional, Any, Union
 from pydantic import BaseModel, Field
 
 class CodeAnalysisRequest(BaseModel):
     """
     Request body for the /ai/code/analyze endpoint.
-    Accepts both frontend (camelCase) and backend (snake_case) formats.
+    Accepts frontend camelCase fields.
     """
     code: str
     language: str = "python"
     
-    # Handle both naming conventions
-    testsPassed: Optional[Union[bool, int, str]] = Field(default=None, alias="tests_passed")
-    tests_passed: Optional[Union[bool, int, str]] = None
-    
-    executionError: Optional[str] = Field(default=None, alias="execution_error")
-    execution_error: Optional[str] = None
-    
-    runtimeMs: Optional[float] = Field(default=None, alias="runtime_ms")
-    runtime_ms: Optional[float] = None
-    
-    memoryKb: Optional[int] = Field(default=None, alias="memory_kb")
-    memory_kb: Optional[int] = None
-    
-    taskDescription: Optional[str] = Field(default=None, alias="task_description")
-    task_description: Optional[str] = None
-    
-    # Additional fields your frontend might send
-    language_version: Optional[str] = None
+    # Frontend sends these exact fields
+    testsPassed: Optional[Union[bool, int]] = None
     testsPassedCount: Optional[int] = None
     testsTotal: Optional[int] = None
-
+    executionError: Optional[str] = None
+    runtimeMs: Optional[float] = None
+    taskDescription: Optional[str] = None
+    
+    # Also support backend snake_case (for internal use)
+    tests_passed: Optional[int] = Field(default=None, alias="testsPassed")
+    execution_error: Optional[str] = Field(default=None, alias="executionError")
+    runtime_ms: Optional[float] = Field(default=None, alias="runtimeMs")
+    task_description: Optional[str] = Field(default=None, alias="taskDescription")
+    
     class Config:
-        populate_by_name = True  # Allow both field names
-        extra = "allow"  # Allow extra fields to prevent 422 errors
+        populate_by_name = True
+        extra = "allow"
