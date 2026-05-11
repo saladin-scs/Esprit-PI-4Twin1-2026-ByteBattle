@@ -11,6 +11,7 @@ import { RANK_TIER_COLORS as RANK_COLORS, BADGE_CATALOG } from '../../types/prof
 import EditProfileModal from '../../components/Profile/EditProfileModal';
 import toast from 'react-hot-toast';
 import { Button, Spinner, Alert, PageContainer } from '../../shared/components';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 interface ActivityData {
   heatmap: Array<{ date: string; count: number }>;
@@ -129,7 +130,8 @@ function PublicProfile() {
       const formData = new FormData();
       formData.append('file', file);
       const response = await usersApi.uploadAvatar(formData);
-      setProfile(prev => prev ? { ...prev, avatarUrl: response.data.avatarUrl } : null);
+      const nextAvatarUrl = response.data?.avatarUrl || response.data?.avatarPath;
+      setProfile(prev => prev ? { ...prev, avatarUrl: nextAvatarUrl } : null);
       
       toast.success('Avatar updated');
       dispatch(fetchMe());
@@ -156,7 +158,8 @@ function PublicProfile() {
       const formData = new FormData();
       formData.append('file', file);
       const response = await usersApi.uploadCover(formData);
-      setProfile(prev => prev ? { ...prev, coverImage: response.data.coverImage || response.data.coverUrl } : null);
+      const nextCoverUrl = response.data?.coverImage || response.data?.coverUrl || response.data?.coverPath;
+      setProfile(prev => prev ? { ...prev, coverImage: nextCoverUrl } : null);
       toast.success('Cover image updated');
       dispatch(fetchMe());
     } catch (err: any) {
@@ -187,6 +190,9 @@ function PublicProfile() {
   }
 
   if (!profile) return null;
+
+  const resolvedAvatarUrl = resolveMediaUrl(profile.avatarUrl);
+  const resolvedCoverImage = resolveMediaUrl(profile.coverImage);
 
   const rankProgress = profile.rankProgress || {
     currentTier: profile.rankTier || 'F',
@@ -251,8 +257,8 @@ function PublicProfile() {
             style={
               coverPreview
                 ? { backgroundImage: `url(${coverPreview})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                : profile.coverImage
-                ? { backgroundImage: `url(${profile.coverImage}?t=${Date.now()})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : resolvedCoverImage
+                ? { backgroundImage: `url(${resolvedCoverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
                 : {}
             }
           />
@@ -284,10 +290,10 @@ function PublicProfile() {
                 className={`w-24 h-24 sm:w-32 sm:h-32 rounded-2xl border-4 border-white dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden flex-shrink-0 relative group ${isOwner ? 'cursor-pointer' : ''}`}
                 onClick={handleAvatarClick}
               >
-                {(avatarPreview || profile.avatarUrl) ? (
+                {(avatarPreview || resolvedAvatarUrl) ? (
                   <img
-                    key={profile.avatarUrl}
-                    src={avatarPreview || profile.avatarUrl + '?t=' + Date.now()}
+                    key={resolvedAvatarUrl}
+                    src={avatarPreview || resolvedAvatarUrl}
                     alt=""
                     className="w-full h-full object-cover"
                   />

@@ -1,4 +1,5 @@
 import type { ImgHTMLAttributes } from 'react';
+import { resolveMediaUrl } from '../../../utils/mediaUrl';
 
 type Size = 'xs' | 'sm' | 'md' | 'lg';
 
@@ -26,11 +27,12 @@ function getInitial(fallback: string): string {
 export function Avatar({ src, fallback, size = 'md', className = '', ...imgProps }: AvatarProps) {
   const initial = getInitial(fallback);
   const sizeClass = sizeClasses[size];
+  const resolvedSrc = resolveMediaUrl(src);
 
-  if (src && src.trim()) {
+  if (resolvedSrc) {
     return (
       <img
-        src={src}
+        src={resolvedSrc}
         alt=""
         loading="lazy"
         className={`inline-block rounded-full object-cover ring-2 ring-white dark:ring-gray-700 shadow-header ${sizeClass} ${className}`}
