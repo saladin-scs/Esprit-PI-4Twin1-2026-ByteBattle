@@ -7,6 +7,7 @@ import { useGamificationStore } from '../../stores/gamificationStore';
 import { motion } from 'framer-motion';
 import { Search, Crown, Medal, Flame, ChevronLeft, ChevronRight, TrendingUp, Users, Filter, Zap, Target, Trophy } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 interface LeaderboardUser {
   username: string;
@@ -174,6 +175,7 @@ function Leaderboard() {
           {podiumSlots.map(({ index, place, h, icon: Icon, ring }, idx) => {
             const u = podium[index];
             if (!u) return null;
+            const avatarSrc = resolveMediaUrl(u.avatarUrl);
             return (
             <motion.div
               key={place}
@@ -192,8 +194,8 @@ function Leaderboard() {
                   ring,
                 )}
               >
-                {u.avatarUrl ? (
-                  <img src={u.avatarUrl} alt="" className="h-full w-full rounded-2xl object-cover" />
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt="" className="h-full w-full rounded-2xl object-cover" />
                 ) : (
                   <Icon className="h-8 w-8 md:h-10 md:w-10" aria-hidden />
                 )}
@@ -389,6 +391,7 @@ function Leaderboard() {
                 ) : (
                   filteredItems.map((u, i) => {
                     const rank = startRank + i;
+                    const avatarSrc = resolveMediaUrl(u.avatarUrl);
                     const isYou = isCurrentUser(u);
                     const tier =
                       RANK_TIER_COLORS[u.rankTier as keyof typeof RANK_TIER_COLORS] ??
@@ -419,9 +422,9 @@ function Leaderboard() {
                         </td>
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            {u.avatarUrl ? (
+                            {avatarSrc ? (
                               <img
-                                src={u.avatarUrl}
+                                src={avatarSrc}
                                 alt=""
                                 className="h-10 w-10 rounded-xl object-cover ring-2 ring-slate-100 dark:ring-slate-700"
                               />

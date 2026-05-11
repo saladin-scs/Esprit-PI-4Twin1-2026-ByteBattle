@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Avatar } from '../../../shared/components';
 import type { LeaderboardEntry } from '../types';
 import type { CompetitionType } from '../types';
+import { resolveMediaUrl } from '../../../utils/mediaUrl';
 
 function formatDate(s: string): string {
   return new Date(s).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
@@ -24,6 +25,7 @@ function LeaderboardRowComponent({ entry, type, index }: LeaderboardRowProps) {
       : type === 'speed'
         ? `${entry.executionTimeMs} ms with ${entry.language}`
         : `${entry.score} pts · ${entry.language}`;
+  const avatarSrc = resolveMediaUrl(entry.avatarUrl);
 
   return (
     <motion.div
@@ -53,6 +55,7 @@ function LeaderboardRowComponent({ entry, type, index }: LeaderboardRowProps) {
         )}
       </span>
       <Avatar
+        src={avatarSrc}
         fallback={entry.username ?? entry.userId}
         size="sm"
         className="shrink-0"

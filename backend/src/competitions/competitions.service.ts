@@ -653,6 +653,7 @@ export class CompetitionsService {
       rank: number;
       userId: string;
       username?: string;
+      avatarUrl?: string;
       score: number;
       executionTimeMs: number;
       language: string;
@@ -678,7 +679,10 @@ export class CompetitionsService {
     const userMap = new Map(users.map((u: any) => [u._id.toString(), u]));
     entries.forEach((e) => {
       const u = userMap.get(e.userId);
-      if (u) e.username = u.username;
+      if (u) {
+        e.username = u.username;
+        e.avatarUrl = u.avatarUrl;
+      }
     });
 
     return { competitionId, type, entries };
