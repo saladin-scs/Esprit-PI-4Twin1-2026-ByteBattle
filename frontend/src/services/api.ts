@@ -88,7 +88,8 @@ analyzeCode: (data: {
   testsTotal?: number;
   executionError?: string;
   runtimeMs?: number;
-}) => apiClient.post<FeedbackResponse>('/ai/analyze-code', data),
+}) => apiClient.post<FeedbackResponse>('https://bytebattle-ai-service.onrender.com/ai/analyze-code', data),
+
  update: (id: string, challenge: any) => apiClient.patch(`/challenges/${id}`, challenge),
   delete: (id: string) => apiClient.delete(`/challenges/${id}`),
 };
