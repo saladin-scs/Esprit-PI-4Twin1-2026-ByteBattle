@@ -158,8 +158,6 @@ const Challenges = () => {
           )}
           {mlError && <div className="mt-3 text-sm text-red-600">{mlError}</div>}
         </section>
-          {mlError && <div className="mt-3 text-sm text-red-600">{mlError}</div>}
-        </section>
       )}
 
       <div className="relative mb-6 bb-card p-4 sm:p-5">
