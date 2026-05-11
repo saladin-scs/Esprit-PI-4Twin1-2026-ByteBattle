@@ -14,7 +14,6 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { PartialType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 export type Language = 'javascript' | 'python' | 'java' | 'cpp';

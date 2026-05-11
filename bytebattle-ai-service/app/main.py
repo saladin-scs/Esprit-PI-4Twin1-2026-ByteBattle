@@ -4,6 +4,7 @@ import logging
 import time
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware  # ✅ ADD THIS
 
 from app.core.config import setup_logging
 from app.routes.analyze import router as analyze_router
@@ -11,7 +12,6 @@ from app.routes.predictions import router as predictions_router
 from app.routes.recommendations import router as recommendations_router
 from app.routes.matchmaking import router as matchmaking_router
 from app.routes.analytics import router as analytics_router
-
 
 setup_logging()
 
@@ -23,15 +23,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS — allow any origin so Vercel previews and local dev ports work without allow-listing
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,  # must be False when allow_origins=["*"]
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """
-    Simple request logging middleware for basic observability.
-
-    Captures method, path, status code, and latency for every request.
-    """
-
     start = time.perf_counter()
     response = await call_next(request)
     duration_ms = (time.perf_counter() - start) * 1000
@@ -48,13 +50,18 @@ async def log_requests(request: Request, call_next):
 
     return response
 
+@app.get("/")
+async def root():
+    return {
+        "service": "ByteBattle AI Coach",
+        "status": "running",
+        "endpoints": ["/health", "/ai/analyze-code", "/ai/code/analyze"]
+    }
 
 @app.get("/health", tags=["System"])
 async def health_check():
     return {"status": "ok", "service": "ByteBattle AI Service"}
 
-
-# Include all routers
 app.include_router(analyze_router)
 app.include_router(predictions_router)
 app.include_router(recommendations_router)
@@ -76,4 +83,8 @@ async def root():
         "docs": "/docs",
     }
 
-
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

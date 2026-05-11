@@ -14,6 +14,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 const profileSchema = yup.object().shape({
   displayName: yup.string().max(50, 'Display name cannot exceed 50 characters').nullable(),
@@ -122,7 +123,7 @@ function ProfileSettings() {
           }
         }
       });
-      setAvatarUrl(res.data?.avatarUrl || res.data?.url || res.data || avatarUrl);
+      setAvatarUrl(res.data?.avatarUrl || res.data?.avatarPath || res.data?.url || res.data || avatarUrl);
       toast.success('Avatar uploaded successfully');
       dispatch(fetchMe());
     } catch (err: any) {
@@ -149,7 +150,7 @@ function ProfileSettings() {
           }
         }
       });
-      setCoverImage(res.data?.coverImage || res.data?.coverUrl || res.data?.url || res.data || coverImage);
+      setCoverImage(res.data?.coverImage || res.data?.coverUrl || res.data?.coverPath || res.data?.url || res.data || coverImage);
       toast.success('Cover uploaded successfully');
       dispatch(fetchMe());
     } catch (err: any) {
@@ -201,6 +202,9 @@ function ProfileSettings() {
       setLoading(false);
     }
   };
+
+  const resolvedAvatarUrl = resolveMediaUrl(avatarUrl);
+  const resolvedCoverImage = resolveMediaUrl(coverImage);
 
   return (
     <PageContainer maxWidth="4xl" className="py-8">
@@ -376,7 +380,7 @@ function ProfileSettings() {
             <div className="flex flex-col space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Avatar Image</label>
               <div className="flex items-center space-x-4 relative">
-                <Avatar src={avatarUrl} fallback={user?.displayName || user?.username || '?'} size="lg" className="w-20 h-20" />
+                <Avatar src={resolvedAvatarUrl} fallback={user?.displayName || user?.username || '?'} size="lg" className="w-20 h-20" />
                 <div className="flex-1">
                   <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors">
                     <Camera className="w-4 h-4" />
@@ -397,9 +401,9 @@ function ProfileSettings() {
             <div className="flex flex-col space-y-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Cover Image</label>
               <div className="flex-1 relative border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-center">
-                {coverImage ? (
+                {resolvedCoverImage ? (
                   <div className="relative w-full h-20 rounded overflow-hidden mb-2">
-                    <img src={coverImage} alt="Cover" loading="lazy" className="w-full h-full object-cover" />
+                    <img src={resolvedCoverImage} alt="Cover" loading="lazy" className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div className="w-full h-20 bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center mb-2">

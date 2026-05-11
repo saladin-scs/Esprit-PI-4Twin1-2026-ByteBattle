@@ -27,6 +27,7 @@ import { CodeExecutionService } from '../code-execution/code-execution.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { UsersService } from '../users/users.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RecommendationService } from '../recommendation/recommendation.service';
 
 const RECO_DIFF_ORD: Record<string, number> = { easy: 0, medium: 1, hard: 2, expert: 3 };
 
@@ -64,6 +65,7 @@ export class ChallengeService {
     private usersService: UsersService,
     private gamificationService: GamificationService,
     private notificationsService: NotificationsService,
+    private recommendationService: RecommendationService,
   ) {}
 
   /** Map challenge language to code-execution (Piston uses c++, local uses cpp) */
@@ -155,7 +157,8 @@ export class ChallengeService {
       '    String raw = sb.toString();',
       '    Map<String, String> map = new HashMap<>();',
       javaMapInit,
-      '    String out = map.containsKey(raw) ? map.get(raw) : map.getOrDefault(raw.trim(), "");',
+      '    String out = map.get(raw);',
+      '    if (out == null) out = map.getOrDefault(raw.trim(), "");',
       '    System.out.print(out);',
       '  }',
       '}',
@@ -185,11 +188,10 @@ export class ChallengeService {
       '  auto it = m.find(raw);',
       '  if (it != m.end()) {',
       '    cout << it->second;',
-      '    return 0;',
+      '  } else {',
+      '    string t = trim_copy(raw);',
+      '    if (m.count(t)) cout << m[t];',
       '  }',
-      '  string key = trim_copy(raw);',
-      '  auto it2 = m.find(key);',
-      '  if (it2 != m.end()) cout << it2->second;',
       '  return 0;',
       '}',
     ].join('\n');
@@ -197,8 +199,18 @@ export class ChallengeService {
     return { python, javascript, java, cpp };
   }
 
+  public normalizeLangKeys(obj: Record<string, any> | undefined): Record<string, any> {
+    if (!obj) return {};
+    const out: Record<string, any> = {};
+    for (const k in obj) {
+      const nk = k.toLowerCase() === 'c++' ? 'cpp' : k;
+      out[nk] = obj[k];
+    }
+    return out;
+  }
+
   /** Default starter code when challenge has none (works with normalized stdin). Java uses BufferedReader + StringTokenizer (competitive programming style). */
-  private static readonly DEFAULT_STARTER_CODE: Record<Language, string> = {
+  public static readonly DEFAULT_STARTER_CODE: Record<Language, string> = {
     python: 'def sum(a, b):\n    return a + b\n\na, b = map(int, input().split())\nprint(sum(a, b))',
     javascript: 'function sum(a, b) {\n  return a + b;\n}\n\nconst [a, b] = readline().split(/\\s+/).map(Number);\nconsole.log(sum(a, b));',
     java: `import java.io.*;
@@ -459,12 +471,21 @@ public class Solution {
     if (!dto.xpReward) {
       dto.xpReward = this.XP_MAP[dto.difficulty] ?? 50;
     }
-    dto.officialSolution = this.withOfficialSolutionFallback(dto.officialSolution as any, dto.starterCode as any);
+    // Normalize language keys in starterCode and officialSolution
+    dto.starterCode = this.normalizeLangKeys(dto.starterCode as any);
+    dto.officialSolution = this.withOfficialSolutionFallback(this.normalizeLangKeys(dto.officialSolution as any), dto.starterCode as any);
     return new this.challengeModel(dto).save();
   }
 
   // Update a challenge (admin)
   async update(id: string, dto: UpdateChallengeDto): Promise<ChallengeDocument> {
+    // Normalize language keys if provided
+    if ((dto as any).starterCode !== undefined) {
+      (dto as any).starterCode = this.normalizeLangKeys((dto as any).starterCode as any);
+    }
+    if ((dto as any).officialSolution !== undefined) {
+      (dto as any).officialSolution = this.normalizeLangKeys((dto as any).officialSolution as any);
+    }
     const payload: any = { ...dto };
     if ((dto.difficulty && dto.xpReward == null) || payload.xpReward == null) {
       const effectiveDifficulty = dto.difficulty;
@@ -640,6 +661,7 @@ public class Solution {
     const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
     const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
     const source = seedMatch?.starterCode ?? (challenge as any).starterCode;
+    const normalizedSource = this.normalizeLangKeys(source as any);
     const officialSource = (challenge as any).officialSolution as Partial<Record<Language, string>> | undefined;
     const acceptedFromTests = this.buildAcceptedStarterCodeFromTests((challenge as any).testCases);
     for (const lang of (challenge.languages || []) as Language[]) {
@@ -647,8 +669,8 @@ public class Solution {
         starterCode[lang] = acceptedFromTests[lang] as string;
       } else if (officialSource?.[lang]) {
         starterCode[lang] = officialSource[lang] as string;
-      } else if (source?.[lang]) {
-        starterCode[lang] = source[lang];
+      } else if (normalizedSource?.[lang]) {
+        starterCode[lang] = normalizedSource[lang];
       }
     }
 
@@ -668,12 +690,13 @@ public class Solution {
     const starterCode: Record<Language, string> = { ...ChallengeService.DEFAULT_STARTER_CODE };
     const seedMatch = SEED_CHALLENGES.find((s) => s.title === (challenge as any).title);
     const source = seedMatch?.starterCode ?? (challenge as any).starterCode;
+    const normalizedSource = this.normalizeLangKeys(source as any);
     const acceptedFromTests = this.buildAcceptedStarterCodeFromTests((challenge as any).testCases);
     for (const lang of ((challenge as any).languages || []) as Language[]) {
       if (acceptedFromTests?.[lang]) {
         starterCode[lang] = acceptedFromTests[lang] as string;
-      } else if (source?.[lang]) {
-        starterCode[lang] = source[lang];
+      } else if (normalizedSource?.[lang]) {
+        starterCode[lang] = normalizedSource[lang];
       }
     }
 
@@ -1322,75 +1345,40 @@ public class Solution {
   /** Heuristic picks from recent activity (tags, difficulty, popularity) — no external ML. */
   async recommendForUser(userId: string, limit = 12) {
     const lim = Math.min(24, Math.max(1, limit));
-    const oid = new Types.ObjectId(userId);
-    const [userDoc, solvedIds, recentSubs, publishedChallenges] = await Promise.all([
-      this.usersService.findOne(userId),
-      this.submissionModel.distinct('challengeId', { userId: oid, status: 'accepted' }),
-      this.submissionModel
-        .find({ userId: oid })
-        .sort({ createdAt: -1 })
-        .limit(40)
-        .populate({ path: 'challengeId', select: 'difficulty tags title' })
-        .lean()
-        .exec(),
-      this.challengeModel
-        .find({ isPublished: true })
-        .select('-testCases')
-        .lean()
-        .exec(),
-    ]);
+    const recommendations = await this.recommendationService.getRecommendations(userId, lim);
+    const requestedIds = recommendations.map((item) => String(item.itemId));
+    const validObjectIds = requestedIds.filter((id) => Types.ObjectId.isValid(id));
 
-    const solvedSet = new Set(solvedIds.map((id) => String(id)));
-    const tagWeights = new Map<string, number>();
-    const statusWeights: Record<string, number> = {
-      accepted: 1,
-      wrong_answer: 0.35,
-      runtime_error: 0.2,
-      time_limit: 0.2,
-      pending: 0.1,
-    };
-    for (const s of recentSubs) {
-      const st = statusWeights[s.status] ?? 0.15;
-      const ch = s.challengeId as { difficulty?: string; tags?: string[] } | null;
-      if (!ch?.tags) continue;
-      for (const t of ch.tags) tagWeights.set(t, (tagWeights.get(t) || 0) + st);
-    }
+    const foundChallenges = validObjectIds.length
+      ? await this.challengeModel
+          .find({ _id: { $in: validObjectIds } })
+          .select('-testCases')
+          .lean()
+          .exec()
+      : [];
 
-    const preferredDiff = this.preferredDifficulty(userDoc);
-    const prefLang = userDoc?.preferences?.preferredLanguage as string | undefined;
+    const challengeById = new Map(foundChallenges.map((c) => [String(c._id), c]));
 
-    type Scored = { score: number; c: (typeof publishedChallenges)[0] };
-    const ranked: Scored[] = [];
-    for (const c of publishedChallenges) {
-      const id = String(c._id);
-      if (solvedSet.has(id)) continue;
-
-      const wTag = 0.45;
-      const wSkill = 0.35;
-      const wPop = 0.15;
-      const wLang = 0.05;
-
-      const tagPart = this.tagOverlapScore(c.tags || [], tagWeights);
-      const skillPart = this.skillMatchScore(c.difficulty, preferredDiff);
-      const pop = Math.log1p((c as { totalAccepted?: number }).totalAccepted || 0);
-      const popN = Math.min(1, pop / 6);
-      let score = wTag * tagPart + wSkill * skillPart + wPop * popN;
-      if (prefLang && Array.isArray(c.languages) && c.languages.includes(prefLang as Language)) {
-        score += wLang;
-      }
-
-      ranked.push({ score, c });
-    }
-
-    ranked.sort((a, b) => b.score - a.score);
-    const challenges = ranked.slice(0, lim).map(({ c }) => ({
-      id: String(c._id),
-      title: c.title,
-      difficulty: c.difficulty,
-      tags: c.tags || [],
-      xpReward: c.xpReward,
-      languages: c.languages,
-    }));
+    const challenges = recommendations.map((item) => {
+      const matched = challengeById.get(String(item.itemId));
+      return matched
+        ? {
+            id: String(matched._id),
+            title: matched.title,
+            difficulty: matched.difficulty,
+            tags: matched.tags || [],
+            xpReward: matched.xpReward,
+            languages: matched.languages,
+          }
+        : {
+            id: item.itemId,
+            title: item.title || 'Recommended challenge',
+            difficulty: item.difficulty || 'medium',
+            tags: item.tags || [],
+            xpReward: item.xpReward,
+            languages: item.languages,
+          };
+    });
 
     return { challenges };
   }

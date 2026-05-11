@@ -8,6 +8,7 @@ import { SetupCache } from '../core/cache/setup-cache';
 
 type LeaderboardPeriod = 'all-time' | 'monthly' | 'weekly';
 type LeaderboardType = 'global' | 'speed' | 'code_golf' | 'algorithmic';
+const LEADERBOARD_CACHE_TTL_SECONDS = 60;
 
 interface LeaderboardEntry {
   rank: number;
@@ -201,9 +202,9 @@ export class LeaderboardService {
       generatedAt: new Date(),
     };
 
-    // Cache for 15 minutes
+    // Keep cache short so profile avatar updates appear quickly.
     try {
-      await this.cacheService.set(cacheKey, JSON.stringify(response), 900);
+      await this.cacheService.set(cacheKey, JSON.stringify(response), LEADERBOARD_CACHE_TTL_SECONDS);
     } catch (err) {
       // Continue without cache
     }
@@ -335,9 +336,7 @@ export class LeaderboardService {
   /**
    * Get user detailed stats
    */
-  async getUserDetailedStats(userId: string, period: LeaderboardPeriod = 'all-time') {
-    const dateFilter = this.getDateFilter(period);
-
+  async getUserDetailedStats(userId: string, _period: LeaderboardPeriod = 'all-time') {
     const user = await this.userModel.findById(userId);
     if (!user) return null;
 

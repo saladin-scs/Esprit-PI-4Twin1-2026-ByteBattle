@@ -83,10 +83,15 @@ export class UsersController {
   @ApiOperation({ summary: 'Upload avatar image' })
   async uploadAvatar(@Request() req, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
-    const baseUrl = process.env.API_URL || process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
-    const avatarUrl = `${baseUrl.replace(/\/$/, '')}/uploads/avatars/${file.filename}`;
+    const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
+    const protocol = forwardedProto || req?.protocol || 'http';
+    const host = typeof req?.get === 'function' ? req.get('host') : req?.headers?.host;
+    const inferredBaseUrl = host ? `${protocol}://${host}` : '';
+    const baseUrl = inferredBaseUrl || process.env.API_URL || process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+    const avatarPath = `/uploads/avatars/${file.filename}`;
+    const avatarUrl = `${baseUrl.replace(/\/$/, '')}${avatarPath}`;
     await this.usersService.updateAvatar(req.user.userId, avatarUrl);
-    return { avatarUrl };
+    return { avatarUrl, avatarPath };
   }
 
   @Post('me/cover')
@@ -120,10 +125,15 @@ export class UsersController {
   @ApiOperation({ summary: 'Upload cover image' })
   async uploadCover(@Request() req, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
-    const baseUrl = process.env.API_URL || process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
-    const coverUrl = `${baseUrl.replace(/\/$/, '')}/uploads/covers/${file.filename}`;
+    const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
+    const protocol = forwardedProto || req?.protocol || 'http';
+    const host = typeof req?.get === 'function' ? req.get('host') : req?.headers?.host;
+    const inferredBaseUrl = host ? `${protocol}://${host}` : '';
+    const baseUrl = inferredBaseUrl || process.env.API_URL || process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`;
+    const coverPath = `/uploads/covers/${file.filename}`;
+    const coverUrl = `${baseUrl.replace(/\/$/, '')}${coverPath}`;
     await this.usersService.updateCover(req.user.userId, coverUrl);
-    return { coverUrl, coverImage: coverUrl };
+    return { coverUrl, coverImage: coverUrl, coverPath };
   }
 
   @Post('me/change-password')

@@ -11,6 +11,12 @@ function SocialCallback() {
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const redirectTarget = sessionStorage.getItem('social_auth_redirect') || '/dashboard';
+
+  const finishSocialFlow = (target: string) => {
+    sessionStorage.removeItem('social_auth_redirect');
+    navigate(target, { replace: true });
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -33,7 +39,7 @@ function SocialCallback() {
       dispatch(fetchMe())
         .unwrap()
         .then(() => {
-          navigate('/dashboard');
+          finishSocialFlow(redirectTarget);
         })
         .catch((err) => {
           console.warn('fetchMe after OAuth:', unwrapRejectedMessage(err, 'Session could not be loaded'));
@@ -50,7 +56,7 @@ function SocialCallback() {
     setError('');
     try {
       await dispatch(verify2faLogin({ twoFactorToken, code, rememberMe: true })).unwrap();
-      navigate('/dashboard');
+      finishSocialFlow(redirectTarget);
     } catch (err: unknown) {
       setError(unwrapRejectedMessage(err, '2FA verification failed'));
     }

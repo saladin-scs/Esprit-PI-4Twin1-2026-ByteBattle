@@ -5,6 +5,7 @@ import { Trophy, Equal, ArrowLeft } from 'lucide-react';
 import { battleApi } from '../../services/api';
 import type { BattleResultPayload } from '../../hooks/useBattleSocket';
 import { RootState } from '../../store/store';
+import { BattleScoreCard } from '../../components/Battle';
 
 function userWonBattle(result: BattleResultPayload, myId: string): boolean {
   if (result.draw || !myId) return false;
@@ -68,7 +69,7 @@ export default function BattleResultPage() {
   const fmtDateTime = (iso?: string | null) => {
     if (!iso) return '—';
     const d = new Date(iso);
-    return `${d.toLocaleDateString()} ${d.toLocaleTimeString()} (${d.getMilliseconds()}ms)`;
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
   };
   const byUserId = new Map(result.players.map((p) => [p.userId, p]));
   const sortedPlayers = [...result.players].sort(
@@ -108,6 +109,7 @@ export default function BattleResultPage() {
           <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
             <tr>
               <th className="px-3 py-2">Player</th>
+              {teamMode && <th className="px-3 py-2">Team</th>}
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Submitted at</th>
               <th className="px-3 py-2 text-right">Total score</th>
@@ -136,6 +138,19 @@ export default function BattleResultPage() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {sortedPlayers.map((p) => (
+          <BattleScoreCard
+            key={`${p.userId}-card`}
+            username={p.username}
+            isYou={p.userId === myId}
+            submitted={p.submitted}
+            passed={p.passed}
+            submissionTime={p.submissionTime}
+            scoreBreakdown={p.scoreBreakdown}
+          />
+        ))}
       </div>
 
       {result.scoreWeights && (

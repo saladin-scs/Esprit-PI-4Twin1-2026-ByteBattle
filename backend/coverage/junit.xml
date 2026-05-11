@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="8" failures="0" errors="0" time="20.896">
+  <testsuite name="computeBattleWinner" errors="0" failures="0" skipped="0" timestamp="2026-05-05T20:54:18" time="12.589" tests="4">
+    <testcase classname="computeBattleWinner prioritizes full pass by weighted score" name="computeBattleWinner prioritizes full pass by weighted score" time="0.039">
+    </testcase>
+    <testcase classname="computeBattleWinner earlier submission wins when both pass" name="computeBattleWinner earlier submission wins when both pass" time="0.001">
+    </testcase>
+    <testcase classname="computeBattleWinner draw when fully tied on weighted+tie-break criteria" name="computeBattleWinner draw when fully tied on weighted+tie-break criteria" time="0.001">
+    </testcase>
+    <testcase classname="computeBattleWinner uses weighted + ratio tie-break when nobody fully passes" name="computeBattleWinner uses weighted + ratio tie-break when nobody fully passes" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="BattleService" errors="0" failures="0" skipped="0" timestamp="2026-05-05T20:54:18" time="17.079" tests="1">
+    <testcase classname="BattleService submitCode runs tests and emits opponent_submitted" name="BattleService submitCode runs tests and emits opponent_submitted" time="0.029">
+    </testcase>
+  </testsuite>
+  <testsuite name="HealthController" errors="0" failures="0" skipped="0" timestamp="2026-05-05T20:54:18" time="18.54" tests="3">
+    <testcase classname="HealthController returns liveness information" name="HealthController returns liveness information" time="0.013">
+    </testcase>
+    <testcase classname="HealthController returns 200 when mongodb is connected" name="HealthController returns 200 when mongodb is connected" time="0.003">
+    </testcase>
+    <testcase classname="HealthController returns 503 when mongodb is disconnected" name="HealthController returns 503 when mongodb is disconnected" time="0.001">
+    </testcase>
+  </testsuite>
+</testsuites>

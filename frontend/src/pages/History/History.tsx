@@ -4,6 +4,7 @@ import { challengesApi, competitionsApi } from '../../services/api';
 import { Clock, Trophy, Code2, CheckCircle2, ChevronRight, History as HistoryIcon, Swords, AlertTriangle, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { ByteBattleLogo } from '../../components/ByteBattleLogo';
 
 /* ───── Types ───── */
 interface SubmissionRow {
@@ -155,7 +156,9 @@ function History() {
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         {/* ──── Header ──── */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="mb-4 flex items-center gap-3">
+            <ByteBattleLogo className="h-10 w-auto shrink-0" alt="ByteBattle" />
+            <div className="h-10 w-px bg-slate-200 dark:bg-slate-700" aria-hidden />
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
               <HistoryIcon className="h-5 w-5 text-white" />
             </div>

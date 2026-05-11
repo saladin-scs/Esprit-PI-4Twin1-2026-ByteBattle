@@ -52,3 +52,7 @@ frontend/dist/
 frontend/.env
 
 backend/mongodb-data/
+
+# OpenCode local files
+.opencode/
+opencode.json

@@ -1,4 +1,4 @@
-/* eslint-disable prettier/prettier */ // restart
+/* eslint-disable prettier/prettier */
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -9,95 +9,98 @@ import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { randomUUID } from 'crypto';
+import { httpRequestDurationSeconds, httpRequestsTotal } from './health/prometheus';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  /* ===============================
+     SAFE PORT (RENDER COMPATIBLE)
+  =============================== */
+  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+
+  /* ===============================
+     REQUEST LOGGER
+  =============================== */
   app.use((req: any, res: any, next: any) => {
     const id =
       (typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].trim()) ||
       randomUUID();
+
     req.correlationId = id;
     res.setHeader('X-Request-Id', id);
+
     const start = Date.now();
+
     res.on('finish', () => {
-      try {
-        console.log(
-          JSON.stringify({
-            level: 'http',
-            correlationId: id,
-            method: req.method,
-            path: req.originalUrl?.split('?')[0] ?? req.url,
-            status: res.statusCode,
-            ms: Date.now() - start,
-          }),
-        );
-      } catch {
-        /* ignore */
-      }
+      const route = req.route?.path || req.originalUrl?.split('?')[0] || req.url;
+
+      const labels = {
+        method: req.method,
+        route,
+        status_code: String(res.statusCode),
+      };
+
+      httpRequestsTotal.inc(labels);
+      httpRequestDurationSeconds.observe(labels, (Date.now() - start) / 1000);
     });
+
     next();
   });
 
-  // Serve uploaded files (avatars, covers)
+  /* ===============================
+     STATIC FILES
+  =============================== */
   const uploadsPath = join(process.cwd(), 'uploads');
   app.use('/uploads', express.static(uploadsPath));
 
+  /* ===============================
+     BODY LIMIT
+  =============================== */
   const bodyLimit = process.env.HTTP_BODY_LIMIT || '1mb';
   app.use(json({ limit: bodyLimit }));
   app.use(urlencoded({ extended: true, limit: bodyLimit }));
 
+  /* ===============================
+     SECURITY
+  =============================== */
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
   );
 
-  // Enable CORS
-  const corsOrigins = (
-    process.env.CORS_ORIGIN ||
-    'http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175'
-  )
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const nodeEnv = process.env.NODE_ENV || 'development';
-  const localhostOriginOk = (o: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(o);
-
+  /* ===============================
+     CORS SAFE CONFIG
+  =============================== */
   app.enableCors({
-    origin: (origin, callback) => {
-      // Allow non-browser requests (no origin) like curl/Postman
-      if (!origin) return callback(null, true);
-      if (corsOrigins.includes(origin)) return callback(null, true);
-      if (nodeEnv !== 'production' && localhostOriginOk(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'), false);
-    },
+    origin: true,
     credentials: true,
   });
 
-  const pointsPerMinute = Number(process.env.RATE_LIMIT_POINTS_PER_MINUTE || 120);
+  /* ===============================
+     RATE LIMITER
+  =============================== */
   const rateLimiter = new RateLimiterMemory({
-    points: Number.isFinite(pointsPerMinute) ? pointsPerMinute : 120,
+    points: Number(process.env.RATE_LIMIT_POINTS_PER_MINUTE || 120),
     duration: 60,
   });
 
   app.use(async (req: any, res: any, next: any) => {
     try {
-      const key = req.ip || req.connection?.remoteAddress || 'unknown';
-      if (req.path === '/health' || req.path?.startsWith('/health/')) return next();
-      // softer for swagger/assets
-      if (req.path?.startsWith('/api')) return next();
+      const key = req.ip || 'unknown';
+      if (req.path === '/health' || req.path === '/metrics') return next();
+
       await rateLimiter.consume(key, 1);
       return next();
     } catch {
-      return res.status(429).json({
-        statusCode: 429,
-        message: 'Too many requests',
-      });
+      return res.status(429).json({ message: 'Too many requests' });
     }
   });
 
-  // Global validation pipe
+  /* ===============================
+     VALIDATION PIPE
+  =============================== */
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -106,20 +109,38 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger API Documentation
+  /* ===============================
+     SWAGGER
+  =============================== */
   const config = new DocumentBuilder()
     .setTitle('ByteBattle API')
-    .setDescription('Real-Time Collaborative Coding Challenge Platform API')
+    .setDescription('Production API')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  const port = process.env.PORT || 3000;
-  await app.listen(port);
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📚 Swagger documentation: http://localhost:${port}/api`);
+  /* ===============================
+     HEALTH ENDPOINT (REQUIRED)
+  =============================== */
+  app.getHttpAdapter().getInstance().get('/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      port,
+      ml_service_1: process.env.ML_SERVICE_URL_1 || null,
+      ml_service_2: process.env.ML_SERVICE_URL_2 || null,
+    });
+  });
+
+  /* ===============================
+     START SERVER
+  =============================== */
+  await app.listen(port, '0.0.0.0');
+
+  console.log(`🚀 Server running on port ${port}`);
+  console.log(`📚 Swagger: /api`);
 }
 
 bootstrap();

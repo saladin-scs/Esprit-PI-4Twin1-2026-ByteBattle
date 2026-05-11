@@ -518,6 +518,7 @@ function Auth() {
 
   // Social login
   const redirectToSocial = (provider: 'google' | 'github') => {
+    sessionStorage.setItem('social_auth_redirect', redirectTarget);
     window.location.href = `${API_URL}/auth/${provider}`;
   };
 

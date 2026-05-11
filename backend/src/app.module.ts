@@ -7,6 +7,7 @@ import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { validateConfig } from './config/validation';
+import { normalizeMongoUri } from './config/mongo-uri';
 import { ChallengeModule } from './challenges/challenges.module';
 import { CodeExecutionModule } from './code-execution/code-execution.module';
 import { GamificationModule } from './gamification/gamification.module';
@@ -16,7 +17,6 @@ import { SiteRatingsModule } from './site-ratings/site-ratings.module';
 import { ChatModule } from './chat/chat.module';
 import { BattleModule } from './battle/battle.module';
 import { FeedbackModule } from './feedback/feedback.module';
-import { AIModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -36,7 +36,7 @@ import { AIModule } from './ai/ai.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        uri: configService.get('MONGODB_URI'),
+        uri: normalizeMongoUri(configService.get('MONGODB_URI')),
       }),
     }),
     AuthModule,
@@ -47,10 +47,10 @@ import { AIModule } from './ai/ai.module';
     CompetitionsModule,
     LeaderboardModule,
     SiteRatingsModule,
+    FeedbackModule,
     ChatModule,
     BattleModule,
     FeedbackModule,
-    AIModule,
   ],
 })
 export class AppModule {}

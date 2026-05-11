@@ -5,6 +5,7 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trophy, Zap, TrendingUp, ChevronRight } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import type { RankProgress } from '../../stores/gamificationStore';
 
 const RANK_TIER_COLORS: Record<string, string> = {
@@ -44,7 +45,7 @@ export function SubmissionSuccessModal({
 
   return (
     <AnimatePresence>
-      {open && (
+      {open && createPortal(
         <>
           <motion.div
             initial={{ opacity: 0 }}
@@ -60,16 +61,17 @@ export function SubmissionSuccessModal({
             <Confetti />
           </div>
 
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="success-modal-title"
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-emerald-500/30 bg-white p-6 shadow-2xl dark:border-emerald-400/30 dark:bg-gray-900"
-          >
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="success-modal-title"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="w-full max-w-md rounded-3xl border border-emerald-500/30 bg-white p-6 shadow-2xl dark:border-emerald-400/30 dark:bg-gray-900"
+            >
             <div className="flex justify-end">
               <button
                 type="button"
@@ -196,8 +198,10 @@ export function SubmissionSuccessModal({
                 </span>
               </motion.button>
             </div>
-          </motion.div>
-        </>
+            </motion.div>
+          </div>
+        </>,
+        document.body,
       )}
     </AnimatePresence>
   );

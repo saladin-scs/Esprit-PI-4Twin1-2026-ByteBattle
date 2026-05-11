@@ -68,6 +68,10 @@ async function run() {
     await mongoose.connect(uri);
     console.log('✓ Connected to MongoDB');
 
+    console.log('🗑 Deleting existing competitions...');
+    await CompetitionModel.deleteMany({});
+    console.log('✓ All competitions deleted');
+
     let insertedCount = 0;
     let skippedCount = 0;
     let patchedCount = 0;

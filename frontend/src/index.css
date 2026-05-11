@@ -88,6 +88,13 @@
   .bb-skeleton-card {
     @apply animate-pulse rounded-2xl border border-slate-200 bg-slate-100/80 p-5 dark:border-slate-700 dark:bg-slate-800/60;
   }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 :root {
@@ -122,5 +129,40 @@ body {
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/* react-phone-input-2: make country dropdown theme-aware */
+.react-tel-input .flag-dropdown .country-list {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+}
+.react-tel-input .flag-dropdown .country-list .country {
+  background: transparent;
+  color: inherit;
+}
+.react-tel-input .flag-dropdown .country-list .country:hover {
+  background: #f3f4f6;
+}
+
+/* Dark mode overrides */
+.dark .react-tel-input .flag-dropdown .country-list {
+  background: #0b1220; /* dark slate */
+  color: #d1d5db; /* slate-300 */
+  border-color: rgba(255,255,255,0.06);
+}
+.dark .react-tel-input .flag-dropdown .country-list .country:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+/* Ensure the inline search input inside the dropdown inherits theme */
+.react-tel-input .flag-dropdown input[type="search"] {
+  background: transparent;
+  color: inherit;
+  border: none;
+}
+.dark .react-tel-input .flag-dropdown input[type="search"] {
+  background: transparent;
+  color: #d1d5db;
 }
 
