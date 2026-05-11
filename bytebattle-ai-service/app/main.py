@@ -38,6 +38,20 @@ async def log_requests(request: Request, call_next):
 
     return response
 
+# ✅ ADD THIS ROOT ENDPOINT
+@app.get("/", tags=["System"])
+async def root():
+    return {
+        "service": "ByteBattle AI Coach",
+        "status": "operational",
+        "endpoints": [
+            "GET /health",
+            "GET /",
+            "POST /ai/analyze-code",
+            "POST /ai/code/analyze"
+        ]
+    }
+
 @app.get("/health", tags=["System"])
 async def health_check():
     return {"status": "ok"}
