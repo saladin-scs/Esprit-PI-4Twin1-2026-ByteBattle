@@ -156,48 +156,8 @@ const Challenges = () => {
               </div>
             ))
           )}
-          {mlError && <div className="mt-3 text-sm text-red-600">{mlError}</div>       onClick={() => navigate(`/challenges/${rec.challengeId}`)}
-                  className="min-w-[200px] max-w-[260px] shrink-0 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-primary-400 dark:border-slate-600 dark:bg-slate-900/40 dark:hover:border-primary-500"
-                >
-                  <div className="line-clamp-2 font-medium text-slate-900 dark:text-white">{rec.challengeName || rec.title}</div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <DifficultyBadge difficulty={rec.difficulty || 'Medium'} size="sm" />
-                    {rec.xpReward != null && (
-                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">+{rec.xpReward} XP</span>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : (
-            // fallback to original lightweight recommendations
-            (recoLoading ? (
-              <div className="flex justify-center py-6">
-                <Spinner />
-              </div>
-            ) : reco.length === 0 ? (
-              <p className="text-sm text-slate-500">Solve a challenge to improve recommendations.</p>
-            ) : (
-              <div className="flex gap-3 overflow-x-auto pb-1">
-                {reco.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => navigate(`/challenges/${c.id}`)}
-                    className="min-w-[200px] max-w-[240px] shrink-0 rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-primary-400 dark:border-slate-600 dark:bg-slate-900/40 dark:hover:border-primary-500"
-                  >
-                    <div className="line-clamp-2 font-medium text-slate-900 dark:text-white">{c.title}</div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <DifficultyBadge difficulty={c.difficulty} size="sm" />
-                      {c.xpReward != null && (
-                        <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">+{c.xpReward} XP</span>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ))
-          )}
+          {mlError && <div className="mt-3 text-sm text-red-600">{mlError}</div>}
+        </section>
           {mlError && <div className="mt-3 text-sm text-red-600">{mlError}</div>}
         </section>
       )}
