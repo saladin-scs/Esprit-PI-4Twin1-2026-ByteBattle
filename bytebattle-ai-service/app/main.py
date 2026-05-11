@@ -15,17 +15,13 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="ByteBattle AI Service")
 
-# ✅ ADD CORS MIDDLEWARE - THIS FIXES THE PROBLEM
+# CORS — allow any origin so Vercel previews and local dev ports work without allow-listing
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://esprit-pi-4-twin1-2026-byte-battle-umber.vercel.app",
-        "http://localhost:3000",  # For local development
-        "https://bytebattle-api-fcwm.onrender.com",  # NestJS backend if needed
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_origins=["*"],
+    allow_credentials=False,  # must be False when allow_origins=["*"]
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.middleware("http")

@@ -126,15 +126,24 @@ export function AiCodeFeedbackPanel({
         code,
         language,
         taskDescription,
-        testsPassed,
+        testsPassed: testsPassedCount !== undefined && testsTotal !== undefined
+          ? testsPassedCount === testsTotal
+          : testsPassed,
         testsPassedCount,
         testsTotal,
         executionError,
         runtimeMs,
       });
-      setFeedback(response.data);
-      lastAnalyzedSig.current = contextSig;
-      setStatusMessage(null);
+
+      const data = response?.data;
+      if (data && typeof data.overall_score === 'number') {
+        setFeedback(data);
+        lastAnalyzedSig.current = contextSig;
+        setStatusMessage(null);
+      } else {
+        setErr('AI service returned an unexpected response. Please try again.');
+        setStatusMessage(null);
+      }
     } catch (ax: any) {
       if (ax.response?.status === 401) {
         localStorage.removeItem('token');
